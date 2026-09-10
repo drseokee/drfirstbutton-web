@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>발목 염좌 — 3D 환자 설명</title>
+<style>
+  :root { --bg0:#1a2130; --bg1:#0d1119; --panel:rgba(16,21,31,.84); --ink:#e8ecf3; --dim:#9aa5b8; --line:rgba(255,255,255,.12); --acc:#f2c94c; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:radial-gradient(120% 90% at 50% 40%, var(--bg0), var(--bg1)); color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; touch-action:none; }
+  #panel { position:fixed; top:16px; left:16px; width:240px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:14px; backdrop-filter:blur(8px); font-size:13px; line-height:1.5; }
+  #panel h1 { font-size:15px; font-weight:600; margin:0 0 2px; }
+  #panel .sub { color:var(--dim); font-size:12px; margin:0 0 10px; }
+  #panel h2 { font-size:12px; font-weight:500; color:var(--dim); margin:12px 0 6px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; background:transparent; color:var(--ink); border:0; padding:7px 0; font:inherit; font-size:13px; cursor:pointer; }
+  .seg button.on { background:var(--acc); color:#1a1400; font-weight:600; }
+  label.row { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; user-select:none; }
+  label.row input[type=checkbox] { accent-color:var(--acc); width:15px; height:15px; margin:0; }
+  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .views { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .views button { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid var(--line); border-radius:7px;
+    padding:6px 4px; font:inherit; font-size:12px; cursor:pointer; }
+  .views button:hover { background:rgba(255,255,255,.12); }
+  button:focus-visible, label.row:focus-within { outline:2px solid var(--acc); outline-offset:2px; }
+  #hint { color:var(--dim); font-size:11.5px; margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  #tag { position:fixed; pointer-events:none; background:rgba(0,0,0,.72); color:#fff; padding:4px 8px; border-radius:6px;
+    font-size:12.5px; transform:translate(12px,-50%); display:none; white-space:nowrap; }
+  #tag small { color:#c8cfdb; margin-left:6px; }
+  #foot { position:fixed; right:14px; bottom:10px; color:var(--dim); font-size:11px; }
+  #scale { position:fixed; left:16px; bottom:12px; color:var(--dim); font-size:11px; }
+  #scale i { display:block; height:0; border-bottom:2px solid var(--dim); margin-bottom:3px; }
+  @media (max-width:520px){ #panel{ width:auto; right:16px; font-size:12px; } .views{ grid-template-columns:repeat(3,1fr); } }
+#stages { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 6px; backdrop-filter: blur(8px); }
+#stages button { background: transparent; color: #cfc7b8; border: none; padding: 8px 14px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+#stages button.on { background: #e5b04a; color: #1a1200; font-weight: 700; }
+#subbar { position: fixed; left: 50%; bottom: 66px; transform: translateX(-50%); display: none; gap: 6px; z-index: 12; }
+.sub-btn { background: rgba(16,26,44,.85); color: #cfc7b8; border: 1px solid rgba(243,238,228,.16); padding: 7px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
+.sub-btn.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
+#caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f3eee4; z-index: 12; }
+#twist { position: fixed; right: 18px; bottom: 18px; z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 12px; padding: 10px 14px; display: none; gap: 8px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
+#twist input { width: 140px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="caption"></div>
+<div id="subbar"></div>
+<div id="twist"><span>발목 꺾기</span><input id="twistRange" type="range" min="0" max="100" value="0"><button class="sub-btn" id="twistPlay">▶ 재생</button></div>
+<div id="stages"></div>
+<div id="panel">
+  <h1>발목 염좌</h1>
+  <p class="sub">오른발 · 바깥쪽 인대(전거비인대) 손상 기준</p>
+  
+  <h2>층 보이기</h2>
+  <label class="row"><input type="checkbox" data-layer="skin" checked><span class="sw" style="background:#d9a58f"></span>피부</label>
+  <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
+  <label class="row"><input type="checkbox" data-layer="muscle" checked><span class="sw" style="background:#a04a48"></span>근육</label>
+  <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
+  <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대·지대</label>
+  <label class="row"><input type="checkbox" data-layer="nerve" checked><span class="sw" style="background:#f2c94c"></span>신경</label>
+  <label class="row"><input type="checkbox" data-layer="vessel" checked><span class="sw" style="background:linear-gradient(90deg,#b03a3a 50%,#3f5fa8 50%)"></span>혈관 (동맥 붉음·정맥 파랑)</label>
+  <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
+  <h2>표현</h2>
+  <label class="row"><input type="checkbox" id="outline">윤곽선 (얇게)</label>
+  <label class="row"><input type="checkbox" id="rimshade" checked>가장자리 음영</label>
+  <input type="range" id="rimamt" min="0.5" max="3" step="0.1" value="1.6" title="음영 강도">
+  <h2>보는 방향</h2>
+  <div class="views">
+    <button data-view="lateral">바깥쪽</button>
+    <button data-view="anterior">앞</button>
+    <button data-view="medial">안쪽</button>
+    <button data-view="posterior">뒤</button>
+    <button data-view="top">위</button>
+    <button data-view="reset">원래대로</button>
+  </div>
+  <div id="hint">드래그: 회전 · 휠/두 손가락: 확대 · 우클릭 드래그: 이동<br>구조에 마우스를 올리면 이름이 보입니다</div>
+</div>
+<div id="tag"></div>
+<div id="scale"><i style="width:60px"></i>1 cm</div>
+<div id="foot">모델: Z-Anatomy (CC BY-SA 4.0) · BodyParts3D</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = __DATA__;
+const KO = {
+  bone__tibia_distal:"경골 (원위부)", bone__fibula_distal:"비골 (원위부, 바깥복사뼈)", bone__talus:"거골", bone__calcaneus:"종골 (발꿈치뼈)", bone__navicular:"주상골", bone__cuboid:"입방골",
+  bone__cun_med:"내측 설상골", bone__cun_int:"중간 설상골", bone__cun_lat:"외측 설상골",
+  bone__mt1:"제1중족골", bone__mt2:"제2중족골", bone__mt3:"제3중족골", bone__mt4:"제4중족골", bone__mt5:"제5중족골",
+  lig__atfl:"전거비인대 (ATFL) — 생성", lig__cfl:"종비인대 (CFL) — 생성", lig__ptfl:"후거비인대 (PTFL) — 생성",
+  lig__ant_tibfib:"전경비인대", lig__post_tibfib:"후경비인대", lig__talocalc_interosseous:"거종골간인대", lig__lat_talocalc:"외측 거종인대",
+  lig__spring:"스프링인대", lig__bifurcate:"이분인대", lig__dorsal_talonav:"배측 거주상인대", lig__dorsal_calccub:"배측 종입방인대",
+  lig__sup_fib_retinaculum:"상비골지대", lig__inf_fib_retinaculum:"하비골지대", lig__sup_ext_retinaculum:"상신근지대", lig__inf_ext_retinaculum:"하신근지대",
+  tendon__fibularis_longus:"장비골근(힘줄)", tendon__fibularis_brevis:"단비골근(힘줄)", tendon__tibialis_ant:"전경골근", tendon__tibialis_post:"후경골근",
+  tendon__ehl:"장무지신근", tendon__edl:"장지신근", tendon__fhl:"장무지굴근", tendon__fdl:"장지굴근", tendon__achilles:"아킬레스건", tendon__fibularis_tertius:"제3비골근",
+  muscle__soleus:"가자미근", muscle__gastrocnemius:"비복근", muscle__edb:"단지신근·단무지신근", muscle__abd_hallucis:"무지외전근", muscle__abd_dig_min:"소지외전근", muscle__fdb:"단지굴근", muscle__plantar_aponeurosis:"족저근막",
+  nerve__sural:"비복신경", nerve__sup_fibular:"천비골신경", nerve__sup_fibular_digital:"천비골신경 발등 가지", nerve__med_dorsal_cut:"내측 족배피신경 (천비골신경 가지)", nerve__int_dorsal_cut:"중간 족배피신경 (천비골신경 가지)", nerve__deep_fibular:"심비골신경", nerve__tibial:"경골신경",
+  vessel__small_saphenous:"소복재정맥", vessel__great_saphenous:"대복재정맥", vessel__post_tibial_a:"후경골동맥", vessel__ant_tibial_a:"전경골동맥", vessel__dorsalis_pedis:"족배동맥", skin__foot:"피부"
+};
+for (const [i, w] of [[1,'엄지'],[2,'둘째'],[3,'셋째'],[4,'넷째'],[5,'새끼']]) { KO['bone__pp'+i] = w+'발가락 기절골'; KO['bone__mp'+i] = w+'발가락 중절골'; KO['bone__dp'+i] = w+'발가락 말절골'; }
+const COL = { bone:0xdccfb4, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, vessel:0xb03a3a };
+const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, vessel:0.8 };
+const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, vessel:0.45 };
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const root = new THREE.Group(); scene.add(root);   // everything hangs off root (rig groups, live ligaments, props)
+const byName = {};
+const camera = new THREE.PerspectiveCamera(32, 1, 0.003, 5);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4256, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 0.8); scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfd0ff, 0.3); fill.position.set(-0.6, -0.2, 0.4); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.45); rim.position.set(0, 0.4, -1); scene.add(rim);
+
+// anatomical -> screen axes: radial(-x)->+X, distal(-z)->+Y, palmar(-y)->+Z
+const meshes = [];
+const RIM = { value: 1.9 }, OUTW = { value: 0.00012 };
+function hash(s){ let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1000003; return h; }
+for (const o of DATA.objects) {
+  const v = o.verts, pos = new Float32Array(v.length);
+  for (let i = 0; i < v.length; i += 3) { pos[i] = -v[i+1]; pos[i+1] = v[i+2]; pos[i+2] = -v[i]; }   // 발: 앞=+X, 위=+Y, 바깥=+Z
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(o.tris); g.computeVertexNormals();
+  // cut faces (facing +Y = toward the removed hand) are shaded darker so the section reads like an illustration
+  const isCut = o.name.endsWith('__cut'), col = new Float32Array(pos.length).fill(1);
+  if (isCut && CAP_SHADE[o.layer] < 1) {
+    const nrm = g.getAttribute('normal').array, k = CAP_SHADE[o.layer];
+    for (let i = 0; i < nrm.length; i += 3) if (nrm[i+1] > 0.97) { col[i] = col[i+1] = col[i+2] = k; }
+  }
+  if (o.ao) { for (let i = 0; i < o.ao.length; i++) { const s = 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }   // baked ambient occlusion: crevices and contacts darken
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  // subtle per-object tint so neighbouring bones / tendons don't merge into one white mass
+  const tint = new THREE.Color(COL[o.layer]);
+  if (o.layer === 'bone' || o.layer === 'tendon') { const h = hash(o.name); tint.offsetHSL((h % 7 - 3) * 0.004, (h % 5 - 2) * 0.02, (h % 4 - 1.5) * 0.035); }
+  const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH[o.layer], metalness:0, vertexColors: true,
+    transparent: o.layer==='skin', opacity: 1, side: THREE.DoubleSide });
+  m.onBeforeCompile = sh => {   // fresnel edge darkening: surfaces turning away from the eye get darker -> visible boundaries
+    sh.uniforms.uRim = RIM;
+    sh.fragmentShader = 'uniform float uRim;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));');
+  };
+  if (/^lig__(atfl|cfl|ptfl)$/.test(o.name)) { m.color.setHex(0x4f86e0); m.roughness = 0.45; }
+  if (/saphenous/.test(o.name)) m.color.setHex(0x3f5fa8);   // veins blue, arteries red
+  if (o.layer === 'lig' && !/^lig__(atfl|cfl|ptfl)$/.test(o.name)) { m.transparent = true; m.opacity = 0.32; m.depthWrite = false; m.color.setHex(0xc7d3e2); }   // retinacula & background ligaments: quiet
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (m.transparent ? '_t' : '');
+  const mesh = new THREE.Mesh(g, m);
+  if (o.layer !== 'skin') {   // inverted-hull outline
+    const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
+    om.onBeforeCompile = sh => { sh.uniforms.uW = OUTW;
+      sh.vertexShader = 'uniform float uW;\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * uW;'); };
+    const hull = new THREE.Mesh(g, om); hull.renderOrder = -1; hull.visible = false; mesh.userData.hull = hull; mesh.add(hull);
+  }
+  mesh.name = o.name; mesh.userData.layer = o.layer; mesh.userData.cut = o.name.endsWith('__cut');
+  mesh.userData.base = o.name.replace(/__cut$/, '');
+  mesh.renderOrder = o.layer === 'skin' ? 10 : 0;
+  if (o.w) mesh.userData.w = o.w;
+  root.add(mesh); meshes.push(mesh); byName[mesh.name] = mesh;
+}
+
+// ---------- state ----------
+const state = { mode:'full', layers:{ skin:true, muscle:true, tendon:true, lig:true, nerve:true, bone:true, vessel:true }, skinOp:1, twist:0, twistMax:1, playing:false, grade:0, inflam:0, heal:0, brace:0, swelling:0, suture:0, torn:0 };
+function applyVisibility(){
+  for (const m of meshes) {
+    if (m.userData.static) { m.visible = false; continue; }
+    const inMode = state.mode === 'cut' ? m.userData.cut : !m.userData.cut;
+    m.visible = inMode && state.layers[m.userData.layer];
+    if (m.userData.layer === 'skin') { m.material.opacity = state.skinOp; m.material.depthWrite = state.skinOp > 0.95; }
+  }
+}
+
+// ---------- free orbit camera ----------
+const target = new THREE.Vector3();
+const off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
+function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
+  key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
+const VIEWS = {
+  lateral:  { off:[0.15,0.1,1],  up:[0,1,0], r:0.34 },
+  anterior: { off:[1,0.15,0.2],  up:[0,1,0], r:0.34 },
+  medial:   { off:[-0.15,0.1,-1],up:[0,1,0], r:0.34 },
+  posterior:{ off:[-1,0.15,0.2], up:[0,1,0], r:0.34 },
+  top:      { off:[0.1,1,0.3],   up:[0,0,1], r:0.34 },
+};
+function setView(name){
+  if (name === 'reset') name = 'lateral';
+  const v = VIEWS[name]; target.set(0,0,0);
+  off.set(...v.off).normalize().multiplyScalar(v.r); up.set(...v.up);
+  const f = target.clone().sub(camera.position.copy(target).add(off)).normalize(); // orthogonalize up
+  up.sub(f.clone().multiplyScalar(up.dot(f))).normalize();
+  applyCam();
+}
+function rotate(dx, dy){
+  const f = target.clone().sub(camera.position).normalize();
+  const right = new THREE.Vector3().crossVectors(f, up).normalize();
+  const q = new THREE.Quaternion().setFromAxisAngle(up, -dx * 0.007)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(right, -dy * 0.007));
+  off.applyQuaternion(q); up.applyQuaternion(q).normalize();
+  applyCam();
+}
+let drag = null, pinch0 = 0; const pointers = new Set();
+canvas.addEventListener('pointerdown', e => { pointers.add(e.pointerId); drag = { x:e.clientX, y:e.clientY, b:e.button, shift:e.shiftKey }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', e => { pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointermove', e => {
+  hover(e);
+  if (!drag || pointers.size > 1) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.b === 2 || drag.shift) {
+    const k = off.length() * 0.0016;
+    const right = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    target.addScaledVector(right, -dx*k).addScaledVector(u, dy*k); applyCam();
+  } else rotate(dx, dy);
+});
+function zoom(f){ const r = Math.min(0.9, Math.max(0.02, off.length() * f)); off.setLength(r); applyCam(); }
+canvas.addEventListener('wheel', e => { e.preventDefault(); zoom(Math.exp(e.deltaY * 0.0012)); }, { passive:false });
+canvas.addEventListener('touchstart', e => { if (e.touches.length===2) pinch0 = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
+canvas.addEventListener('touchmove', e => { if (e.touches.length===2){ const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch0/d); pinch0 = d; } }, {passive:true});
+
+// ---------- hover ----------
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), tag = document.getElementById('tag');
+let hovered = null;
+function hover(e){
+  ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible && !(m.userData.layer==='skin' && state.skinOp < 0.5)))[0];
+  if (hovered && hovered !== (hit && hit.object)) { hovered.material.emissive.setHex(0); hovered = null; }
+  if (hit) {
+    hovered = hit.object; hovered.material.emissive.setHex(0x3a2f00);
+    tag.style.display = 'block'; tag.style.left = e.clientX + 'px'; tag.style.top = e.clientY + 'px';
+    tag.innerHTML = (KO[hovered.userData.base] || hovered.userData.base) + '<small>' + hovered.name + '</small>';
+  } else tag.style.display = 'none';
+}
+
+// ---------- ui ----------
+document.querySelectorAll('button[data-mode]').forEach(b => b.addEventListener('click', () => {
+  state.mode = b.dataset.mode;
+  document.querySelectorAll('button[data-mode]').forEach(x => x.classList.toggle('on', x === b));
+  if (state.mode === 'cut') { state.layers.skin = false; state.layers.muscle = false; }
+  else { state.layers.skin = true; state.layers.muscle = true; }
+  document.querySelectorAll('input[data-layer]').forEach(cb => cb.checked = state.layers[cb.dataset.layer]);
+  applyVisibility(); setView('reset');
+}));
+document.querySelectorAll('input[data-layer]').forEach(cb => cb.addEventListener('change', () => { state.layers[cb.dataset.layer] = cb.checked; applyVisibility(); }));
+document.getElementById('skinop').addEventListener('input', e => { state.skinOp = +e.target.value; applyVisibility(); });
+document.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+document.getElementById('outline').addEventListener('change', e => { meshes.forEach(m => { if (m.userData.hull) m.userData.hull.visible = e.target.checked; }); });
+document.getElementById('rimshade').addEventListener('change', e => { RIM.value = e.target.checked ? +document.getElementById('rimamt').value : 0.0; });
+document.getElementById('rimamt').addEventListener('input', e => { if (document.getElementById('rimshade').checked) RIM.value = +e.target.value; });
+
+// ---------- loop ----------
+function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
+  document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
+
+// ================= joint rig =================
+const RIG = DATA.meta.rig;
+const A2S = a => [-a[1], a[2], -a[0]];   // anatomical (lateral=-x, anterior=-y, up=+z) -> screen (anterior=+X, up=+Y, lateral=+Z)
+const V3 = a => new THREE.Vector3(...A2S(a));
+const ankleP = V3(RIG.ankle.point), ankleD = V3(RIG.ankle.dir).normalize(), subP = V3(RIG.subtalar.point), subD = V3(RIG.subtalar.dir).normalize();
+const legG = new THREE.Group(), talusG = new THREE.Group(), footG = new THREE.Group();
+root.add(legG); legG.add(talusG); talusG.add(footG);
+talusG.position.copy(ankleP); footG.position.copy(subP).sub(ankleP);
+const setOf = names => new Set(names);
+const TALUS_SET = setOf(['bone__talus']), FOOT_SET = setOf(RIG.subtalar.moves);
+for (const m of meshes) {
+  if (m.userData.layer !== 'bone') continue;
+  if (FOOT_SET.has(m.name)) { root.remove(m); footG.add(m); m.position.copy(subP).negate(); }
+  else if (TALUS_SET.has(m.name)) { root.remove(m); talusG.add(m); m.position.copy(ankleP).negate(); }
+}
+// soft structures: skinned across the two joints by height (leg above the ankle axis, foot below, blend between)
+const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.Bone()]);
+const [bLeg, bTal, bFoot] = skel.bones; root.add(bLeg); bLeg.add(bTal); bTal.add(bFoot);
+bTal.position.copy(ankleP); bFoot.position.copy(subP).sub(ankleP); root.updateMatrixWorld(true); skel.calculateInverses();
+function skinSoft(m){
+  const g = m.geometry, pos = g.getAttribute('position'), n = pos.count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+  const W = m.userData.w;   // per-vertex [leg, talus, foot] weights from the pipeline (nearest bone group)
+  for (let i = 0; i < n; i++) {
+    let wl = 0, wt = 0, wf = 1;
+    if (W) { wl = W[3*i]; wt = W[3*i+1]; wf = W[3*i+2]; }
+    else { const y = pos.getY(i) - ankleP.y; const tf = 1 - Math.min(1, Math.max(0, (y + 0.004) / 0.030)); wl = 1 - tf; wf = tf; }
+    si.set([0, 1, 2, 0], 4 * i); sw.set([wl, wt, wf, 0], 4 * i);
+  }
+  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  const sm = new THREE.SkinnedMesh(g, m.material); sm.material.skinning = true; sm.material.needsUpdate = true;
+  sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
+  if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(g, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
+  root.remove(m); root.add(sm); sm.bind(skel, new THREE.Matrix4()); return sm;
+}
+for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (m.userData.layer !== 'bone' && !/^lig__(atfl|cfl|ptfl)$/.test(m.name)) { const sm = skinSoft(m); meshes[i] = sm; byName[sm.name] = sm; } }
+// the three generated ligaments are re-swept live between their bone anchors (see updateLigs); hide the static review meshes
+for (const k of ['lig__atfl','lig__cfl','lig__ptfl']) { const m = byName[k]; if (m) { m.visible = false; m.userData.static = true; } }
+
+// ================= live ligaments =================
+const LIG_KO = { lig__atfl:'전거비인대 (ATFL)', lig__cfl:'종비인대 (CFL)', lig__ptfl:'후거비인대 (PTFL)' };
+const ligs = [];
+const groupOf = b => b === 'bone__talus' ? talusG : FOOT_SET.has(b) ? footG : legG;
+for (const [k, L] of Object.entries(RIG.ligaments)) {
+  const A = { g: groupOf(L.a.bone), p: V3(L.a.p) }, B = { g: groupOf(L.b.bone), p: V3(L.b.p) };
+  A.local = A.g === legG ? A.p.clone() : A.p.clone().sub(A.g === talusG ? ankleP : subP);
+  B.local = B.g === legG ? B.p.clone() : B.p.clone().sub(B.g === talusG ? ankleP : subP);
+  const PIECES = 3, SEG = 16, RING = 10, MAXV = PIECES * (SEG + 1) * RING;      // one solid band; torn states split it into pieces
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(MAXV * 3), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(MAXV * 3), 3));
+  const idx = [];
+  const addTube = base => { for (let i = 0; i < SEG; i++) for (let r = 0; r < RING; r++) { const a = base + i * RING + r, b = base + i * RING + (r + 1) % RING, c = base + (i + 1) * RING + (r + 1) % RING, d = base + (i + 1) * RING + r; idx.push(a, b, c, a, c, d); } };
+  for (let s = 0; s < PIECES; s++) addTube(s * (SEG + 1) * RING);
+  g.setIndex(idx);
+  const mat = new THREE.MeshStandardMaterial({ color: 0x8fb6ea, roughness: 0.55, metalness: 0, side: THREE.DoubleSide });
+  mat.onBeforeCompile = sh => { sh.uniforms.uRim = RIM;
+    sh.vertexShader = 'varying vec3 vLp;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vLp = position;');
+    sh.fragmentShader = 'uniform float uRim; varying vec3 vLp;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));\n float fib = 0.5 + 0.5 * sin(dot(vLp, vec3(310.0, 170.0, 230.0)));\n gl_FragColor.rgb *= 0.92 + 0.08 * fib;'); };   // faint fibre striation
+  mat.customProgramCacheKey = () => 'lig_live';
+  const mesh = new THREE.Mesh(g, mat); mesh.name = k + '__live'; mesh.frustumCulled = false; mesh.userData = { layer: 'lig', base: k, live: true };
+  root.add(mesh); meshes.push(mesh); byName[mesh.name] = mesh; KO[mesh.name] = LIG_KO[k];
+  ligs.push({ k, A, B, L, mesh, PIECES, SEG, RING, rest: L.rest, strain: 0 });
+}
+const _wa = new THREE.Vector3(), _wb = new THREE.Vector3(), _inv = new THREE.Matrix4();
+const _ray = new THREE.Raycaster(); _ray.far = 0.06;
+const HUG_BONES = ['bone__fibula_distal', 'bone__talus', 'bone__calcaneus'].map(n => byName[n]).filter(Boolean);
+function hugOffset(c, nrm, restOff, side, hw){   // highest bone surface under the band (centre and both edges) + 1.2 mm, against the bones' current pose
+  let best = null;
+  for (const s of (hw ? [-hw, 0, hw] : [0])) {
+    const o = c.clone().addScaledVector(side, s);
+    _ray.set(o.clone().addScaledVector(nrm, 0.008), nrm.clone().negate()); _ray.far = 0.020;   // short probe: 8 mm above to 12 mm below the chord
+    const hits = _ray.intersectObjects(HUG_BONES, false);
+    if (hits.length) { const off = hits[0].point.clone().sub(o).dot(nrm) + 0.0012; if (best === null || off > best) best = off; }
+  }
+  if (best === null) return restOff;
+  return Math.max(-0.010, Math.min(0.005, best));
+}
+function updateLigs(){
+  root.updateMatrixWorld(true); _inv.copy(root.matrixWorld).invert();
+  for (const Lg of ligs) {
+    const a = _wa.copy(Lg.A.local).applyMatrix4(Lg.A.g.matrixWorld).applyMatrix4(_inv).clone(), b = _wb.copy(Lg.B.local).applyMatrix4(Lg.B.g.matrixWorld).applyMatrix4(_inv).clone();
+    const d = b.clone().sub(a), len = d.length(), t = d.clone().normalize();
+    const restMul = (Lg.k === 'lig__atfl' && surg.active) ? (1.22 - 0.30 * surg.pull) : 1;   // chronic: 22 % long; repaired: 8 % tight
+    Lg.strain = len / (Lg.rest * restMul) - 1;
+    Lg.lastA = a; Lg.lastB = b; Lg.lastSide = null; Lg.lastNrm = null;
+    const out = a.clone().add(b).multiplyScalar(0.5).normalize(); const nrm = out.sub(t.clone().multiplyScalar(t.dot(out))).normalize(); const side = new THREE.Vector3().crossVectors(t, nrm).normalize();
+    Lg.lastSide = side; Lg.lastNrm = nrm;
+    const grade = state.grade, dmg = anim.damage * anim.torn;                // 0 none, 1 stretched, 2 partial, 3 complete; damage appears once the motion peaks
+    const pos = Lg.mesh.geometry.getAttribute('position'); let vi = 0;
+    const w = Lg.L.width, th = Lg.L.thick, heal = anim.heal;
+    const S = (Lg.k === 'lig__atfl' && surg.active) ? surg : null;              // Broström sequence overrides for the ATFL
+    // how much of the band's width is torn (0 = intact): ATFL 55 % at grade 2, all at grade 3; CFL half at grade 3
+    let tornFrac = Lg.k === 'lig__atfl' ? (grade === 3 ? 1 : grade === 2 ? 0.55 : 0) : (Lg.k === 'lig__cfl' && grade === 3 ? 0.5 : 0);
+    let gap = tornFrac > 0 ? (0.02 + 0.20 * dmg) * (1 - heal) : 0;                    // half-gap as a fraction of length; opens with the tear, closes as it heals
+    let lax = grade >= 1 && tornFrac < 1 ? 0.0012 * dmg * (1 - heal * 0.7) : 0;      // stretched: the band sags and waves
+    let uc = 0.5, tornW = tornFrac * anim.torn;
+    if (S) { tornFrac = 1; tornW = S.cut; uc = 0.13; gap = 0.05 * S.cut * (1 - S.pull); lax = 0.0022 * (1 - S.pull) * (1 - 0.5 * S.cut); }   // scarred, lax band; cut 13 % from the fibula; pulled back tight
+    // pieces: [intact part (continuous), torn part proximal stub, torn part distal stub]
+    const pieces = [
+      { wf: 1 - tornW, off: -tornW / 2, u0: 0, u1: 1, frayEnd: 0 },
+      { wf: tornW, off: (1 - tornW) / 2, u0: 0, u1: uc - gap, frayEnd: S ? 0 : 1 },
+      { wf: tornW, off: (1 - tornW) / 2, u0: uc + gap, u1: 1, frayEnd: S ? 0 : -1 },
+    ];
+    for (const P of pieces) {
+      const pw = w * P.wf, off = side.clone().multiplyScalar(w * P.off);
+      const hugs = new Array(Lg.SEG + 1);
+      for (let i = 0; i <= Lg.SEG; i += 2) { const u = P.u0 + (P.u1 - P.u0) * i / Lg.SEG; const pr = Lg.L.profile, pu = u * (pr.length - 1), pi0 = Math.min(pr.length - 2, Math.floor(pu));
+        hugs[i] = (i === 0 || i === Lg.SEG) ? 0.0004 : hugOffset(a.clone().addScaledVector(d, u).add(off), nrm, pr[pi0] + (pr[pi0 + 1] - pr[pi0]) * (pu - pi0), side, pw / 2); }
+      for (let i = 1; i < Lg.SEG; i += 2) hugs[i] = (hugs[i - 1] + hugs[i + 1]) / 2;
+      for (let k = 0; k < 2; k++) for (let i = 1; i < Lg.SEG; i++) hugs[i] = Math.min(hugs[i], Math.min(hugs[i - 1], hugs[i + 1]) + 0.0025);   // no kinks: the band may rise at most 2.5 mm per station
+      for (let i = 1; i <= 2; i++) { hugs[i] = hugs[i] * (i / 3) + 0.0004 * (1 - i / 3); hugs[Lg.SEG - i] = hugs[Lg.SEG - i] * (i / 3) + 0.0004 * (1 - i / 3); }   // ease into the footprints
+      for (let i = 0; i <= Lg.SEG; i++) {
+        const u = P.u0 + (P.u1 - P.u0) * i / Lg.SEG;
+        const fr = P.frayEnd === 0 || pw <= 1e-6 ? 0 : Math.max(0, 1 - Math.abs(u - (P.frayEnd > 0 ? P.u1 : P.u0)) / 0.09);   // frayed within 9 % of the torn end
+        const c = a.clone().addScaledVector(d, u).add(off).addScaledVector(nrm, hugs[i] + lax * Math.sin(u * (S ? 22 : 8.5) + 1.3)).addScaledVector(side, S ? lax * 0.5 * Math.cos(u * 19) : 0);   // wraps over the bones; a scarred band is crinkled
+        if (fr > 0) c.addScaledVector(nrm, 0.0015 * fr * fr * Math.sin(u * 60)).addScaledVector(side, 0.0008 * fr * Math.cos(u * 45));
+        const st = Math.max(0, Math.min(0.5, Lg.strain)); const hw = Math.max(1e-6, pw / 2 * (1 - 0.45 * fr) * (1 - 0.35 * st)), hh = th / 2 * (1 - 0.5 * fr) * (1 - 0.6 * st) * (pw > 1e-6 ? 1 : 0);   // taut band thins (Poisson) — visibly stretched
+        for (let r = 0; r < Lg.RING; r++) { const ang = 2 * Math.PI * r / Lg.RING; const p = c.clone().addScaledVector(side, hw * Math.cos(ang)).addScaledVector(nrm, hh * Math.sin(ang)); pos.setXYZ(vi++, p.x, p.y, p.z); }
+      }
+    }
+    pos.needsUpdate = true; Lg.mesh.geometry.computeVertexNormals();
+    // colour: healthy blue-grey -> strained -> injured red; inflammation adds glow
+    const hot = Math.max(0, Math.min(1, Lg.strain * 8)) * (Lg.k === 'lig__atfl' ? 1 : 0.6), inj = (Lg.k === 'lig__atfl' ? dmg : Lg.k === 'lig__cfl' && grade === 3 ? dmg * 0.7 : 0) * (1 - heal * 0.8);
+    Lg.mesh.material.color.setRGB(0.56 + 0.35 * Math.max(hot, inj), 0.71 - 0.45 * Math.max(hot, inj), 0.92 - 0.7 * Math.max(hot, inj));
+    if (S) { const sc = 1 - S.pull; Lg.mesh.material.color.lerp(new THREE.Color(0xd9d3c4), 0.8 * sc); }   // scar tissue: pale, dull
+    Lg.mesh.material.emissive.setRGB(0.5, 0.05, 0.02).multiplyScalar(anim.inflam * inj * 0.6);
+  }
+}
+
+// ================= state, stages =================
+const anim = { twist: 0, damage: 0, inflam: 0, heal: 0, brace: 0, swelling: 0, torn: 0, suture: 0 };
+let twistT = 0;
+function applyRig(){
+  const tw = anim.twist;                                                      // 0..1 : inversion sprain motion = plantarflexion + inversion
+  const GRADE_ANG = { 0: { pf: 14, inv: 12, ir: 6, tilt: 3 }, 1: { pf: 16, inv: 16, ir: 8, tilt: 7 }, 2: { pf: 20, inv: 20, ir: 11, tilt: 14 }, 3: { pf: 24, inv: 22, ir: 14, tilt: 24 } };
+  const ANG = window.ANG || GRADE_ANG[state.grade] || GRADE_ANG[0];
+  const tiltAxis = new THREE.Vector3(1, 0, 0);                                                            // foot's long axis (anterior): talar tilt = the talus rolling in the mortise
+  const ev = surg.evert;                                                                                   // repair position: dorsiflexion + eversion (ligament slack)
+  const q1 = new THREE.Quaternion().setFromAxisAngle(ankleD, THREE.MathUtils.degToRad(-ANG.pf * tw + 10 * ev))   // plantarflexion
+    .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(ANG.ir * tw - 5 * ev)))   // internal rotation of the talus
+    .multiply(new THREE.Quaternion().setFromAxisAngle(tiltAxis, THREE.MathUtils.degToRad(TILT_SIGN * (ANG.tilt * tw - 4 * ev))));     // talar tilt (grows with grade)
+  const q2 = new THREE.Quaternion().setFromAxisAngle(subD, THREE.MathUtils.degToRad(ANG.inv * tw - 14 * ev));      // inversion (subtalar); eversion during the repair
+  talusG.quaternion.copy(q1); footG.quaternion.copy(q2); bTal.quaternion.copy(q1); bFoot.quaternion.copy(q2);
+}
+// sanity: make sure "twist" rolls the sole inward (toward the midline) — flip the subtalar sign if it rolls outward
+let TILT_SIGN = 1;
+(function orientTilt(){ const lat = new THREE.Vector3(0, 0, 1); const r = lat.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.5)); if (r.y > lat.y) TILT_SIGN = -1; })();
+(function orient(){ const lat = new THREE.Vector3(0, 0, 1); const r = lat.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(subD, 0.5)); if (r.y > lat.y) subD.negate(); })();
+(function orientAnkle(){ const ant = new THREE.Vector3(1, 0, 0); const r = ant.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(ankleD, -0.5)); if (r.y > ant.y) ankleD.negate(); })();
+
+// swelling blob + bruise overlay on the skin (stage 4)
+const swellMat = new THREE.MeshStandardMaterial({ color: 0x8e2a3a, emissive: 0x5a1020, emissiveIntensity: 0.35, transparent: true, opacity: 0.0, roughness: 0.6, depthWrite: false });
+const swell = new THREE.Mesh(new THREE.SphereGeometry(0.014, 24, 16), swellMat); swell.scale.set(1.0, 0.8, 0.45); swell.visible = false; swell.renderOrder = 4; root.add(swell);   // hematoma: a flat, dim pool between the ligament and the skin
+const malleolus = V3(RIG.landmarks.lateral_malleolus_tip); swell.position.copy(malleolus).add(new THREE.Vector3(0.012, -0.006, 0.006));
+const skinMesh = meshes.find(m => m.userData.layer === 'skin');
+if (skinMesh) { const g = skinMesh.geometry, pos = g.getAttribute('position'), col = g.getAttribute('color'); skinMesh.userData.baseCol = col.array.slice(); skinMesh.userData.basePos = pos.array.slice();
+  g.computeVertexNormals(); const nrmA = g.getAttribute('normal'); skinMesh.userData.baseNrm = nrmA.array.slice();
+  const c = swell.position; skinMesh.userData.bruise = new Float32Array(pos.count); skinMesh.userData.swellW = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) { const dx = pos.getX(i) - c.x, dy = pos.getY(i) - c.y, dz = pos.getZ(i) - c.z;
+    const rB = Math.sqrt(dx*dx*0.5 + dy*dy*0.9 + dz*dz*2.2), rS = Math.sqrt(dx*dx*0.9 + dy*dy*1.0 + dz*dz*3.0);
+    skinMesh.userData.bruise[i] = Math.max(0, 1 - rB / 0.055);                           // bruise spreads wider (down toward the heel and forefoot)
+    const s = Math.max(0, 1 - rS / 0.040); skinMesh.userData.swellW[i] = s * s * (3 - 2 * s); } }   // swelling: smooth dome over the lateral malleolus region
+function applySwell(a){ if (!skinMesh) return; const pos = skinMesh.geometry.getAttribute('position'), bp = skinMesh.userData.basePos, bn = skinMesh.userData.baseNrm, sw = skinMesh.userData.swellW;
+  for (let i = 0; i < sw.length; i++) { const k = 0.0075 * sw[i] * a; pos.array[3*i] = bp[3*i] + bn[3*i] * k; pos.array[3*i+1] = bp[3*i+1] + bn[3*i+1] * k; pos.array[3*i+2] = bp[3*i+2] + bn[3*i+2] * k; }
+  pos.needsUpdate = true; }
+function applyBruise(a){ if (!skinMesh) return; const col = skinMesh.geometry.getAttribute('color'), base = skinMesh.userData.baseCol, br = skinMesh.userData.bruise;
+  for (let i = 0; i < br.length; i++) { const k = br[i] * a; col.array[3*i] = base[3*i] * (1 - 0.35 * k); col.array[3*i+1] = base[3*i+1] * (1 - 0.65 * k); col.array[3*i+2] = base[3*i+2] * (1 - 0.15 * k) + 0.25 * k; } col.needsUpdate = true; }
+// short-leg splint with velcro straps (stage 5-①): posterior U-slab + sole plate, padded, plus three straps — all cut from an inflated copy of the skin
+let brace = null;
+if (skinMesh) {
+  const inflate = (dmm) => { const g = skinMesh.geometry.clone(); const p = g.getAttribute('position'), n = skinMesh.userData.baseNrm, bp = skinMesh.userData.basePos; for (let i = 0; i < p.count; i++) p.setXYZ(i, bp[3*i] + n[3*i] * dmm, bp[3*i+1] + n[3*i+1] * dmm, bp[3*i+2] + n[3*i+2] * dmm); g.deleteAttribute('skinIndex'); g.deleteAttribute('skinWeight'); g.deleteAttribute('color'); g.computeVertexNormals(); return g; };
+  const box = new THREE.Box3().setFromBufferAttribute(skinMesh.geometry.getAttribute('position'));
+  const soleY = box.min.y, topY = box.max.y, ax = ankleP.x;
+  const P = (nx, ny, nz, d) => new THREE.Plane(new THREE.Vector3(nx, ny, nz), d);
+  const padMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f1, roughness: 0.85, transparent: true, opacity: 0, clippingPlanes: [P(-1, 0, 0, ax + 0.014), P(0, -1, 0, topY - 0.018), P(0, 1, 0, -(soleY - 0.02))] });       // posterior slab
+  const soleMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f1, roughness: 0.85, transparent: true, opacity: 0, clippingPlanes: [P(0, -1, 0, soleY + 0.024), P(-1, 0, 0, ax + 0.085), P(1, 0, 0, -(ax - 0.06))] });   // sole plate
+  const strapMat = () => new THREE.MeshStandardMaterial({ color: 0x8b9096, roughness: 0.9, transparent: true, opacity: 0 });
+  brace = new THREE.Group(); root.add(brace);
+  const shell = inflate(0.007), strapG = inflate(0.0095);
+  const mk = (g, m) => { const me = new THREE.Mesh(g, m); me.renderOrder = 6; brace.add(me); return me; };
+  mk(shell, padMat); mk(shell, soleMat);
+  const straps = [[0, -1, 0, ankleP.y + 0.078, 0, 1, 0, -(ankleP.y + 0.060)], [0, -1, 0, ankleP.y + 0.052, 0, 1, 0, -(ankleP.y + 0.034)], [0, -1, 0, ankleP.y + 0.026, 0, 1, 0, -(ankleP.y + 0.010)],
+                  [-1, 0, 0, ax + 0.055, 1, 0, 0, -(ax + 0.037)], [-1, 0, 0, ax + 0.098, 1, 0, 0, -(ax + 0.082)]];   // three on the leg, two over the foot
+  { const rim = new THREE.MeshStandardMaterial({ color: 0xe8642a, roughness: 0.6, transparent: true, opacity: 0, clippingPlanes: [P(0, -1, 0, soleY + 0.004), P(-1, 0, 0, ax + 0.087), P(1, 0, 0, -(ax - 0.062))] }); mk(inflate(0.0085), rim); }   // orange rim
+  for (const s of straps) { const m = strapMat(); m.clippingPlanes = [P(s[0], s[1], s[2], s[3]), P(s[4], s[5], s[6], s[7]), P(0, 1, 0, -(soleY - 0.01))]; mk(strapG, m); }
+  brace.userData.mats = [...brace.children].map(c => c.material);
+  brace.visible = false; renderer.localClippingEnabled = true;
+}
+// sutures for the ATFL repair (stage 5-③)
+const sutMat = new THREE.MeshStandardMaterial({ color: 0x1f2b6b, roughness: 0.5, transparent: true, opacity: 0 });
+const sutures = []; for (let i = 0; i < 3; i++) { const s = new THREE.Mesh(new THREE.TorusGeometry(0.0016, 0.00035, 8, 16), sutMat); s.visible = false; s.renderOrder = 5; root.add(s); sutures.push(s); }
+const anchor = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 0.006, 10), new THREE.MeshStandardMaterial({ color: 0xb8bcc4, metalness: 0.7, roughness: 0.35, transparent: true, opacity: 0 })); anchor.visible = false; root.add(anchor);
+// Broström sequence: surg.* are 0..1 progress values driven by a timer when the '수술 시작' button is pressed
+const surg = { active: false, t: 0, cut: 0, anchor: 0, evert: 0, pull: 0, gould: 0, done: 0, stitches: 0 };
+const threadMat = new THREE.MeshStandardMaterial({ color: 0x1f2b6b, roughness: 0.5 });
+const threads = [0, 1].map(() => { const m = new THREE.Mesh(new THREE.CylinderGeometry(0.00028, 0.00028, 1, 6), threadMat); m.visible = false; m.renderOrder = 5; root.add(m); return m; });
+function placeThread(m, p, q){ const d = q.clone().sub(p); const L = d.length(); m.position.copy(p).addScaledVector(d, 0.5); m.scale.set(1, L, 1); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); }
+// Gould flap: the inferior extensor retinaculum drawn up over the repaired ligament — a translucent band from its foot-side origin to the fibular anchor
+const flapMat = new THREE.MeshStandardMaterial({ color: 0xc9d5e4, roughness: 0.6, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false });
+const flap = new THREE.Mesh(new THREE.PlaneGeometry(1, 1, 12, 4), flapMat); flap.visible = false; flap.renderOrder = 5; root.add(flap);
+function updateSurgery(dt){
+  const on = surg.active;
+  if (on) { if (!surg.hold) surg.t += dt; const T = surg.t, ramp = (t0, t1) => Math.max(0, Math.min(1, (T - t0) / (t1 - t0)));
+    surg.cut = ramp(1.0, 2.2); surg.anchor = ramp(2.4, 3.4); surg.evert = ramp(3.6, 4.8) * (1 - ramp(9.5, 11)); surg.stitches = ramp(5.0, 6.4); surg.pull = ramp(5.4, 7.2); surg.gould = ramp(7.6, 9.2); surg.done = ramp(9.5, 11);
+    const cap = document.getElementById('caption');
+    if (surg.hold) { /* waiting for the button */ } else if (T < 1.0) cap.textContent = '만성 불안정: 전거비인대가 늘어난 채 흉터처럼 굳어 있습니다.';
+    else if (T < 2.4) cap.textContent = '① 비골 부착부 근처에서 늘어난 인대를 절리합니다.';
+    else if (T < 3.6) cap.textContent = '② 비골 부착부에 봉합 앵커를 심습니다.';
+    else if (T < 5.0) cap.textContent = '③ 발을 바깥쪽(외번)으로 돌려 인대가 느슨해지는 자세를 만듭니다.';
+    else if (T < 7.6) cap.textContent = '④ 앵커의 실이 인대를 통과해 당겨 봉합합니다 — 여유 길이가 없어지며 팽팽해집니다.';
+    else if (T < 9.5) cap.textContent = '⑤ 신근지대를 위로 끌어올려 봉합한 인대 위에 한 겹 더 덮습니다(굴드 보강).';
+    else cap.textContent = '⑥ 수술 후: 발을 꺾어도 보강된 인대가 단단히 버팁니다. 오른쪽 아래에서 꺾어 보세요.';
+    if (surg.done >= 1 && state.grade !== 0) { state.grade = 0; state.torn = 0; document.getElementById('twist').style.display = 'flex'; }
+  } else { surg.t = 0; for (const k of ['cut','anchor','evert','pull','gould','done','stitches']) surg[k] = 0; }
+  const Lg = ligs.find(l => l.k === 'lig__atfl');
+  const show = on && Lg && Lg.lastA;
+  anchor.visible = show && surg.anchor > 0.02; sutures.forEach(s => s.visible = show && surg.stitches > 0.02); threads.forEach(m => m.visible = show && surg.stitches > 0.02 && surg.pull < 0.98); flap.visible = show && surg.gould > 0.02;
+  if (!show) return;
+  const A = Lg.lastA, B = Lg.lastB, nrm = Lg.lastNrm, side = Lg.lastSide;
+  anchor.material.opacity = 1; anchor.position.copy(A).addScaledVector(nrm, -0.004 + 0.004 * surg.anchor); anchor.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nrm); anchor.scale.setScalar(0.3 + 0.7 * surg.anchor);
+  const eye = A.clone().addScaledVector(nrm, 0.0012);
+  sutures.forEach((s, i) => { const u = 0.13 + 0.03 * (1 - surg.pull); const c = A.clone().lerp(B, u).addScaledVector(side, (i - 1) * Lg.L.width * 0.3).addScaledVector(nrm, 0.0022); s.position.copy(c); s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), side); s.rotateX(Math.PI / 2); s.scale.setScalar(surg.stitches); });
+  sutMat.opacity = 0.95 * surg.stitches;
+  threads.forEach((m, i) => { const u = 0.13 + 0.03 * (1 - surg.pull); const q = A.clone().lerp(B, u).addScaledVector(side, (i ? 1 : -1) * Lg.L.width * 0.3).addScaledVector(nrm, 0.0022); placeThread(m, eye, q); });
+  // Gould flap: quad from a line on the foot side (below/anterior to the ATFL) rising to the fibular anchor line
+  { const g = flap.geometry.getAttribute('position'); const foot0 = B.clone().addScaledVector(nrm, -0.010 + 0.014 * surg.gould).addScaledVector(side, 0), fib0 = A.clone().addScaledVector(nrm, 0.0025);
+    for (let j = 0; j <= 4; j++) for (let i = 0; i <= 12; i++) { const u = i / 12, v = j / 4; const base = foot0.clone().lerp(fib0, u * surg.gould); const p = base.clone().addScaledVector(side, (v - 0.5) * 0.014).addScaledVector(nrm, 0.0015 + 0.002 * Math.sin(Math.PI * u)); g.setXYZ(j * 13 + i, p.x, p.y, p.z); }
+    g.needsUpdate = true; flap.geometry.computeVertexNormals(); flapMat.opacity = 0.7 * surg.gould; }
+}
+const STAGES = [
+  { name:'외관', cap:'오른발을 바깥쪽에서 본 모습입니다. 돌려 보고 확대해 보세요. 복사뼈 아래 앞쪽이 염좌 때 가장 흔히 붓고 아픈 자리입니다.',
+    set:{ layers:{skin:1,muscle:1,tendon:1,lig:1,nerve:1,bone:1,vessel:1}, skinOp:1, grade:0, inflam:0, heal:0, twist:0 } },
+  { name:'구조 노출', cap:'피부를 걷어내면 발목을 잡아 주는 바깥쪽 인대 3개가 보입니다 — 앞의 전거비인대, 아래의 종비인대, 뒤의 후거비인대. 발이 안쪽으로 꺾일 때 이 끈들이 버팁니다.',
+    set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:1,bone:1,vessel:1}, skinOp:0.15, grade:0, inflam:0, heal:0, twist:0 }, ligFocus:true },
+  { name:'다치는 순간', cap:'발을 헛디디면 발이 안쪽으로 뒤집히면서(내번) 바깥쪽 인대가 팽팽해지다 늘어나거나 찢어집니다. 오른쪽 아래 슬라이더로 꺾어 보거나 재생을 누르세요.',
+    set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.1, grade:0, inflam:0, heal:0 }, twist:true,
+    subs:[ {name:'정상', cap:'정상 인대: 꺾어도 팽팽하게 버티고 원래 길이로 돌아옵니다.', set:{grade:0, inflam:0}},
+           {name:'1도 — 늘어남', cap:'1도 염좌: 인대 섬유가 늘어났지만 끊어지진 않았습니다. 붓고 아프지만 발목은 흔들리지 않습니다.', set:{grade:1, inflam:1, twistMax:1}},
+           {name:'2도 — 부분 파열', cap:'2도 염좌: 전거비인대 섬유 일부가 끊어졌습니다. 멍이 들고 발목이 약간 흔들립니다.', set:{grade:2, inflam:1, twistMax:1}},
+           {name:'3도 — 완전 파열', cap:'3도 염좌: 전거비인대가 완전히 끊어지고 종비인대까지 손상됩니다. 발목이 불안정해집니다.', set:{grade:3, inflam:1, twistMax:1.0}} ] },
+  { name:'증상', cap:'끊어진 인대 주변으로 피가 고이고 부어오릅니다. 바깥복사뼈 앞·아래가 붓고, 며칠 뒤 멍이 발등과 발꿈치 쪽으로 번집니다. 그 자리를 누르면 아픕니다.',
+    set:{ layers:{skin:1,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.55, grade:2, inflam:1, heal:0, twist:0, swelling:1 } },
+  { name:'치료', cap:'대부분 수술 없이 낫습니다. 아래 버튼으로 단계를 보세요.',
+    set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.1, grade:2, inflam:1, heal:0, twist:0 },
+    subs:[ {name:'① 보호·냉찜질·보조기', cap:'처음 며칠: 찍찍이 스트랩이 달린 숏레그 스플린트로 발목을 고정하고, 냉찜질·압박·거상으로 붓기를 줄입니다. 인대가 아물 자리를 잡아 주는 단계입니다.', set:{ layers:{skin:1,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.45, grade:2, inflam:1, heal:0, brace:1, swelling:0.6 }},
+           {name:'② 인대가 아무는 과정', cap:'2~6주에 걸쳐 끊어진 끝이 흉터 조직으로 이어지고 붓기가 빠집니다. 이때 균형 운동으로 발목 근육이 인대 역할을 도우면 재발이 줄어듭니다.', set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.1, grade:2, inflam:0, heal:1, brace:0, swelling:0 }},
+           {name:'③ 만성 불안정 — 인대 봉합술', cap:'여러 번 삐어 전거비인대가 늘어난 채 흉터처럼 굳으면 발목이 계속 흔들립니다. "수술 시작"을 누르면 브로스트롬 술식이 진행됩니다.', set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.1, grade:3, inflam:0, heal:1, brace:0, swelling:0 }, chronic:true,
+             action:{ label:'🔪 수술 시작', on:'수술 진행 중…', run:() => { surg.active = true; surg.hold = false; surg.t = 0; } } } ] },
+];
+let stage = -1, sub = -1;
+const stagesEl = document.getElementById('stages');
+STAGES.forEach((S, i) => { const b = document.createElement('button'); b.textContent = `${i+1}. ${S.name}`; b.onclick = () => goStage(i); stagesEl.appendChild(b); });
+function applySet(s){ if (!s) return; if (s.layers) { for (const k in s.layers) { state.layers[k] = !!s.layers[k]; const cb = document.querySelector(`input[data-layer="${k}"]`); if (cb) cb.checked = !!s.layers[k]; } }
+  if (s.skinOp !== undefined) { state.skinOp = s.skinOp; document.getElementById('skinop').value = s.skinOp; }
+  for (const k of ['grade','inflam','heal','brace','swelling','suture','twist','twistMax']) if (s[k] !== undefined) state[k] = s[k]; if (s.grade !== undefined) { state.torn = 0; } applyVisibility(); }
+function goStage(i, subIdx){
+  stage = i; sub = -1; const S = STAGES[i]; state.playing = false;
+  surg.active = false; state.suture = 0; state.torn = 0;                             // leaving any step clears the operation completely
+  applySet(S.set);
+  [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
+  const sb = document.getElementById('subbar'); sb.innerHTML = '';
+  if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = 0; sub = subIdx; applySet(S.subs[sub].set);
+    S.subs.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn' + (k === sub ? ' on' : ''); b.textContent = x.name; b.onclick = () => goStage(i, k); sb.appendChild(b); });
+    const act = S.subs[sub].action;
+    if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = act.label;
+      b.onclick = () => { act.run(); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); }
+    surg.active = false; if (S.subs[sub].chronic) { surg.active = true; surg.t = 0; surg.hold = true; } }
+  else sb.style.display = 'none';
+  document.getElementById('caption').textContent = S.subs ? S.subs[sub].cap : S.cap;
+  document.getElementById('twist').style.display = S.twist ? 'flex' : 'none';
+  if (!S.twist) { state.twist = 0; }
+}
+document.getElementById('twistRange').oninput = e => { state.twist = +e.target.value / 100 * state.twistMax; state.playing = false; document.getElementById('twistPlay').textContent = '▶ 재생'; };
+document.getElementById('twistPlay').onclick = () => { state.playing = !state.playing; document.getElementById('twistPlay').textContent = state.playing ? '■ 멈춤' : '▶ 재생'; };
+function tick(dt){
+  if (state.playing) { twistT += dt; state.twist = (1 - Math.cos(twistT * 1.6)) / 2 * state.twistMax; document.getElementById('twistRange').value = Math.round(state.twist / state.twistMax * 100); }
+  if (stage === 2) { if (state.grade >= 1 && anim.twist >= state.twistMax * 0.85) state.torn = 1; if (anim.twist < state.twistMax * 0.45) state.torn = 0; }   // tears at the peak; scrubbing back below 45 % restores the intact ligament
+  if (stage !== 2) state.torn = state.grade >= 1 ? 1 : 0;
+  anim.torn += (state.torn - anim.torn) * Math.min(1, dt * 4);
+  anim.twist += (state.twist - anim.twist) * Math.min(1, dt * 5);
+  anim.damage += ((state.grade > 0 ? 1 : 0) - anim.damage) * Math.min(1, dt * 3);
+  anim.inflam += (state.inflam - anim.inflam) * Math.min(1, dt * 2.5);
+  anim.heal += (state.heal - anim.heal) * Math.min(1, dt * 0.9);
+  anim.brace += (state.brace - anim.brace) * Math.min(1, dt * 3);
+  anim.swelling += (state.swelling - anim.swelling) * Math.min(1, dt * 2);
+  applyRig(); updateLigs();
+  updateSurgery(dt);
+  const inner = anim.swelling * (1 - Math.max(0, state.skinOp - 0.6) / 0.4);           // hematoma cloud only shows through translucent skin
+  swell.visible = inner > 0.02 && state.layers.skin; swellMat.opacity = 0.32 * inner; swell.scale.set(1.0 * (0.6 + 0.4 * anim.swelling), 0.8 * (0.6 + 0.4 * anim.swelling), 0.45 * (0.6 + 0.4 * anim.swelling));
+  applyBruise(anim.swelling * (state.grade >= 2 ? 1 : 0.4)); applySwell(anim.swelling);
+  if (brace) { brace.visible = anim.brace > 0.02 && state.layers.skin; brace.userData.mats.forEach(m => m.opacity = 0.96 * anim.brace); }
+}
+let last = performance.now();
+(function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now; tick(dt); })(performance.now());
+addEventListener('keydown', e => { if (e.target.tagName === 'INPUT') return; if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goStage(Math.min(STAGES.length - 1, Math.max(0, stage + 1))); } if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); goStage(Math.max(0, stage - 1)); } if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1); });
+applyVisibility(); setView('lateral'); goStage(0);
+(function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+</script>
+</body>
+</html>

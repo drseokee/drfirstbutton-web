@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>손목터널증후군 — 환자 설명 (Step 6)</title>
+<style>
+  :root { --bg0:#1a2130; --bg1:#0d1119; --panel:rgba(16,21,31,.86); --ink:#e8ecf3; --dim:#9aa5b8; --line:rgba(255,255,255,.12); --acc:#f2c94c; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:radial-gradient(120% 90% at 50% 40%, var(--bg0), var(--bg1)); color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; touch-action:none; }
+  #panel { position:fixed; top:16px; left:16px; width:236px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:12px 14px; backdrop-filter:blur(8px); font-size:13px; line-height:1.5; }
+  #panel h1 { font-size:15px; font-weight:600; margin:0 0 2px; }
+  #panel .sub { color:var(--dim); font-size:12px; margin:0 0 8px; }
+  #panel h2 { font-size:12px; font-weight:500; color:var(--dim); margin:10px 0 5px; }
+  details summary { cursor:pointer; color:var(--dim); font-size:12px; margin:8px 0 4px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; background:transparent; color:var(--ink); border:0; padding:7px 0; font:inherit; font-size:13px; cursor:pointer; }
+  .seg button.on { background:var(--acc); color:#1a1400; font-weight:600; }
+  label.row { display:flex; align-items:center; gap:8px; padding:2px 0; cursor:pointer; user-select:none; }
+  label.row input[type=checkbox] { accent-color:var(--acc); width:15px; height:15px; margin:0; }
+  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .views { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+  .views button, .sub-btn { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid var(--line); border-radius:7px;
+    padding:6px 4px; font:inherit; font-size:12px; cursor:pointer; }
+  .views button:hover, .sub-btn:hover { background:rgba(255,255,255,.12); }
+  button:focus-visible, label.row:focus-within { outline:2px solid var(--acc); outline-offset:2px; }
+  #tag { position:fixed; pointer-events:none; background:rgba(0,0,0,.72); color:#fff; padding:4px 8px; border-radius:6px;
+    font-size:12.5px; transform:translate(12px,-50%); display:none; white-space:nowrap; }
+  #tag small { color:#c8cfdb; margin-left:6px; }
+  #sidebtn { position:fixed; top:18px; right:16px; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:8px 12px; font:inherit; font-size:13px; cursor:pointer; backdrop-filter:blur(8px); }
+  #sidebtn:hover { background:rgba(255,255,255,.12); }
+  #foot { position:fixed; right:14px; bottom:10px; color:var(--dim); font-size:11px; }
+  #scale { position:fixed; left:16px; bottom:12px; color:var(--dim); font-size:11px; }
+  #scale i { display:block; height:0; border-bottom:2px solid var(--dim); margin-bottom:3px; }
+  /* stage bar */
+  #stages { position:fixed; left:50%; bottom:22px; transform:translateX(-50%); display:flex; align-items:center; gap:8px;
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:10px 12px; backdrop-filter:blur(8px); }
+  #stages .nav { background:rgba(255,255,255,.08); color:var(--ink); border:1px solid var(--line); border-radius:10px; width:44px; height:44px; font-size:20px; cursor:pointer; }
+  #stages .st { display:flex; gap:6px; }
+  #stages .st button { background:transparent; color:var(--dim); border:1px solid transparent; border-radius:10px; padding:8px 12px; font:inherit; font-size:14px; cursor:pointer; }
+  #stages .st button.on { background:var(--acc); color:#1a1400; font-weight:600; }
+  #subbar { position:fixed; left:50%; bottom:92px; transform:translateX(-50%); display:none; gap:8px; }
+  #subbar .sub-btn { padding:8px 14px; font-size:14px; }
+  #subbar .sub-btn.on { background:var(--acc); color:#1a1400; border-color:transparent; font-weight:600; }
+  #caption { position:fixed; left:50%; top:18px; transform:translateX(-50%); color:var(--ink); font-size:15px; background:var(--panel);
+    border:1px solid var(--line); border-radius:10px; padding:8px 16px; max-width:min(640px, 90vw); text-align:center; }
+  @media (max-width:640px){ #panel { display:none; } #caption { top:auto; bottom:150px; font-size:13px; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="caption"></div>
+<button id="sidebtn" title="좌우 반전">오른손 ⇄ 왼손</button>
+
+<div id="panel">
+  <h1>손목터널증후군</h1>
+  <p class="sub"><span id="sidelabel">오른손</span> · 환자 설명용</p>
+  <details>
+    <summary>층 보이기 · 표현 · 보는 방향</summary>
+    <div class="seg"><button data-mode="full" class="on">전체</button><button data-mode="cut">단면</button></div>
+    <h2>층</h2>
+    <label class="row"><input type="checkbox" data-layer="skin" checked><span class="sw" style="background:#d9a58f"></span>피부</label>
+    <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
+    <label class="row"><input type="checkbox" data-layer="muscle" checked><span class="sw" style="background:#a04a48"></span>근육</label>
+    <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
+    <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>횡수근인대</label>
+    <label class="row"><input type="checkbox" data-layer="nerve" checked><span class="sw" style="background:#f2c94c"></span>정중신경</label>
+    <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
+    <h2>표현</h2>
+    <label class="row"><input type="checkbox" id="outline">윤곽선 (얇게)</label>
+    <label class="row"><input type="checkbox" id="rimshade" checked>가장자리 음영</label>
+    <input type="range" id="rimamt" min="0.5" max="3" step="0.1" value="1.6" title="음영 강도">
+    <label class="row"><input type="checkbox" id="patho">병리 상태 (인대 비후 · 힘줄 부종 · 신경 압박)</label>
+    <label class="row"><input type="checkbox" id="derm">정중신경 감각 영역 표시</label>
+    <h2>조작</h2>
+    <div style="color:var(--dim);font-size:11.5px;line-height:1.6">
+      드래그 회전 · 우클릭/가운데/Shift+드래그 이동 · 휠 확대<br>
+      Ctrl+드래그 확대 · Alt+드래그 화면 기울이기<br>
+      더블클릭: 그 지점을 중심으로 · Shift+휠: 위아래 이동<br>
+      방향키 회전 · Shift+방향키 이동 · +/− 확대 · R 원래대로<br>
+      Space/PageDown 다음 · PageUp 이전 · 1~5 단계 · L 좌우손
+    </div>
+    <h2>보는 방향</h2>
+    <div class="views">
+      <button data-view="palmar">손바닥</button><button data-view="radial">엄지쪽</button><button data-view="dorsal">손등</button>
+      <button data-view="section">단면 정면</button><button data-view="proximal">단면 (멀리)</button><button data-view="reset">원래대로</button>
+    </div>
+  </details>
+</div>
+
+<div id="subbar"></div>
+<div id="stages">
+  <button class="nav" id="prev" title="이전">‹</button>
+  <div class="st" id="stbtns"></div>
+  <button class="nav" id="next" title="다음">›</button>
+</div>
+<div id="tag"></div>
+<div id="scale"><i style="width:60px"></i>1 cm</div>
+<div id="foot">교육용 모형입니다 · 모델: Z-Anatomy (CC BY-SA 4.0) · BodyParts3D · 힘줄 9개는 도식화</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = __DATA__;
+const KO = {
+  bone__scaphoid:"주상골", bone__lunate:"월상골", bone__triquetrum:"삼각골", bone__pisiform:"두상골",
+  bone__trapezium:"대능형골", bone__trapezoid:"소능형골", bone__capitate:"유두골", bone__hamate:"유구골",
+  bone__radius_distal:"요골 (원위부)", bone__ulna_distal:"척골 (원위부)",
+  bone__mc1:"제1중수골 (엄지)", bone__mc2:"제2중수골", bone__mc3:"제3중수골", bone__mc4:"제4중수골", bone__mc5:"제5중수골",
+  bone__pp1:"엄지 기절골", bone__dp1:"엄지 말절골", bone__pp2:"검지 기절골", bone__mp2:"검지 중절골", bone__dp2:"검지 말절골",
+  bone__pp3:"중지 기절골", bone__mp3:"중지 중절골", bone__dp3:"중지 말절골", bone__pp4:"약지 기절골", bone__mp4:"약지 중절골", bone__dp4:"약지 말절골",
+  bone__pp5:"소지 기절골", bone__mp5:"소지 중절골", bone__dp5:"소지 말절골",
+  nerve__median:"정중신경", nerve__median_palmar_branch:"정중신경 손바닥 피부가지",
+  nerve__median_digital_common:"총장측 지신경 (정중신경 가지)", nerve__median_digital_proper:"고유 장측 지신경 (정중신경 가지)",
+  lig__tcl:"횡수근인대 (굴근지대)", lig__tcl_released_radial:"횡수근인대 (절개 후, 요측)", lig__tcl_released_ulnar:"횡수근인대 (절개 후, 척측)",
+  tendon__fds:"얕은손가락굽힘근 (FDS)", tendon__fdp:"깊은손가락굽힘근 (FDP)", tendon__fpl:"긴엄지굽힘근 (FPL)", tendon__fpl1:"FPL 힘줄 — 엄지",
+  tendon__fcr:"요측수근굴근 (FCR)", tendon__pl:"장장근 (PL)",
+  tendon__fds2:"FDS 힘줄 — 검지", tendon__fds3:"FDS 힘줄 — 중지", tendon__fds4:"FDS 힘줄 — 약지", tendon__fds5:"FDS 힘줄 — 소지",
+  tendon__fdp2:"FDP 힘줄 — 검지", tendon__fdp3:"FDP 힘줄 — 중지", tendon__fdp4:"FDP 힘줄 — 약지", tendon__fdp5:"FDP 힘줄 — 소지",
+  muscle__thenar:"무지구근 (엄지두덩)", muscle__adductor_pollicis:"엄지모음근", muscle__hypothenar:"소지구근 (새끼두덩)",
+  muscle__lumbricals:"충양근", muscle__interossei:"골간근", muscle__forearm:"전완 근육", skin__hand:"피부", prop__syringe:"주사기", prop__incision:"절개선"
+};
+const COL = { bone:0xe6dcc6, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, prop:0xcfd6df };
+const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, prop:1 };
+const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, prop:0.35 };
+const NERVE_SICK = new THREE.Color(0xd9584a), NERVE_OK = new THREE.Color(COL.nerve), DERM = new THREE.Color(0xff3d14);
+const RIM = { value: 1.6 }, OUTW = { value: 0.00012 }, UDERM = { value: 0.0 }, GLIDE = { value: 0.0 };
+const EXC = { fdp: 0.014, fds: 0.011, fpl: 0.004 };
+const tubeKind = b => /^tendon__(fdp|fds|fpl)\d$/.test(b) ? (b.startsWith('tendon__fdp') ? 'fdp' : b.startsWith('tendon__fds') ? 'fds' : 'fpl') : null;
+function hash(s){ let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1000003; return h; }
+const A2S = v => [-v[0], -v[2], -v[1]];   // anatomical -> screen axes
+
+// ---------- scene ----------
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.003, 5);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x3a4256, 0.85));
+const key = new THREE.DirectionalLight(0xffffff, 0.8); scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfd0ff, 0.3); fill.position.set(-0.6, -0.2, 0.4); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.45); rim.position.set(0, 0.4, -1); scene.add(rim);
+
+const meshes = [], byName = {};
+const RIG_NAMES = new Set((DATA.meta.tendon_rigs || []).map(r => r.name));
+const root = new THREE.Group(); scene.add(root);   // scale.x = -1 mirrors the whole hand (left hand)
+for (const o of DATA.objects) {
+  if (RIG_NAMES.has(o.name)) continue;   // these tendons are swept at runtime (see buildTendons)
+  const v = o.verts, pos = new Float32Array(v.length);
+  for (let i = 0; i < v.length; i += 3) { pos[i] = -v[i]; pos[i+1] = -v[i+2]; pos[i+2] = -v[i+1]; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(o.tris); g.computeVertexNormals();
+  const isCut = o.name.endsWith('__cut'), col = new Float32Array(pos.length).fill(1);
+  if (isCut && CAP_SHADE[o.layer] < 1) { const n = g.getAttribute('normal').array, k = CAP_SHADE[o.layer];
+    for (let i = 0; i < n.length; i += 3) if (n[i+1] < -0.97) col[i] = col[i+1] = col[i+2] = k; }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (o.morphs) {   // relative morph targets
+    g.morphTargetsRelative = true; g.morphAttributes.position = [];
+    for (const [k, dl] of Object.entries(o.morphs)) { const d = new Float32Array(dl.length);
+      for (let i = 0; i < dl.length; i += 3) { d[i] = -dl[i]; d[i+1] = -dl[i+2]; d[i+2] = -dl[i+1]; }
+      g.morphAttributes.position.push(new THREE.BufferAttribute(d, 3)); }
+  }
+  const tint = new THREE.Color(COL[o.layer]);
+  if (o.layer === 'bone' || o.layer === 'tendon') { const h = hash(o.name); tint.offsetHSL((h % 7 - 3) * 0.004, (h % 5 - 2) * 0.02, (h % 4 - 1.5) * 0.035); }
+  const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH[o.layer], metalness:0, vertexColors: true,
+    transparent: o.layer === 'skin', opacity: 1, side: THREE.DoubleSide, morphTargets: !!o.morphs });
+  const kind = tubeKind(o.name.replace(/__cut$/, ''));
+  m.onBeforeCompile = sh => { sh.uniforms.uRim = RIM; sh.uniforms.uDerm = UDERM;
+    if (kind) {   // tendon glide: a fibre pattern scrolls along the tube while the tube itself stays in its channel
+      sh.uniforms.uGlide = GLIDE; sh.uniforms.uK = { value: EXC[kind] };
+      sh.vertexShader = 'varying float vTubeY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vTubeY = position.y;');
+      sh.fragmentShader = 'varying float vTubeY;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\n float fib = 0.5 + 0.5 * sin(vTubeY * 6.2832 / 0.0045);\n gl_FragColor.rgb *= 0.86 + 0.14 * smoothstep(0.25, 0.75, fib);');
+    }
+    if (o.layer === 'skin') sh.fragmentShader = sh.fragmentShader.replace('#include <emissivemap_fragment>',   // sensory territory glows through the translucent skin
+      '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(1.0, 0.22, 0.05) * clamp((1.0 - vColor.g) * 1.8, 0.0, 1.0) * uDerm * 0.9;');
+    sh.fragmentShader = 'uniform float uRim; uniform float uDerm;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));'); };
+  m.customProgramCacheKey = () => 'ctv_' + o.layer + '_' + (kind || 'none') + (o.morphs ? '_m' : '');
+  const mesh = new THREE.Mesh(g, m);
+  mesh.name = o.name; mesh.userData = { layer: o.layer, cut: isCut, base: o.name.replace(/__cut$/, ''), baseTint: tint.clone(),
+    hidden: !!o.hidden, overlay: o.overlay ? o.overlay.median : null, axis: o.axis ? new THREE.Vector3(...A2S(o.axis)) : null, tip: o.tip ? new THREE.Vector3(...A2S(o.tip)) : null };
+  if (o.name === 'prop__incision__cut') { m.color.setHex(0x8f1d1d); m.emissive.setHex(0x3a0000); }
+  if (o.name === 'prop__syringe__cut') { m.transparent = true; m.opacity = 0.45; m.depthWrite = false; mesh.renderOrder = 6; }
+  if (o.morphs) { mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); mesh.userData.morphNames = Object.keys(o.morphs); }
+  mesh.renderOrder = o.layer === 'skin' ? 10 : 0;
+  if (o.layer !== 'skin' && o.layer !== 'prop') {
+    const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55, morphTargets: !!o.morphs });
+    om.onBeforeCompile = sh => { sh.uniforms.uW = OUTW; sh.uniforms.uGlide = GLIDE; sh.uniforms.uK = { value: kind ? EXC[kind] : 0 };
+      sh.vertexShader = 'uniform float uW;\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * uW;'); };
+    om.customProgramCacheKey = () => 'hull_' + (kind || 'none') + (o.morphs ? '_m' : '');
+    const hull = new THREE.Mesh(g, om); hull.renderOrder = -1; hull.visible = false; hull.morphTargetInfluences = mesh.morphTargetInfluences; mesh.userData.hull = hull; mesh.add(hull);
+  }
+  root.add(mesh); meshes.push(mesh); byName[o.name] = mesh;
+}
+
+// ---------- finger motion rig: bones per finger (MCP/PIP/DIP); phalanges ride on the bones, everything else in the
+// fingers (tendon fans, digital nerves, hand muscles, skin) is skinned to them so it bends along ----------
+const fingers = [], rootBone = new THREE.Bone(); root.add(rootBone);
+const allBones = [rootBone];
+function buildFingers(){
+  const PALM = new THREE.Vector3(0, 0, 1);
+  for (const variant of ['', '__cut']) for (const f of [1, 2, 3, 4, 5]) {
+    const pp = byName['bone__pp' + f + variant], mp = byName['bone__mp' + f + variant], dp = byName['bone__dp' + f + variant];
+    if (!pp || !dp || (f !== 1 && !mp)) continue;
+    const c = m => { m.geometry.computeBoundingBox(); return m.geometry.boundingBox.getCenter(new THREE.Vector3()); };
+    const cp = c(pp), cd = c(dp), cm = mp ? c(mp) : cp.clone().add(cd).multiplyScalar(0.5);   // thumb: no middle phalanx -> 'mp' bone is the IP joint holding the distal phalanx
+    const a = cd.clone().sub(cp).normalize();
+    const MCP = cp.clone().sub(a.clone().multiplyScalar((mp ? cm.distanceTo(cp) : cd.distanceTo(cp)) * 0.55)), PIP = mp ? cp.clone().add(cm).multiplyScalar(0.5) : cp.clone().add(cd).multiplyScalar(0.5), DIP = mp ? cm.clone().add(cd).multiplyScalar(0.5) : cd.clone().addScaledVector(a, 0.008);
+    let n = new THREE.Vector3().crossVectors(a, PALM).normalize();
+    if (a.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(n, 0.5)).z < a.z) n.negate();
+    const bM = new THREE.Bone(), bP = new THREE.Bone(), bD = new THREE.Bone();
+    bM.position.copy(MCP); bP.position.copy(PIP).sub(MCP); bD.position.copy(DIP).sub(PIP);
+    root.add(bM); bM.add(bP); bP.add(bD); allBones.push(bM, bP, bD);
+    root.remove(pp); bM.add(pp); pp.position.copy(MCP).negate();
+    if (mp) { root.remove(mp); bP.add(mp); mp.position.copy(PIP).negate(); root.remove(dp); bD.add(dp); dp.position.copy(DIP).negate(); }
+    else { root.remove(dp); bP.add(dp); dp.position.copy(PIP).negate(); }   // thumb: distal phalanx hangs from the IP bone
+    fingers.push({ bM, bP, bD, n, f, variant, MCP, PIP, DIP, a, L1: PIP.distanceTo(MCP), L2: DIP.distanceTo(MCP), idx: allBones.length - 3 });
+  }
+}
+buildFingers();
+root.updateMatrixWorld(true);
+const skeleton = new THREE.Skeleton(allBones);
+const skinnable = m => !m.userData.base.startsWith('bone__') && !m.userData.base.startsWith('prop__') && !m.userData.base.startsWith('lig__')
+  && !m.userData.rig && m.userData.base !== 'nerve__median' && m.userData.base !== 'nerve__median_palmar_branch'
+  && m.userData.base !== 'tendon__fcr' && m.userData.base !== 'muscle__forearm';
+function skinMesh(m){
+  const g = m.geometry, pos = g.getAttribute('position'), n = pos.count;
+  const si = new Uint16Array(n * 4), sw = new Float32Array(n * 4);
+  const fs = fingers.filter(fg => fg.variant === (m.userData.cut ? '__cut' : ''));
+  const p = new THREE.Vector3(), d = new THREE.Vector3(), BW = 0.003;
+  for (let i = 0; i < n; i++) {
+    p.fromBufferAttribute(pos, i);
+    let best = null, bestLat = 0.013;
+    for (const fg of fs) { d.copy(p).sub(fg.MCP); const s = d.dot(fg.a); const lat = d.clone().sub(fg.a.clone().multiplyScalar(s)).length();
+      if (s > -0.006 && lat < bestLat) { bestLat = lat; best = { fg, s }; } }
+    let w = [1, 0, 0, 0], idx = [0, 0, 0, 0];
+    if (best) {
+      const { fg, s } = best; idx = [0, fg.idx, fg.idx + 1, fg.idx + 2];
+      const ramp = (x0) => Math.min(1, Math.max(0, (s - (x0 - BW / 2)) / BW));   // 0 before x0, 1 after
+      const r0 = ramp(0), r1 = ramp(fg.L1), r2 = ramp(fg.L2);
+      w = [1 - r0, r0 - r1, r1 - r2, r2];
+    }
+    for (let k = 0; k < 4; k++) { si[4 * i + k] = idx[k]; sw[4 * i + k] = w[k]; }
+  }
+  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  const sm = new THREE.SkinnedMesh(g, m.material); sm.material.skinning = true; sm.material.needsUpdate = true;
+  sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder; sm.morphTargetInfluences = m.morphTargetInfluences;
+  if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true;
+    const hull = new THREE.SkinnedMesh(g, hm); hull.renderOrder = -1; hull.visible = m.userData.hull.visible; hull.morphTargetInfluences = sm.morphTargetInfluences; sm.userData.hull = hull; sm.add(hull); hull.bind(skeleton, new THREE.Matrix4()); }
+  root.remove(m); root.add(sm); sm.bind(skeleton, new THREE.Matrix4());
+  return sm;
+}
+for (let i = 0; i < meshes.length; i++) if (skinnable(meshes[i])) { const sm = skinMesh(meshes[i]); meshes[i] = sm; byName[sm.name] = sm; }
+let motionT = 0;
+function motionTick(dt){
+  if (state.motion) motionT += dt;
+  const flex = state.motion ? (1 - Math.cos(motionT * 1.8)) / 2 : 0;
+  anim.flex += (flex - anim.flex) * Math.min(1, dt * 6);
+  const q = (n, deg) => new THREE.Quaternion().setFromAxisAngle(n, deg * Math.PI / 180 * anim.flex);
+  for (const fg of fingers) { const th = fg.f === 1; fg.bM.quaternion.copy(q(fg.n, th ? 40 : 70)); fg.bP.quaternion.copy(q(fg.n, th ? 60 : 85)); fg.bD.quaternion.copy(q(fg.n, th ? 0 : 45)); }
+  GLIDE.value = anim.flex;
+}
+// ---------- runtime tendons: each flexor tendon is re-swept every frame through stations that ride on the finger bones.
+// The path shortens as the finger flexes; the surplus is pulled proximally through the carpal tunnel (length is conserved),
+// and the fibre pattern is anchored to the tendon material, so it visibly glides through the pulleys. ----------
+const tendons = [];
+(function buildTendons(){
+  const boneOf = {};
+  for (const fg of fingers.filter(f => f.variant === '__cut')) { const J = [fg.MCP, fg.PIP, fg.DIP];
+    boneOf['pp' + fg.f] = { b: fg.bM, piv: fg.MCP, a: fg.a, J };
+    if (fg.f === 1) boneOf['dp1'] = { b: fg.bP, piv: fg.PIP, a: fg.a, J };
+    else { boneOf['mp' + fg.f] = { b: fg.bP, piv: fg.PIP, a: fg.a, J }; boneOf['dp' + fg.f] = { b: fg.bD, piv: fg.DIP, a: fg.a, J }; } }
+  const SEGS = 14, MAXR = 420;
+  for (const rig of (DATA.meta.tendon_rigs || [])) {
+    // pulley model: stations that sit within 6 mm of a joint are dropped, so across each joint the tendon spans a chord
+    // between the pulleys on the two bones (A2 / A4 style) and the path shortens with flexion instead of folding
+    const nS = rig.stations.length, fno = +(rig.name.match(/(\d)__cut$/) || [0, 0])[1];
+    const fg = fingers.find(f => f.variant === '__cut' && f.f === fno);   // null for the thumb (static)
+    const st = rig.stations.map((s, i) => { const p = new THREE.Vector3(...A2S(s.p));
+      let bo = null;
+      if (fg) { const t = p.clone().sub(fg.MCP).dot(fg.a);                          // which phalanx this station rides on, by position along the finger axis
+        if (t >= 0) bo = t < fg.L1 ? boneOf['pp' + fno] : (t < fg.L2 && boneOf['mp' + fno]) ? boneOf['mp' + fno] : boneOf['dp' + fno]; }
+      const nearJoint = !!bo && i < nS - 1 && bo.J.some(v => Math.abs(p.clone().sub(v).dot(bo.a)) < 0.0055);   // pulleys sit >5.5 mm from the joints; the insertion is always kept
+      // palm: keep only the tunnel stations and the A1 pulley (metacarpal head) so the tendon runs as a taut chord across the palm
+      const tA = fg ? p.clone().sub(fg.MCP).dot(fg.a) : -1;
+      const palmDrop = !bo && fg && (-p.y) < -0.013 && !(tA > -0.009 && tA < 0);
+      return { p, s: s.s, bone: bo ? bo.b : null, local: bo ? p.clone().sub(bo.piv) : null, nearJoint: nearJoint || palmDrop };
+    }).filter(s => !s.nearJoint);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((MAXR * SEGS + 2) * 3), 3));
+    g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array((MAXR * SEGS + 2) * 3), 3));
+    g.setAttribute('mat', new THREE.BufferAttribute(new Float32Array(MAXR * SEGS + 2), 1));
+    const idx = [];
+    for (let i = 0; i < MAXR - 1; i++) for (let k = 0; k < SEGS; k++) { const a = i * SEGS + k, b = i * SEGS + (k + 1) % SEGS, c = (i + 1) * SEGS + (k + 1) % SEGS, d = (i + 1) * SEGS + k; idx.push(a, b, c, a, c, d); }
+    g.setIndex(idx); g.setDrawRange(0, 0);
+    const tint = new THREE.Color(COL.tendon); const hsh = hash(rig.name); tint.offsetHSL((hsh % 7 - 3) * 0.004, (hsh % 5 - 2) * 0.02, (hsh % 4 - 1.5) * 0.035);
+    const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH.tendon, metalness: 0, side: THREE.DoubleSide });
+    m.onBeforeCompile = sh => { sh.uniforms.uRim = RIM;
+      sh.vertexShader = 'attribute float mat; varying float vMat;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMat = mat;');
+      sh.fragmentShader = 'uniform float uRim; varying float vMat;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+        '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));\n float fib = 0.5 + 0.5 * sin(vMat * 6.2832 / 0.0045);\n gl_FragColor.rgb *= 0.86 + 0.14 * smoothstep(0.25, 0.75, fib);'); };
+    m.customProgramCacheKey = () => 'tendon_rig';
+    const mesh = new THREE.Mesh(g, m); mesh.name = rig.name; mesh.userData = { layer: 'tendon', cut: true, base: rig.name.replace(/__cut$/, ''), baseTint: tint, rig: true };
+    mesh.frustumCulled = false; root.add(mesh); meshes.push(mesh); byName[mesh.name] = mesh;
+    tendons.push({ rig, st, mesh, L0: null, SEGS, MAXR });
+  }
+})();
+const _tv = new THREE.Vector3(), _PALM = new THREE.Vector3(0, 0, 1);
+function updateTendons(){
+  if (!tendons.length) return;
+  root.updateMatrixWorld(true);
+  const invRoot = new THREE.Matrix4().copy(root.matrixWorld).invert();
+  for (const T of tendons) {
+    const { rig, st, mesh, SEGS } = T;
+    // 1. current station positions (root space)
+    const P = st.map(s => s.bone ? _tv.copy(s.local).applyMatrix4(s.bone.matrixWorld).applyMatrix4(invRoot).clone() : s.p);
+    const S = [0]; for (let i = 1; i < P.length; i++) S.push(S[i - 1] + P[i].distanceTo(P[i - 1]));
+    const planeY = -rig.plane_z;                       // section plane in screen coords (Y = -z_anat)
+    let iP = P.findIndex(p => p.y >= planeY); if (iP < 1) iP = 1;
+    const uP = (planeY - P[iP - 1].y) / Math.max(1e-6, P[iP].y - P[iP - 1].y);
+    const sPlane = S[iP - 1] + (S[iP] - S[iP - 1]) * Math.max(0, Math.min(1, uP));
+    const L = S[S.length - 1] - sPlane;
+    if (T.L0 === null) T.L0 = L;
+    const e = Math.max(0, T.L0 - L);                   // tendon pulled proximally by the shortening of its finger path
+    // 2. resample the path from (plane - e) to the end
+    const CR = (i, u) => { const p0 = P[Math.max(i - 1, 0)], p1 = P[i], p2 = P[Math.min(i + 1, P.length - 1)], p3 = P[Math.min(i + 2, P.length - 1)]; const u2 = u * u, u3 = u2 * u;
+      return new THREE.Vector3(0.5 * ((2 * p1.x) + (-p0.x + p2.x) * u + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * u2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * u3),
+        0.5 * ((2 * p1.y) + (-p0.y + p2.y) * u + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * u2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * u3),
+        0.5 * ((2 * p1.z) + (-p0.z + p2.z) * u + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * u2 + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * u3)); };
+    const at = s => { let i = 1; while (i < S.length - 1 && S[i] < s) i++; const u = (s - S[i - 1]) / Math.max(1e-6, S[i] - S[i - 1]); return { q: CR(i - 1, Math.max(0, Math.min(1, u))), sc: st[i - 1].s + (st[i].s - st[i - 1].s) * Math.max(0, Math.min(1, u)) }; };
+    const s0 = Math.max(0, sPlane - e), s1 = S[S.length - 1], STEP = 0.0015;
+    const qPl = at(sPlane).q, tPl = at(sPlane + 0.002).q.clone().sub(at(Math.max(0, sPlane - 0.002)).q).normalize();   // tangent at the plane
+    const n = Math.min(T.MAXR, Math.max(2, Math.ceil((s1 - s0) / STEP) + 1));
+    const pos = mesh.geometry.getAttribute('position'), matA = mesh.geometry.getAttribute('mat');
+    let prev = null, ringIdx = 0;
+    for (let r = 0; r < n; r++) {
+      const s = s0 + (s1 - s0) * r / (n - 1);
+      let { q, sc } = at(s); let qn = at(Math.min(s1, s + 0.001)).q, qp = at(Math.max(0, s - 0.001)).q;
+      if (s < sPlane) { q = qPl.clone().addScaledVector(tPl, s - sPlane); qn = q.clone().addScaledVector(tPl, 0.001); qp = q.clone().addScaledVector(tPl, -0.001); }   // pulled straight out of the plane, toward the elbow
+      const t = qn.clone().sub(qp).normalize(); if (t.lengthSq() < 0.5) t.set(0, 1, 0);
+      const npal = _PALM.clone().sub(t.clone().multiplyScalar(t.dot(_PALM))).normalize(); const side = new THREE.Vector3().crossVectors(t, npal).normalize();
+      const zA = -q.y;                                                         // anatomical z of this ring
+      const bw = Math.min(1, Math.max(0, (zA - rig.band[0]) / 0.009)) * Math.min(1, Math.max(0, (rig.band[1] - zA) / 0.006));
+      const swell = 1 + 0.38 * anim.patho * bw;                               // tenosynovial thickening inside the tunnel
+      const w = rig.r * sc * swell * (1 + 0.1 * anim.patho * bw), hh = rig.r * sc * (rig.f_out + (rig.f_band - rig.f_out) * bw) * swell;
+      for (let k = 0; k < SEGS; k++) { const a = 2 * Math.PI * k / SEGS; const v = q.clone().addScaledVector(side, w * Math.cos(a)).addScaledVector(npal, hh * Math.sin(a));
+        pos.setXYZ(r * SEGS + k, v.x, v.y, v.z); matA.setX(r * SEGS + k, s1 - s); }
+      ringIdx = r;
+    }
+    pos.needsUpdate = true; matA.needsUpdate = true;
+    mesh.geometry.setDrawRange(0, (n - 1) * SEGS * 6);
+    mesh.geometry.computeVertexNormals();
+    mesh.userData.excursion = e;
+  }
+}
+// ---------- state & visibility ----------
+const state = { mode:'full', layers:{ skin:true, muscle:true, tendon:true, lig:true, nerve:true, bone:true, prop:true }, skinOp:1,
+  patho:0, derm:0, nerveHi:0, release:0, syringe:-1, tclSplit:false, side:1, drug:-1, incision:0, motion:false, inject:0, oral:0, inflam:0, cutProg:0, cutArmed:false, surgery:0 };
+const anim = { patho:0, derm:0, nerveHi:0, release:0, syringe:-1, drug:-1, incision:0, flex:0, inject:0, oral:0, inflam:0 };
+function applyVisibility(){
+  for (const m of meshes) {
+    const u = m.userData;
+    let vis = (state.mode === 'cut' ? u.cut : !u.cut) && state.layers[u.layer];
+    if (u.base === 'lig__tcl' && u.cut && state.tclSplit) vis = false;
+    if (u.base.startsWith('lig__tcl_released')) vis = vis && state.tclSplit;
+    if (u.base === 'prop__syringe') vis = vis && state.syringe >= 0;
+    if (u.base === 'prop__incision') vis = false;
+    m.visible = vis;
+    if (u.layer === 'skin') { m.material.opacity = state.skinOp; m.material.depthWrite = state.skinOp > 0.95; }
+  }
+}
+function tick(dt){   // smooth parameter animation + per-frame effects
+  for (const k of ['patho','derm','nerveHi','release']) anim[k] += (state[k] - anim[k]) * Math.min(1, dt * 3.5);
+  UDERM.value = anim.derm;
+  anim.syringe += (state.syringe - anim.syringe) * Math.min(1, dt * 2.2);
+  anim.incision += (state.incision - anim.incision) * Math.min(1, dt * 2.5);
+  drugTick(dt); motionTick(dt); oralTick(dt); cutTick(dt); updateTendons();
+  anim.inflam += (state.inflam - anim.inflam) * Math.min(1, dt * 1.2);
+  if (state.inject > 0) state.patho = 0.7 - 0.55 * anim.inject;                  // the injected drug settles the swelling
+  if (state.oral > 0) { state.patho = 1.0 - 0.65 * anim.oral; state.inflam = 1 - anim.oral; }   // the tablet's effect builds up over a few seconds
+  if (cutMode() && state.cutProg > 0) state.patho = 1 - 0.6 * state.cutProg;                      // pressure eases as the cut advances
+  for (const m of meshes) { const u = m.userData; if (u.cut && (u.layer === 'lig' || u.rig)) m.material.emissive.setRGB(0.55, 0.05, 0.02).multiplyScalar(anim.patho * anim.inflam * 0.7); }
+  for (const m of meshes) {
+    const u = m.userData;
+    if (m.morphTargetInfluences && m.userData.morphNames) m.userData.morphNames.forEach((nm, i) => { m.morphTargetInfluences[i] = nm === 'glide' ? anim.flex : anim.patho; });
+    if (u.layer === 'nerve') m.material.emissive.setRGB(0.35, 0.28, 0.02).multiplyScalar(anim.nerveHi);
+    if (u.base === 'lig__tcl_released_radial') m.position.x = 0.0028 * anim.release;
+    if (u.base === 'lig__tcl_released_ulnar')  m.position.x = -0.0028 * anim.release;
+    if (u.base === 'prop__syringe' && u.axis) m.position.copy(u.axis).multiplyScalar(-0.028 * (1 - Math.max(0, anim.syringe)));
+    if (u.overlay) { const c = m.geometry.getAttribute('color'), a = anim.derm;
+      if (Math.abs(a - (u._lastDerm || 0)) > 0.002) { u._lastDerm = a;
+        for (let i = 0; i < u.overlay.length; i++) { const t = u.overlay[i] * a; c.setXYZ(i, 1 + (DERM.r / COL_SKIN.r - 1) * t, 1 + (DERM.g / COL_SKIN.g - 1) * t, 1 + (DERM.b / COL_SKIN.b - 1) * t); }
+        c.needsUpdate = true; } }
+  }
+}
+const COL_SKIN = new THREE.Color(COL.skin);
+// drug cloud: a soft sphere that swells out of the needle tip, plus a few droplets
+const drugMat = new THREE.MeshStandardMaterial({ color: 0x9fd3ff, emissive: 0x2b6cb0, emissiveIntensity: 0.5, transparent: true, opacity: 0.35, roughness: 0.3, depthWrite: false });
+const drug = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 24, 16), drugMat); drug.visible = false; drug.renderOrder = 5; root.add(drug);
+const drops = []; for (let i = 0; i < 10; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.0006, 8, 6), drugMat); d.userData.dir = new THREE.Vector3(Math.random()-0.5, Math.random()-0.5, Math.random()-0.5).normalize(); d.userData.spd = 0.6 + Math.random(); d.visible = false; root.add(d); drops.push(d); }
+let drugT = 0;
+// ---- surgical release: incision markers on the ligament, scalpel cursor, drag along the line to cut ----
+const SCALPEL = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M3 29 L14 18' stroke='%23e8ecf3' stroke-width='3' stroke-linecap='round'/><path d='M13 19 L29 3 L29 9 L18 20 Z' fill='%23dfe6f0' stroke='%23334' stroke-width='1'/></svg>\") 3 29, crosshair";
+const incMesh = meshes.find(m => m.userData.base === 'prop__incision');
+const incPts = [];   // incision line in screen coords, proximal -> distal
+if (incMesh) { const p = incMesh.geometry.getAttribute('position'); const byY = {};
+  for (let i = 0; i < p.count; i++) { const y = Math.round(p.getY(i) * 2000) / 2000; (byY[y] = byY[y] || []).push(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); }
+  Object.keys(byY).map(Number).sort((a, b) => a - b).forEach(y => { const arr = byY[y]; incPts.push(arr.reduce((s, v) => s.add(v), new THREE.Vector3()).multiplyScalar(1 / arr.length)); }); }
+const dotMat = new THREE.MeshStandardMaterial({ color: 0xfff176, emissive: 0xb8860b, emissiveIntensity: 0.9 });
+const cutMat = new THREE.MeshStandardMaterial({ color: 0xc62828, emissive: 0x7a0000, emissiveIntensity: 0.8 });
+const dots = [];
+for (let i = 0; i < incPts.length; i += 2) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.0006, 10, 8), dotMat); d.position.copy(incPts[i]).add(new THREE.Vector3(0, 0, 0.0004)); d.userData.t = i / Math.max(1, incPts.length - 1); d.visible = false; root.add(d); dots.push(d); }
+function lineParam(pt){   // closest position along the incision line (0..1) and distance from it, in root space
+  let best = { t: 0, d: 1 };
+  for (let i = 0; i < incPts.length - 1; i++) { const a = incPts[i], b = incPts[i + 1], ab = b.clone().sub(a), l2 = ab.lengthSq();
+    const u = Math.max(0, Math.min(1, pt.clone().sub(a).dot(ab) / l2)); const q = a.clone().addScaledVector(ab, u); const d = q.distanceTo(pt);
+    if (d < best.d) best = { t: (i + u) / (incPts.length - 1), d }; }
+  return best;
+}
+function cutMode(){ return stage === 4 && sub === 2 && !state.tclSplit; }
+let cutting = false;
+let hoverT = -1;
+// scalpel model (blade along +X, handle rising toward +Z and leaning proximally)
+const scalpel = new THREE.Group();
+const blade = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.0006, 0.0028), new THREE.MeshStandardMaterial({ color: 0xe6ebf2, metalness: 0.9, roughness: 0.2 })); blade.position.set(0.0055, 0, 0.0014); scalpel.add(blade);
+const edge = new THREE.Mesh(new THREE.BoxGeometry(0.011, 0.0007, 0.0004), new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 1.0, roughness: 0.05 })); edge.position.set(0.0055, 0, 0.0001); scalpel.add(edge);
+const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.0018, 0.0026, 0.052, 16), new THREE.MeshStandardMaterial({ color: 0x3b4656, roughness: 0.55 }));
+{ const heel = new THREE.Vector3(0.011, 0, 0.0016), dir = new THREE.Vector3(Math.cos(0.5), 0, Math.sin(0.5)).normalize();   // handle leaves the heel at ~30°, rising off the ligament
+  handle.position.copy(heel).addScaledVector(dir, 0.026); handle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); scalpel.add(handle); }
+scalpel.visible = false; root.add(scalpel);
+function linePoint(t){ const u = t * (incPts.length - 1), i = Math.min(incPts.length - 2, Math.floor(u)), f = u - i; return incPts[i].clone().lerp(incPts[i + 1], f); }
+function placeScalpel(t){
+  const p = linePoint(t), tan = linePoint(Math.min(1, t + 0.03)).sub(linePoint(Math.max(0, t - 0.03))).normalize();
+  const zA = new THREE.Vector3(0, 0, 1), yA = new THREE.Vector3().crossVectors(zA, tan).normalize(), zB = new THREE.Vector3().crossVectors(tan, yA).normalize();
+  scalpel.position.copy(p).addScaledVector(zB, -0.0006); scalpel.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tan, yA, zB));
+}
+let surgT = 0;
+function cutTick(dt){
+  const on = cutMode();
+  if (state.surgery > 0 && on) {                      // scripted operation: 0-3 s scalpel runs proximal -> distal, then the ligament opens
+    surgT += dt; const prog = Math.min(1, surgT / 3.2);
+    state.cutProg = Math.max(state.cutProg, prog); placeScalpel(Math.min(0.995, prog)); scalpel.visible = prog < 1;
+    if (prog >= 1) state.surgery = 2;
+  } else scalpel.visible = false;
+  dots.forEach(d => { d.visible = on; const done = d.userData.t <= state.cutProg && state.cutProg > 0; d.material = done ? cutMat : dotMat;
+    const near = hoverT >= 0 && Math.abs(d.userData.t - hoverT) < 0.08; d.scale.setScalar(near ? 1.9 : 1.0); });
+  if (on && state.cutProg > 0) document.getElementById('caption').textContent = `절개 진행 ${Math.round(state.cutProg * 100)}%`;
+  if (on && state.cutProg >= 0.9 && !state.tclSplit) { state.tclSplit = true; state.release = 1; state.patho = 0; state.inflam = 0; applyVisibility(); scalpel.visible = false;
+    document.getElementById('caption').textContent = '인대가 절개선을 중심으로 양쪽으로 벌어지며 통로가 넓어지고, 눌려 있던 정중신경과 힘줄이 제 모습을 되찾습니다.'; }
+}
+// syringe fluid + plunger (built in a frame at the needle tip, +Y = needle axis)
+const syrRig = new THREE.Group(); root.add(syrRig);
+const fluidMat = new THREE.MeshStandardMaterial({ color: 0x8fc7ff, emissive: 0x1e5fa8, emissiveIntensity: 0.35, transparent: true, opacity: 0.85, roughness: 0.2 });
+const fluidGeo = new THREE.CylinderGeometry(0.0034, 0.0034, 0.040, 24); fluidGeo.translate(0, -0.020, 0);   // pivot at the hub end
+const fluid = new THREE.Mesh(fluidGeo, fluidMat); fluid.position.y = -0.040; syrRig.add(fluid);
+const plungerMat = new THREE.MeshStandardMaterial({ color: 0x2f3a48, roughness: 0.5 });
+const plunger = new THREE.Group(); syrRig.add(plunger);
+const pdisc = new THREE.Mesh(new THREE.CylinderGeometry(0.0034, 0.0034, 0.002, 24), plungerMat); plunger.add(pdisc);
+const prod = new THREE.Mesh(new THREE.CylinderGeometry(0.0011, 0.0011, 0.040, 12), plungerMat); prod.position.y = -0.020; plunger.add(prod);
+const pthumb = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.0025, 24), plungerMat); pthumb.position.y = -0.041; plunger.add(pthumb);
+// oral drug: particles arriving with the blood from the forearm side, settling on the inflamed tissue
+const oralMat = new THREE.MeshStandardMaterial({ color: 0x9fd3ff, emissive: 0x2b6cb0, emissiveIntensity: 0.6, transparent: true, opacity: 0.8 });
+const oral = []; for (let i = 0; i < 60; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(0.0005, 6, 5), oralMat);
+  d.userData = { r: 0.006 + Math.random() * 0.012, a: Math.random() * 6.28, ph: Math.random(), sp: 0.5 + Math.random() }; d.visible = false; root.add(d); oral.push(d); }
+let oralT = 0;
+function oralTick(dt){
+  anim.oral += (state.oral - anim.oral) * Math.min(1, dt * 1.2);
+  const on = state.oral > 0 && state.mode === 'cut';
+  oral.forEach(d => d.visible = on);
+  if (!on) { oralT = 0; return; }
+  oralT += dt;
+  oral.forEach((d, i) => { const u = ((oralT * 0.25 * d.userData.sp) + d.userData.ph) % 1;      // 0: forearm side -> 1: around the tunnel
+    const y = -0.075 + 0.085 * u, r = d.userData.r * (0.4 + 0.6 * u), a = d.userData.a + oralT * 0.8;
+    d.position.set(Math.cos(a) * r, y, Math.sin(a) * r * 0.8); d.material.opacity = 0.9 * Math.min(1, u * 4) * (1 - Math.max(0, (u - 0.85) / 0.15)); });
+}
+function drugTick(dt){
+  anim.inject += (state.inject - anim.inject) * Math.min(1, dt * 0.9);
+  const syr = meshes.find(m => m.userData.base === 'prop__syringe'); const tip = syr && syr.userData.tip;
+  const syrOn = state.syringe >= 0 && tip && state.mode === 'cut';
+  syrRig.visible = syrOn;
+  if (syrOn) { syrRig.position.copy(syr.position).add(tip); syrRig.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), syr.userData.axis);
+    const inj = Math.max(0, anim.inject); fluid.scale.y = Math.max(0.02, 1 - inj); plunger.position.y = -0.080 + 0.040 * inj; }
+  state.drug = (syrOn && anim.inject > 0.02) ? 1 : -1;
+  anim.drug = syrOn ? anim.inject : -1;
+  const on = state.drug >= 0 && tip && state.mode === 'cut';
+  drug.visible = on; drops.forEach(d => d.visible = on);
+  if (!on) { drugT = 0; return; }
+  drugT += dt; const a = Math.max(0, anim.drug), s = 0.15 + 0.85 * a;
+  drug.position.copy(tip); drug.scale.setScalar(s); drugMat.opacity = 0.42 - 0.2 * a + 0.03 * Math.sin(drugT * 3);
+  drops.forEach((d, i) => { const r = 0.0015 + 0.0055 * ((drugT * d.userData.spd * 0.35 + i * 0.1) % 1); d.position.copy(tip).addScaledVector(d.userData.dir, r); });
+}
+
+// ---------- camera ----------
+const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
+const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
+function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
+  key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
+const VIEWS = {
+  palmar:  { off:[0,0,1],      up:[0,1,0], r:0.30 },
+  radial:  { off:[1,0,0.15],   up:[0,1,0], r:0.30 },
+  dorsal:  { off:[0,0,-1],     up:[0,1,0], r:0.30 },
+  section: { off:[0,-1,0.10],  up:[0,0,1], r:0.14, target:[0,0.01,0] },
+  section_ob: { off:[0.6,-1,0.8], up:[0,0,1], r:0.17, target:[0,0.01,0] },
+  proximal:{ off:[0,-1,0.35],  up:[0,0,1], r:0.24, target:[0,0.03,0] },
+  palmar_close: { off:[0.15,0.35,1], up:[0,1,0], r:0.22, target:[0,0.03,0] },
+};
+function setSide(s){
+  if (s === state.side) return; state.side = s; root.scale.x = s;
+  off.x *= -1; target.x *= -1; up.x *= -1; camGoal.off.x *= -1; camGoal.target.x *= -1; camGoal.up.x *= -1; applyCam();
+  document.getElementById('sidebtn').textContent = s > 0 ? '오른손 ⇄ 왼손' : '왼손 ⇄ 오른손';
+  document.getElementById('sidelabel').textContent = s > 0 ? '오른손' : '왼손';
+}
+function setView(name, instant){
+  if (name === 'reset') name = state.mode === 'cut' ? 'section' : 'palmar';
+  const v = VIEWS[name];
+  camGoal.target.set(...(v.target || [0,0,0]));
+  camGoal.off.set(...v.off).normalize().multiplyScalar(v.r); camGoal.off.x *= state.side; camGoal.target.x *= state.side;
+  const f = camGoal.target.clone().sub(camGoal.target.clone().add(camGoal.off)).normalize();
+  camGoal.up.set(...v.up); camGoal.up.sub(f.clone().multiplyScalar(camGoal.up.dot(f))).normalize();
+  camGoal.t = instant ? 1 : 0;
+  if (instant) { off.copy(camGoal.off); up.copy(camGoal.up); target.copy(camGoal.target); applyCam(); }
+}
+function camTick(dt){ if (camGoal.t >= 1) return; camGoal.t = Math.min(1, camGoal.t + dt * 1.6); const s = camGoal.t * camGoal.t * (3 - 2 * camGoal.t);
+  off.lerp(camGoal.off, s); up.lerp(camGoal.up, s).normalize(); target.lerp(camGoal.target, s); applyCam(); }
+function rotate(dx, dy){ camGoal.t = 1;
+  const f = target.clone().sub(camera.position).normalize(), right = new THREE.Vector3().crossVectors(f, up).normalize();
+  const q = new THREE.Quaternion().setFromAxisAngle(up, -dx * 0.007).multiply(new THREE.Quaternion().setFromAxisAngle(right, -dy * 0.007));
+  off.applyQuaternion(q); up.applyQuaternion(q).normalize(); applyCam(); }
+let drag = null, pinch0 = 0; const pointers = new Set();
+function incisionHit(e){   // pointer near the incision line, tested in screen space (pixels)
+  hoverT = -1;
+  if (!cutMode() || incPts.length < 2) return null;
+  root.updateMatrixWorld(true);
+  const sp = incPts.map(p => { const v = p.clone(); root.localToWorld(v); v.project(camera); return { x: (v.x + 1) / 2 * innerWidth, y: (1 - v.y) / 2 * innerHeight }; });
+  let best = { t: 0, d: 1e9 };
+  for (let i = 0; i < sp.length - 1; i++) { const a = sp[i], b = sp[i + 1], abx = b.x - a.x, aby = b.y - a.y, l2 = abx * abx + aby * aby || 1;
+    const u = Math.max(0, Math.min(1, ((e.clientX - a.x) * abx + (e.clientY - a.y) * aby) / l2));
+    const qx = a.x + abx * u, qy = a.y + aby * u, d = Math.hypot(e.clientX - qx, e.clientY - qy);
+    if (d < best.d) best = { t: (i + u) / (sp.length - 1), d }; }
+  if (best.d < 22) { hoverT = best.t; return best; }   // within 22 px of the line
+  return null;
+}
+canvas.addEventListener('pointerdown', e => {
+  const ih = incisionHit(e);
+  if (ih && e.button === 0) { cutting = true; canvas.setPointerCapture(e.pointerId);
+    if (ih.t > state.cutProg && ih.t - state.cutProg < 0.3) state.cutProg = ih.t;            // click on the next dot(s) also advances the cut
+    return; }
+  pointers.add(e.pointerId); drag = { x:e.clientX, y:e.clientY, b:e.button, shift:e.shiftKey, ctrl:e.ctrlKey || e.metaKey, alt:e.altKey }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', e => { pointers.delete(e.pointerId); drag = null; cutting = false; });
+canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointermove', e => {
+  const ih = incisionHit(e); const cur = ih ? SCALPEL : ''; canvas.style.cursor = cur; document.body.style.cursor = cur; if (ih && !canvas.style.cursor) { canvas.style.cursor = 'crosshair'; document.body.style.cursor = 'crosshair'; }
+  if (cutting) { if (ih && ih.t > state.cutProg && ih.t - state.cutProg < 0.3) state.cutProg = ih.t; return; }
+  hover(e); if (!drag || pointers.size > 1) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.ctrl) { zoom(Math.exp(dy * 0.006)); }                                   // Ctrl + drag: zoom (up = closer)
+  else if (drag.alt) { camGoal.t = 1; const f = target.clone().sub(camera.position).normalize();   // Alt + drag: roll the view
+    up.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(f, -dx * 0.006)).normalize(); applyCam(); }
+  else if (drag.b === 2 || drag.b === 1 || drag.shift) { camGoal.t = 1; const k = off.length() * 0.0016;   // right/middle/Shift + drag: pan
+    const r = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+    target.addScaledVector(r, -dx*k).addScaledVector(u, dy*k); applyCam(); }
+  else rotate(dx, dy); });
+canvas.addEventListener('dblclick', e => {                                            // double-click: centre the view on that spot
+  ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1; ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible))[0];
+  if (hit) { camGoal.target.copy(hit.point); camGoal.off.copy(off).setLength(Math.max(0.03, off.length() * 0.7)); camGoal.up.copy(up); camGoal.t = 0; }
+});
+function zoom(f){ camGoal.t = 1; off.setLength(Math.min(0.9, Math.max(0.02, off.length() * f))); applyCam(); }
+canvas.addEventListener('wheel', e => { e.preventDefault();
+  if (e.shiftKey) { camGoal.t = 1; const u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1); target.addScaledVector(u, -e.deltaY * off.length() * 0.0008); applyCam(); }   // Shift + wheel: pan up/down
+  else zoom(Math.exp(e.deltaY * (e.ctrlKey ? 0.0004 : 0.0012))); }, { passive:false });   // Ctrl + wheel: fine zoom
+canvas.addEventListener('touchstart', e => { if (e.touches.length===2) pinch0 = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
+canvas.addEventListener('touchmove', e => { if (e.touches.length===2){ const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch0/d); pinch0 = d; } }, {passive:true});
+
+// ---------- hover ----------
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), tag = document.getElementById('tag'); let hovered = null;
+function hover(e){ ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1; ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible && !(m.userData.layer==='skin' && state.skinOp < 0.5)))[0];
+  if (hovered && hovered !== (hit && hit.object)) { hovered.userData._hov = 0; hovered = null; }
+  if (hit) { hovered = hit.object; tag.style.display = 'block'; tag.style.left = e.clientX + 'px'; tag.style.top = e.clientY + 'px';
+    tag.innerHTML = (KO[hovered.userData.base] || hovered.userData.base) + '<small>' + hovered.name + '</small>'; } else tag.style.display = 'none'; }
+
+// ---------- stages ----------
+const STAGES = [
+  { name:'외관', cap:'손목을 바깥에서 본 모습입니다. 이 안을 들여다보겠습니다.',
+    set:{ mode:'full', skinOp:1, layers:{skin:1,muscle:1,tendon:1,lig:1,nerve:1,bone:1}, patho:0, inflam:0, oral:0, inject:0, derm:0, nerveHi:0, syringe:-1, drug:-1, incision:0, tclSplit:false, release:0 }, view:'palmar' },
+  { name:'터널 노출', motion:true, cap:'손목을 잘라 손 쪽에서 본 모습입니다. 손목뼈가 바닥, 횡수근인대가 지붕인 좁은 통로 — 손목터널. 그 안으로 힘줄 9개와 정중신경 1개가 손가락 쪽으로 지나갑니다.',
+    set:{ mode:'cut', layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:1,bone:1}, patho:0, inflam:0, oral:0, inject:0, nerveHi:0, syringe:-1, drug:-1, incision:0, tclSplit:false, release:0 }, view:'section' },
+  { name:'병리', motion:true, cap:'지붕인 인대가 두꺼워지고 힘줄을 싸는 막이 부으면 통로가 좁아져, 그 사이에 낀 정중신경이 눌립니다. (아래 버튼으로 정상/병리 비교)',
+    set:{ mode:'cut', layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:1,bone:1}, patho:1, inflam:1, oral:0, inject:0, nerveHi:0, syringe:-1, drug:-1, incision:0, tclSplit:false, release:0 }, view:'section',
+    subs:[ {name:'정상', set:{patho:0}}, {name:'병리', set:{patho:1}} ] },
+  { name:'증상', cap:'눌린 정중신경은 엄지·검지·중지와 약지 절반의 감각을 담당합니다. 그래서 이 부위가 저리고 아픕니다.',
+    set:{ mode:'full', skinOp:0.72, layers:{skin:1,muscle:0,tendon:0,lig:1,nerve:1,bone:1}, patho:1, inflam:0, oral:0, inject:0, derm:1, nerveHi:1, syringe:-1, drug:-1, incision:0, tclSplit:false, release:0 }, view:'palmar_close' },
+  { name:'치료', cap:'치료는 단계적으로: 염증을 줄이는 약 → 터널 안에 직접 주사 → 호전이 없으면 인대를 열어주는 수술.',
+    set:{ mode:'cut', layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:1,bone:1,prop:1}, patho:1, inflam:1, oral:0, inject:0, nerveHi:0, syringe:-1, drug:-1, incision:0, tclSplit:false, release:0 }, view:'section_ob',
+    subs:[ {name:'① 소염제', cap:'먹는 약의 성분이 혈액을 타고 손목에 도착해 인대와 힘줄 주변의 염증을 가라앉힙니다. (아래 "복용" 버튼)', set:{patho:1, inflam:1, oral:0, syringe:-1, inject:0, incision:0, tclSplit:false, release:0},
+             action:{ label:'💊 복용', on:'복용 중…', set:{oral:1} } },
+           {name:'② 국소 주사', cap:'인대 바로 아래, 정중신경 옆으로 바늘을 넣고 약을 주입합니다. (아래 "약물 주입" 버튼)', set:{patho:0.7, inflam:1, oral:0, syringe:1, inject:0, incision:0, tclSplit:false, release:0},
+             action:{ label:'💉 약물 주입', on:'주입 중…', set:{inject:1} } },
+           {name:'③ 인대 절개 (수술)', cap:'정중신경 바로 위 노란 점선이 절개선입니다. "수술 시작"을 누르면 메스가 절개선을 따라 인대를 열고, 통로가 넓어지며 신경 압박이 풀립니다. (점선을 직접 드래그해도 됩니다)', set:{patho:1, inflam:1, oral:0, syringe:-1, inject:0, incision:0, tclSplit:false, release:0, cutProg:0, surgery:0},
+             action:{ label:'🔪 수술 시작', on:'수술 진행 중…', set:{surgery:1} } } ] },
+];
+let stage = -1, sub = -1;
+function applySet(s){ for (const [k, v] of Object.entries(s)) { if (k === 'layers') for (const [l, on] of Object.entries(v)) state.layers[l] = !!on; else state[k] = v; } }
+function goStage(i, subIdx){
+  const prevStage = stage;
+  stage = Math.max(0, Math.min(STAGES.length - 1, i)); const S = STAGES[stage];
+  applySet(S.set); sub = -1;
+  if (S.subs && subIdx !== undefined) { sub = subIdx; applySet(S.subs[sub].set); }
+  applyVisibility(); surgT = 0;
+  if (prevStage < 0) setView(S.view);   // camera is set only on first load; changing stages keeps whatever view you are in (R / '원래대로' resets)
+  syncPanel();
+  document.getElementById('caption').textContent = (sub >= 0 && S.subs[sub].cap) ? S.subs[sub].cap : S.cap;
+  document.querySelectorAll('#stbtns button').forEach((b, k) => b.classList.toggle('on', k === stage));
+  const sb = document.getElementById('subbar'); sb.innerHTML = '';
+  state.motion = false; applyVisibility();
+  if (S.subs) { sb.style.display = 'flex'; S.subs.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn' + (k === sub ? ' on' : ''); b.textContent = x.name; b.onclick = () => goStage(stage, k); sb.appendChild(b); });
+    const act = sub >= 0 && S.subs[sub].action;
+    if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = 'var(--acc)'; b.textContent = act.label;
+      b.onclick = () => { applySet(act.set); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); } }
+  else sb.style.display = 'none';
+  if (S.motion) { sb.style.display = 'flex'; const b = document.createElement('button'); b.className = 'sub-btn'; b.textContent = '▶ 손가락 움직임';
+    b.onclick = () => { state.motion = !state.motion; b.classList.toggle('on', state.motion); b.textContent = state.motion ? '■ 멈춤' : '▶ 손가락 움직임'; applyVisibility();
+      document.getElementById('caption').textContent = state.motion ? '손가락을 굽혔다 펼 때 힘줄들은 터널 속을 앞뒤로 미끄러지지만, 정중신경은 그 자리에서 눌린 채 있습니다.' : S.cap; };
+    sb.appendChild(b); }
+}
+document.getElementById('stbtns').innerHTML = STAGES.map((s, i) => `<button>${i + 1}. ${s.name}</button>`).join('');
+document.querySelectorAll('#stbtns button').forEach((b, i) => b.onclick = () => goStage(i));
+document.getElementById('prev').onclick = () => { const S = STAGES[stage]; if (S.subs && sub > 0) goStage(stage, sub - 1); else goStage(stage - 1); };
+document.getElementById('next').onclick = () => { const S = STAGES[stage]; if (S.subs && sub < S.subs.length - 1) goStage(stage, sub + 1); else goStage(stage + 1); };
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const step = e.shiftKey ? 12 : 0;   // Shift + arrows: pan, arrows: rotate
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? panKeys(-step, 0) : rotate(-18, 0); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? panKeys(step, 0) : rotate(18, 0); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); e.shiftKey ? panKeys(0, -step) : rotate(0, -18); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); e.shiftKey ? panKeys(0, step) : rotate(0, 18); }
+  if (e.key === '+' || e.key === '=') zoom(0.85);
+  if (e.key === '-' || e.key === '_') zoom(1 / 0.85);
+  if (e.key === 'Home' || e.key === 'r' || e.key === 'R') setView('reset');
+  if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); document.getElementById('next').click(); }
+  if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); document.getElementById('prev').click(); }
+  if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1);
+  if (e.key === 'l' || e.key === 'L') setSide(-state.side);
+});
+function panKeys(dx, dy){ camGoal.t = 1; const k = off.length() * 0.0016;
+  const r = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  target.addScaledVector(r, -dx*k).addScaledVector(u, dy*k); applyCam(); }
+
+// ---------- panel ----------
+function syncPanel(){
+  document.querySelectorAll('button[data-mode]').forEach(x => x.classList.toggle('on', x.dataset.mode === state.mode));
+  document.querySelectorAll('input[data-layer]').forEach(cb => cb.checked = !!state.layers[cb.dataset.layer]);
+  document.getElementById('skinop').value = state.skinOp; document.getElementById('patho').checked = state.patho > 0.5; document.getElementById('derm').checked = state.derm > 0.5;
+}
+document.querySelectorAll('button[data-mode]').forEach(b => b.addEventListener('click', () => { state.mode = b.dataset.mode;
+  if (state.mode === 'cut') { state.layers.skin = false; state.layers.muscle = false; } else { state.layers.skin = true; state.layers.muscle = true; }
+  applyVisibility(); setView('reset'); syncPanel(); }));
+document.querySelectorAll('input[data-layer]').forEach(cb => cb.addEventListener('change', () => { state.layers[cb.dataset.layer] = cb.checked; applyVisibility(); }));
+document.getElementById('skinop').addEventListener('input', e => { state.skinOp = +e.target.value; applyVisibility(); });
+document.getElementById('patho').addEventListener('change', e => { state.patho = e.target.checked ? 1 : 0; });
+document.getElementById('derm').addEventListener('change', e => { state.derm = e.target.checked ? 1 : 0; state.nerveHi = state.derm; });
+document.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+document.getElementById('sidebtn').addEventListener('click', () => setSide(-state.side));
+document.getElementById('outline').addEventListener('change', e => meshes.forEach(m => { if (m.userData.hull) m.userData.hull.visible = e.target.checked; }));
+document.getElementById('rimshade').addEventListener('change', e => { RIM.value = e.target.checked ? +document.getElementById('rimamt').value : 0.0; });
+document.getElementById('rimamt').addEventListener('input', e => { if (document.getElementById('rimshade').checked) RIM.value = +e.target.value; });
+
+// ---------- loop ----------
+function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
+  document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
+goStage(0); setView('palmar', true);
+let last = performance.now();
+(function loop(now){ requestAnimationFrame(loop); const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  camTick(dt); tick(dt); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })(last);
+</script>
+</body>
+</html>
