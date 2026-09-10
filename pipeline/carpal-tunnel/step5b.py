@@ -18,8 +18,10 @@ built["lig__tcl"] = build_tcl(O)
 union = join_bms([bm.copy() for bm in built.values()])
 bpy.ops.wm.read_homefile(use_empty=True)
 ob = bm_to_object(union, "skin_src")
-for kind, kw in [("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=4)),
-                 ("DISPLACE", dict(strength=0.0032, mid_level=0, direction="NORMAL")),
+for kind, kw in [("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=3)),
+                 ("DISPLACE", dict(strength=0.0065, mid_level=0, direction="NORMAL")),          # dilate 6.5 mm: valleys between tendons/bones fill (subcutaneous fat)
+                 ("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=6)),
+                 ("DISPLACE", dict(strength=-0.0033, mid_level=0, direction="NORMAL")),         # erode back: net +3.2 mm with the valleys closed
                  ("REMESH", dict(mode="VOXEL", voxel_size=0.0016))]:      # clean, manifold surface before the boolean
     m = ob.modifiers.new(kind.lower(), kind)
     for k, v in kw.items(): setattr(m, k, v)
