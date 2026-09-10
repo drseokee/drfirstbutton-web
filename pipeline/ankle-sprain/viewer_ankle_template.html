@@ -44,14 +44,15 @@
 .sub-btn.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
 #caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f3eee4; z-index: 12; }
 #twist { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: none; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
-#twist input { width: 220px; }
+#twist input { width: 260px; }
+#twist { padding-bottom: 22px; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="caption"></div>
 <div id="subbar"></div>
-<div id="twist"><span>발목 꺾기</span><input id="twistRange" type="range" min="0" max="100" value="0"><button class="sub-btn" id="twistPlay">▶ 재생</button></div>
+<div id="twist"><span>발목 꺾기</span><div style="position:relative;display:inline-block"><input id="twistRange" type="range" min="0" max="100" value="0"><div id="ticks" style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#cfc7b8;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:40%;transform:translateX(-50%)">1도</span><span style="position:absolute;left:65%;transform:translateX(-50%)">2도</span><span style="position:absolute;left:85%;transform:translateX(-50%)">3도</span></div></div><button class="sub-btn" id="twistPlay">▶ 재생</button></div>
 <div id="stages"></div>
 <div id="panel">
   <h1>발목 염좌</h1>
@@ -433,12 +434,12 @@ let twistT = 0;
 function applyRig(){
   const tw = anim.twist;                                                      // 0..1 : inversion sprain motion = plantarflexion + inversion
   const GRADE_ANG = { 0: { pf: 14, inv: 12, ir: 6, tilt: 3 }, 1: { pf: 16, inv: 16, ir: 8, tilt: 7 }, 2: { pf: 20, inv: 20, ir: 11, tilt: 14 }, 3: { pf: 24, inv: 22, ir: 14, tilt: 24 } };
-  const ANG = window.ANG || GRADE_ANG[state.grade] || GRADE_ANG[0];
+  const ANG = window.ANG || ((stage === 2 || surg.done < 1) && STAGES[stage] && STAGES[stage].progressive ? GRADE_ANG[3] : (GRADE_ANG[state.grade] || GRADE_ANG[0]));   // progressive stage: one full motion, the grade comes from how far it goes
   const tiltAxis = new THREE.Vector3(1, 0, 0);                                                            // foot's long axis (anterior): talar tilt = the talus rolling in the mortise
   const ev = surg.evert;                                                                                   // repair position: dorsiflexion + eversion (ligament slack)
   const q1 = new THREE.Quaternion().setFromAxisAngle(ankleD, THREE.MathUtils.degToRad(-ANG.pf * tw + 10 * ev))   // plantarflexion
     .multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), THREE.MathUtils.degToRad(ANG.ir * tw - 5 * ev)))   // internal rotation of the talus
-    .multiply(new THREE.Quaternion().setFromAxisAngle(tiltAxis, THREE.MathUtils.degToRad(TILT_SIGN * (ANG.tilt * tw - 4 * ev))));     // talar tilt (grows with grade)
+    .multiply(new THREE.Quaternion().setFromAxisAngle(tiltAxis, THREE.MathUtils.degToRad(TILT_SIGN * (ANG.tilt * (STAGES[stage] && STAGES[stage].progressive ? Math.pow(tw, 2.2) : tw) - 4 * ev))));     // talar tilt: in the progressive stage it builds late (ligament failing)
   const q2 = new THREE.Quaternion().setFromAxisAngle(subD, THREE.MathUtils.degToRad(ANG.inv * tw - 14 * ev));      // inversion (subtalar); eversion during the repair
   talusG.quaternion.copy(q1); footG.quaternion.copy(q2); bTal.quaternion.copy(q1); bFoot.quaternion.copy(q2);
 }
@@ -532,12 +533,8 @@ const STAGES = [
     set:{ layers:{skin:1,muscle:1,tendon:1,lig:1,nerve:1,bone:1,vessel:1}, skinOp:1, grade:0, inflam:0, heal:0, twist:0 } },
   { name:'구조 노출', cap:'피부를 걷어내면 발목을 잡아 주는 바깥쪽 인대 3개가 보입니다 — 앞의 전거비인대, 아래의 종비인대, 뒤의 후거비인대. 발이 안쪽으로 꺾일 때 이 끈들이 버팁니다.',
     set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:1,bone:1,vessel:1}, skinOp:0.15, grade:0, inflam:0, heal:0, twist:0 }, ligFocus:true },
-  { name:'다치는 순간', cap:'발을 헛디디면 발이 안쪽으로 뒤집히면서(내번) 바깥쪽 인대가 팽팽해지다 늘어나거나 찢어집니다. 오른쪽 아래 슬라이더로 꺾어 보거나 재생을 누르세요.',
-    set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.1, grade:0, inflam:0, heal:0 }, twist:true,
-    subs:[ {name:'정상', cap:'정상 인대: 꺾어도 팽팽하게 버티고 원래 길이로 돌아옵니다.', set:{grade:0, inflam:0}},
-           {name:'1도 — 늘어남', cap:'1도 염좌: 인대 섬유가 늘어났지만 끊어지진 않았습니다. 붓고 아프지만 발목은 흔들리지 않습니다.', set:{grade:1, inflam:1, twistMax:1}},
-           {name:'2도 — 부분 파열', cap:'2도 염좌: 전거비인대 섬유 일부가 끊어졌습니다. 멍이 들고 발목이 약간 흔들립니다.', set:{grade:2, inflam:1, twistMax:1}},
-           {name:'3도 — 완전 파열', cap:'3도 염좌: 전거비인대가 완전히 끊어지고 종비인대까지 손상됩니다. 발목이 불안정해집니다.', set:{grade:3, inflam:1, twistMax:1.0}} ] },
+  { name:'다치는 순간', cap:'발을 헛디뎌 안쪽으로 뒤집히는 순간입니다. 슬라이더를 밀수록 인대가 팽팽해지다(정상) → 늘어나고(1도) → 일부가 찢어지고(2도) → 완전히 끊어집니다(3도). 되돌리면 다시 붙습니다.',
+    set:{ layers:{skin:0,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.1, grade:0, inflam:0, heal:0, twistMax:1 }, twist:true, progressive:true },
   { name:'증상', cap:'끊어진 인대 주변으로 피가 고이고 부어오릅니다. 바깥복사뼈 앞·아래가 붓고, 며칠 뒤 멍이 발등과 발꿈치 쪽으로 번집니다. 그 자리를 누르면 아픕니다.',
     set:{ layers:{skin:1,muscle:0,tendon:1,lig:1,nerve:0,bone:1,vessel:0}, skinOp:0.55, grade:2, inflam:1, heal:0, twist:0, swelling:1 } },
   { name:'치료', cap:'대부분 수술 없이 낫습니다. 아래 버튼으로 단계를 보세요.',
@@ -569,13 +566,17 @@ function goStage(i, subIdx){
   document.getElementById('caption').textContent = S.subs ? S.subs[sub].cap : S.cap;
   document.getElementById('twist').style.display = S.twist ? 'flex' : 'none';
   document.getElementById('caption').style.bottom = S.twist ? '162px' : '112px';   // caption sits above the twist bar when it is shown
-  if (!S.twist) { state.twist = 0; }
+  if (!S.twist) { state.twist = 0; } document.getElementById('ticks').style.display = S.progressive ? 'block' : 'none';
 }
 document.getElementById('twistRange').oninput = e => { state.twist = +e.target.value / 100 * state.twistMax; state.playing = false; document.getElementById('twistPlay').textContent = '▶ 재생'; };
 document.getElementById('twistPlay').onclick = () => { state.playing = !state.playing; document.getElementById('twistPlay').textContent = state.playing ? '■ 멈춤' : '▶ 재생'; };
 function tick(dt){
   if (state.playing) { twistT += dt; state.twist = (1 - Math.cos(twistT * 1.6)) / 2 * state.twistMax; document.getElementById('twistRange').value = Math.round(state.twist / state.twistMax * 100); }
-  if (stage === 2) { if (state.grade >= 1 && anim.twist >= state.twistMax * 0.85) state.torn = 1; if (anim.twist < state.twistMax * 0.45) state.torn = 0; }   // tears at the peak; scrubbing back below 45 % restores the intact ligament
+  if (stage === 2) {   // progressive: the grade is read off the twist itself — normal < 40 % < grade 1 < 65 % < grade 2 < 85 % < grade 3; scrubbing back restores it
+    const g = anim.twist < 0.40 ? 0 : anim.twist < 0.65 ? 1 : anim.twist < 0.85 ? 2 : 3;
+    if (g !== state.grade) { state.grade = g; state.inflam = g > 0 ? 1 : 0; const cap = ['정상: 인대가 팽팽하게 버팁니다.', '1도 염좌: 섬유가 늘어났지만 끊어지진 않았습니다.', '2도 염좌: 전거비인대 섬유 일부가 끊어졌습니다.', '3도 염좌: 전거비인대가 완전히 끊어지고 종비인대까지 손상됩니다.'][g];
+      document.getElementById('caption').textContent = cap; }
+    state.torn = state.grade >= 1 ? 1 : 0; }
   if (stage !== 2) state.torn = state.grade >= 1 ? 1 : 0;
   anim.torn += (state.torn - anim.torn) * Math.min(1, dt * 4);
   anim.twist += (state.twist - anim.twist) * Math.min(1, dt * 5);
