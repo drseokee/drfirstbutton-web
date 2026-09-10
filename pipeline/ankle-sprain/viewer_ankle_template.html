@@ -42,8 +42,8 @@
 .sub-btn { background: rgba(16,26,44,.85); color: #cfc7b8; border: 1px solid rgba(243,238,228,.16); padding: 7px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
 .sub-btn.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
 #caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f3eee4; z-index: 12; }
-#twist { position: fixed; right: 18px; bottom: 18px; z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 12px; padding: 10px 14px; display: none; gap: 8px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
-#twist input { width: 140px; }
+#twist { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: none; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
+#twist input { width: 220px; }
 </style>
 </head>
 <body>
@@ -471,7 +471,7 @@ function updateSurgery(dt){
     else if (T < 7.6) cap.textContent = '④ 앵커의 실이 인대를 통과해 당겨 봉합합니다 — 여유 길이가 없어지며 팽팽해집니다.';
     else if (T < 9.5) cap.textContent = '⑤ 신근지대를 위로 끌어올려 봉합한 인대 위에 한 겹 더 덮습니다(굴드 보강).';
     else cap.textContent = '⑥ 수술 후: 발을 꺾어도 보강된 인대가 단단히 버팁니다. 오른쪽 아래에서 꺾어 보세요.';
-    if (surg.done >= 1 && state.grade !== 0) { state.grade = 0; state.torn = 0; document.getElementById('twist').style.display = 'flex'; }
+    if (surg.done >= 1 && state.grade !== 0) { state.grade = 0; state.torn = 0; document.getElementById('twist').style.display = 'flex'; document.getElementById('caption').style.bottom = '162px'; }
   } else { surg.t = 0; for (const k of ['cut','anchor','evert','pull','gould','done','stitches']) surg[k] = 0; }
   const Lg = ligs.find(l => l.k === 'lig__atfl');
   const show = on && Lg && Lg.lastA;
@@ -529,6 +529,7 @@ function goStage(i, subIdx){
   else sb.style.display = 'none';
   document.getElementById('caption').textContent = S.subs ? S.subs[sub].cap : S.cap;
   document.getElementById('twist').style.display = S.twist ? 'flex' : 'none';
+  document.getElementById('caption').style.bottom = S.twist ? '162px' : '112px';   // caption sits above the twist bar when it is shown
   if (!S.twist) { state.twist = 0; }
 }
 document.getElementById('twistRange').oninput = e => { state.twist = +e.target.value / 100 * state.twistMax; state.playing = false; document.getElementById('twistPlay').textContent = '▶ 재생'; };
