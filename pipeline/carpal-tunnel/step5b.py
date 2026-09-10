@@ -17,13 +17,24 @@ built["lig__tcl"] = build_tcl(O)
 # ---- 2. skin envelope from the union of everything ----
 union = join_bms([bm.copy() for bm in built.values()])
 bpy.ops.wm.read_homefile(use_empty=True)
-ob = bm_to_object(union, "skin_src")
-for kind, kw in [("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=3)),
-                 ("DISPLACE", dict(strength=0.0065, mid_level=0, direction="NORMAL")),          # dilate 6.5 mm: valleys between tendons/bones fill (subcutaneous fat)
-                 ("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=6)),
-                 ("DISPLACE", dict(strength=-0.0033, mid_level=0, direction="NORMAL")),         # erode back: net +3.2 mm with the valleys closed
-                 ("REMESH", dict(mode="VOXEL", voxel_size=0.0016))]:      # clean, manifold surface before the boolean
-    m = ob.modifiers.new(kind.lower(), kind)
+# two envelopes: padded (subcutaneous closing) for the palm/wrist, lean (+3.2 mm) for the fingers — then welded at the MCP line
+Z_SPLIT = -0.068                                                       # just proximal to the MCP joints: fingers distal of this get no padding
+def envelope(padded):
+    o = bm_to_object(union.copy(), "skin_src_" + ("pad" if padded else "lean"))
+    chain = ([("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=3)),
+              ("DISPLACE", dict(strength=0.0065, mid_level=0, direction="NORMAL")), ("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=6)),
+              ("DISPLACE", dict(strength=-0.0033, mid_level=0, direction="NORMAL"))] if padded else
+             [("REMESH", dict(mode="VOXEL", voxel_size=0.0018)), ("SMOOTH", dict(factor=1.0, iterations=4)), ("DISPLACE", dict(strength=0.0032, mid_level=0, direction="NORMAL"))])
+    chain += [("REMESH", dict(mode="VOXEL", voxel_size=0.0016))]
+    for kind, kw in chain:
+        m = o.modifiers.new(kind.lower() + str(len(o.modifiers)), kind)
+        for k, v in kw.items(): setattr(m, k, v)
+    return evaluated_bm(o)
+pad = envelope(True); cut_z(pad, Z_SPLIT, keep="above", cap=True)      # palm + wrist (z > split)
+lean = envelope(False); cut_z(lean, Z_SPLIT, keep="below", cap=True)   # fingers (z < split)
+ob = bm_to_object(join_bms([pad, lean]), "skin_src")
+for kind, kw in [("REMESH", dict(mode="VOXEL", voxel_size=0.0016)), ("SMOOTH", dict(factor=1.0, iterations=5))]:   # weld the two halves and blur the step at the seam
+    m = ob.modifiers.new(kind.lower() + "w", kind)
     for k, v in kw.items(): setattr(m, k, v)
 # finger gaps: thin slabs between adjacent fingers, starting 6 mm distal to the proximal phalanx base (web stays)
 from mathutils import Matrix
