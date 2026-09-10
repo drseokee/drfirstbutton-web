@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>닥터첫단추 — 첫 단추를 잘 끼우면, 치료가 쉬워집니다</title>
+<meta name="description" content="정형외과 질환을 손목 안까지 열어 보는 3D 환자 교육 자료. 손목터널증후군부터.">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<link rel="stylesheet" href="common/style.css">
+</head>
+<body data-root=".">
+
+<!-- ================= HERO: 스크롤이 3D 손을 연다 ================= -->
+<section class="hero" id="hero">
+  <div class="stage">
+    <canvas id="hero-canvas"></canvas>
+    <div class="copy">
+      <div data-at="0"><div class="eyebrow">Doctor First Button</div><h1 class="serif">첫 단추를 잘 끼우면,<br>치료가 쉬워집니다.</h1><p class="lead">내 몸에서 무슨 일이 일어나는지 이해하는 것부터.</p></div>
+      <div data-at="1"><h1>피부 아래,</h1><p class="lead">뼈와 힘줄, 그리고 신경이 지나는 좁은 길이 있습니다.</p></div>
+      <div data-at="2"><h1>손목터널</h1><p class="lead">이 통로가 좁아지면 정중신경이 눌립니다.</p></div>
+      <div data-at="3"><h1>눌린 신경이 손끝을 저리게 합니다.</h1><p class="lead">그래서 저리고, 아프고, 밤에 손을 털게 됩니다.</p><p style="margin-top:22px;pointer-events:auto"><a class="btn primary" href="disease.html?id=carpal-tunnel">손목터널증후군 자세히 보기</a></p></div>
+    </div>
+    <div class="hint"><span>SCROLL</span><i></i></div>
+  </div>
+</section>
+
+<!-- ================= 소개 ================= -->
+<section class="section" id="about">
+  <div class="wrap intro">
+    <div class="bio">
+      <div class="eyebrow">About</div>
+      <div class="role" id="about-role"></div>
+      <div class="name" id="about-name"></div>
+      <div id="about-bio"></div>
+      <div class="links" id="about-links"></div>
+    </div>
+    <div class="portrait" id="about-photo">프로필 사진 자리</div>
+  </div>
+</section>
+
+<!-- ================= 질환별 3D 설명 ================= -->
+<section class="section" id="diseases">
+  <div class="wrap">
+    <div class="section-head"><div class="eyebrow">3D Patient Education</div><h2>질환별로 열어 보는 몸속</h2><p class="muted">진료실에서 설명할 때 쓰는 자료를 그대로 공개합니다. 회전하고, 확대하고, 단계를 따라가 보세요.</p></div>
+    <div class="cards" id="disease-cards"></div>
+  </div>
+</section>
+
+<script src="common/data.js"></script>
+<script src="common/site.js"></script>
+<script>
+// ---- 소개 채우기 (data.js의 person) ----
+(function(){ const P = (window.SITE||{}).person||{};
+  document.getElementById('about-role').textContent = P.role||''; document.getElementById('about-name').textContent = P.name||'';
+  document.getElementById('about-bio').innerHTML = (P.bio||[]).map(t => `<p>${t}</p>`).join('');
+  document.getElementById('about-links').innerHTML = ((window.SITE||{}).links||[]).map(l => `<a class="btn small" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`).join('');
+  if (P.photo) document.getElementById('about-photo').innerHTML = `<img src="${P.photo}" alt="${P.name}">`; })();
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="common/hero-model.js"></script>
+<script>
+// ================= 스크롤 구동 3D 손 =================
+(function(){
+  const M = window.HERO_MODEL; if (!M || !window.THREE) return;
+  const canvas = document.getElementById('hero-canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputEncoding = THREE.sRGBEncoding;
+  const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 5);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x1d2740, 0.9));
+  const key = new THREE.DirectionalLight(0xfff2dc, 0.9); key.position.set(0.4, 0.6, 1); scene.add(key);
+  const rim = new THREE.DirectionalLight(0xe5b04a, 0.35); rim.position.set(-0.6, 0.2, -1); scene.add(rim);
+  const COL = { skin:0xd9a58f, bone:0xe6dcc6, nerve:0xf2c94c, lig:0xa9bfd6 };
+  const RIM = { value: 1.4 };
+  const root = new THREE.Group(); scene.add(root);
+  const by = {};
+  for (const o of M.objects) {
+    const v = o.verts, pos = new Float32Array(v.length);
+    for (let i = 0; i < v.length; i += 3) { pos[i] = -v[i]; pos[i+1] = -v[i+2]; pos[i+2] = -v[i+1]; }   // 해부 좌표 -> 화면 좌표
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(o.tris); g.computeVertexNormals();
+    const m = new THREE.MeshStandardMaterial({ color: COL[o.layer], roughness: o.layer==='nerve'?0.5:0.72, metalness:0, transparent: o.layer!=='bone', opacity:1, side: THREE.DoubleSide });
+    m.onBeforeCompile = sh => { sh.uniforms.uRim = RIM; sh.fragmentShader = 'uniform float uRim;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.32, clamp(fr * uRim, 0.0, 1.0));'); };
+    m.customProgramCacheKey = () => 'hero';
+    const mesh = new THREE.Mesh(g, m); mesh.renderOrder = o.layer==='skin' ? 10 : 0; mesh.userData.layer = o.layer; root.add(mesh); (by[o.layer] = by[o.layer] || []).push(mesh);
+  }
+  // 카메라 키프레임: [진행도, 카메라 위치(x,y,z), 바라보는 점, 피부 투명도, 신경 발광]
+  const K = [
+    { t:0.00, cam:[0.02, 0.02, 0.42], tgt:[0, 0.02, 0], skin:1.0, nerve:0, lig:1.0 },
+    { t:0.30, cam:[0.16, 0.08, 0.30], tgt:[0, 0.01, 0], skin:0.35, nerve:0, lig:1.0 },
+    { t:0.60, cam:[0.05, -0.06, 0.17], tgt:[0, 0.00, 0], skin:0.08, nerve:0.4, lig:1.0 },
+    { t:1.00, cam:[-0.02, 0.05, 0.14], tgt:[0, 0.02, 0], skin:0.02, nerve:1.0, lig:0.35 },
+  ];
+  const lerp = (a, b, u) => a + (b - a) * u, V = a => new THREE.Vector3(...a);
+  function frame(p){
+    let i = 0; while (i < K.length - 2 && p > K[i + 1].t) i++;
+    const a = K[i], b = K[i + 1], u = Math.max(0, Math.min(1, (p - a.t) / (b.t - a.t))), s = u * u * (3 - 2 * u);
+    camera.position.copy(V(a.cam).lerp(V(b.cam), s)); camera.lookAt(V(a.tgt).lerp(V(b.tgt), s));
+    const skin = lerp(a.skin, b.skin, s), nerve = lerp(a.nerve, b.nerve, s), lig = lerp(a.lig, b.lig, s);
+    (by.skin||[]).forEach(m => { m.material.opacity = skin; m.material.depthWrite = skin > 0.9; m.visible = skin > 0.02; });
+    (by.nerve||[]).forEach(m => m.material.emissive.setRGB(0.5, 0.36, 0.05).multiplyScalar(nerve));
+    (by.lig||[]).forEach(m => { m.material.opacity = lig; });
+    root.rotation.y = -0.15 + 0.25 * Math.sin(p * 1.4);   // 천천히 도는 느낌
+    copies.forEach(el => el.classList.toggle('on', p >= +el.dataset.at * 0.32 - 0.05 && p < (+el.dataset.at + 1) * 0.32 - 0.05 || (+el.dataset.at === 3 && p >= 0.91)));
+  }
+  const hero = document.getElementById('hero'), copies = [...document.querySelectorAll('.hero .copy > div')];
+  function progress(){ const r = hero.getBoundingClientRect(); return Math.max(0, Math.min(1, -r.top / (r.height - innerHeight))); }
+  function resize(){ const w = canvas.clientWidth, h = canvas.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
+  addEventListener('resize', resize); resize();
+  let target = 0, cur = 0;
+  addEventListener('scroll', () => { target = progress(); }, { passive:true }); target = progress();
+  (function loop(){ requestAnimationFrame(loop); cur += (target - cur) * 0.12; frame(cur); renderer.render(scene, camera); })();
+})();
+</script>
+</body>
+</html>
