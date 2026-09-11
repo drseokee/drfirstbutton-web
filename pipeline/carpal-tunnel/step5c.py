@@ -79,7 +79,9 @@ def floor_y(x, z, hw=None):
     for dx in (-hw, -hw / 2, 0.0, hw / 2, hw):
         hit = floor_bvh.ray_cast(Vector((x + dx, -0.040, z)), Vector((0, 1, 0)))
         if hit[0] is not None: ys.append(hit[0].y)
-    return min(ys) if ys else -0.030
+    return min(ys) if ys else None
+def floor_or(x, z, default, hw=None):
+    f = floor_y(x, z, hw); return default if f is None else f
 
 # ---- tunnel layout: offsets relative to the nerve (x: radial -, ulnar +); rows are stacked UNDER the nerve everywhere ----
 layout = {   # absolute x at the section plane -> stored as offset from the nerve
@@ -125,25 +127,26 @@ def fit(k, z, h):
     nb = nerve_c(z).y + H_N * inv_cos                         # nerve's dorsal surface
     top = nb + GAP_NERVE * inv_cos                            # top of the FDS row
     if z <= 0.016:
-        rf = roof_at(x, zr(z), R) if w > 0.01 else -0.030; fl = floor_y(x, z)
-        top = max(top, rf + GAP_ROOF)                         # far from the nerve the roof may hang lower than the nerve does
+        rf = roof_at(x, zr(z), R) if w > 0.01 else None; fl = floor_y(x, z)
+        if rf is not None and rf > -0.029: top = max(top, rf + GAP_ROOF)   # far from the nerve the roof may hang lower than the nerve does
         fd = fcr_deep(x, z)
         if fd is not None: top = max(top, fd + 0.0005)                 # stay deep to the FCR tendon where it crosses
         pd = pl_deep(x, z)
         if pd is not None: top = max(top, pd + 0.0005)                 # and deep to palmaris longus / the palmar aponeurosis
-        S = (fl - GAP_FLOOR) - top                            # room for two rows
-        h = min(h, max(H_MIN, (S - GAP_ROW) / 4))
+        if fl is not None:
+            S = (fl - GAP_FLOOR) - top                        # room for two rows
+            h = min(h, max(H_MIN, (S - GAP_ROW) / 4))
     y_sup = top + h * inv_cos
     y_deep = y_sup + (2 * h + GAP_ROW) * inv_cos
     wf = smooth01((TCL_DIST + 0.002 - z) / 0.010)             # 0 inside the tunnel .. 1 well past the ligament: rows go from nerve-stacked to floor-resting
-    if wf > 0:
+    if wf > 0 and floor_y(x, z) is not None:
         fl2 = floor_y(x, z); yd2 = fl2 - GAP_FLOOR - h * inv_cos; ys2 = yd2 - (2 * h + GAP_ROW) * inv_cos
         for ceil in (pl_deep(x, z), fcr_deep(x, z)):
             if ceil is not None and ys2 - h < ceil + 0.0006:      # a superficial structure in the way: shrink the stack rather than sink into bone
                 h = max(H_MIN, h - ((ceil + 0.0006) - (ys2 - h)) / 4); yd2 = fl2 - GAP_FLOOR - h * inv_cos; ys2 = yd2 - (2 * h + GAP_ROW) * inv_cos
         y_deep = y_deep * (1 - wf) + yd2 * wf; y_sup = y_sup * (1 - wf) + ys2 * wf
     y = {"deep": y_deep, "sup": y_sup, "fpl": y_sup + h * 0.6}[row]   # FPL rides just below the FDS level, radial of the row
-    if z <= 0.016:
+    if z <= 0.016 and floor_y(x, z) is not None:
         lim = floor_y(x, z) - GAP_FLOOR - h                  # hard floor: never inside bone
         if y > lim:
             print(f"  ! tight at z {z*1e3:+.0f} for {k}: {row} row exceeds floor by {(y - lim)*1e3:.2f} mm")
@@ -203,21 +206,13 @@ def path(k):
     n_app = 3 if f != 1 else 0
     s_begin = 0.0
     if f == 1:   # thumb: leave the tunnel and pick up the trapezium->metacarpal column where it passes z = -18 mm
-        pex = Vector((x0, min(pts[-1][0].y, floor_y(x0, z0 - 0.003, hw=0.0035) - GAP_FLOOR - h), z0 - 0.003))
+        pex = Vector((x0, min(pts[-1][0].y, floor_or(x0, z0 - 0.003, 1.0, hw=0.0035) - GAP_FLOOR - h), z0 - 0.003))
         pts.append((pex, 1.0, 1.0))
         s_begin = 0.0
         while s_begin < 0.08 and chain_point(chain, s_begin)[0].z > -0.024: s_begin += 0.001
-        cp0, a0 = chain_point(chain, s_begin)
-        npal0 = (Vector((0, -1, 0)) - a0 * a0.y).normalized()
-        tgt = cp0 + npal0 * 0.009                                                  # roughly where the column run will start (refined by the solver)
-        # smooth arc from the tunnel direction into the thumb column: quadratic Bezier whose control point continues the tunnel line
-        T0 = Vector((0, 0, -1)); L = (tgt - pex).length
-        ctrl = pex + T0 * (L * 0.45)
-        for j in range(1, 6):
-            t = j / 6; q = pex * (1 - t) ** 2 + ctrl * 2 * (1 - t) * t + tgt * t ** 2
-            pts.append((Vector((q.x, min(q.y, floor_y(q.x, q.z, hw=0.0035) - GAP_FLOOR - h), q.z)), 1.0, 1.0))
+        bridge_from = pex                                                          # the bridge is added after the column run is known (see below)
     if f != 1:   # fingers: keep the tunnel column straight for 6 mm past the ligament before drifting to the finger's own line
-        pex = Vector((x0, 0, z0 - 0.006)); fl = floor_y(pex.x, pex.z)
+        pex = Vector((x0, 0, z0 - 0.006)); fl = floor_or(pex.x, pex.z, pts[-1][0].y + GAP_FLOOR + h)
         y_deep = fl - GAP_FLOOR - h
         for ceil in (pl_deep(pex.x, pex.z), fcr_deep(pex.x, pex.z)):
             if ceil is not None: y_deep = max(y_deep, ceil + 0.0006 + h + (2 * h + GAP_ROW if row == "sup" else 0))
@@ -225,13 +220,13 @@ def path(k):
     for i in range(1, n_app + 1):                                                  # palm approach: tunnel exit -> metacarpal
         t = i / n_app
         p = Vector((x0, 0, z0)) * (1 - t) + start * t
-        fl = floor_y(p.x, p.z, hw=0.0035); y_deep = fl - GAP_FLOOR - h
+        fl = floor_or(p.x, p.z, pts[-1][0].y + GAP_FLOOR + h, hw=0.0035); y_deep = fl - GAP_FLOOR - h
         for ceil in (pl_deep(p.x, p.z), fcr_deep(p.x, p.z)):
             if ceil is not None: y_deep = max(y_deep, ceil + 0.0006 + h + (2 * h + GAP_ROW if row == "sup" else 0))
         y_row = y_deep if row != "sup" else y_deep - 2 * h - GAP_ROW
         if f == 1: y_row = y_row + (pts[-1][0].y - y_row) * (1 - min(1, t / 0.35)) if i == 1 else y_row   # thumb: leave the tunnel at its own level
         pts.append((Vector((p.x, y_row, p.z)), 1.0, 1.0))
-    raw = []; s = s_begin
+    run_pts = []; raw = []; s = s_begin
     while s < s_end: raw.append(chain_point(chain, s)[0]); s += 0.002
     # round the joint corners: Gaussian-smooth the centreline so palmar offset curves never cross on the inside of a bend
     sm = []
@@ -274,7 +269,16 @@ def path(k):
         pd = pl_deep(sup.x, sup.z)
         if pd is not None and sup.y - hf < pd + 0.0006:                             # aponeurosis in the way: lift the whole stack (both rows) dorsally
             lift = (pd + 0.0006 + hf) - (sup.y - hf); base = base + Vector((0, lift, 0)); sup = sup + Vector((0, lift, 0))
-        pts.append((base if row != "sup" else sup, taper, 1.0 - i / max(1, len(sm) - 1), bone_at(s)))   # station rides on this bone
+        run_pts.append((base if row != "sup" else sup, taper, 1.0 - i / max(1, len(sm) - 1), bone_at(s)))   # station rides on this bone
+    if f == 1:   # thumb: smooth arc from the tunnel exit into the column's first station (quadratic Bezier continuing the tunnel line)
+        tgt = run_pts[0][0]; T0 = Vector((0, 0, -1)); L = (tgt - bridge_from).length; ctrl = bridge_from + T0 * (L * 0.45)
+        for j in range(1, 6):
+            t = j / 6; q = bridge_from * (1 - t) ** 2 + ctrl * 2 * (1 - t) * t + tgt * t ** 2
+            y = min(q.y, floor_or(q.x, q.z, 1.0, hw=0.0035) - GAP_FLOOR - h)
+            pd = pl_deep(q.x, q.z)
+            if pd is not None: y = max(y, pd + 0.0006 + h)                          # deep to the palmar aponeurosis
+            pts.append((Vector((q.x, y, q.z)), 1.0, 1.0))
+    pts += run_pts
     return pts
 
 NERVE_ZS = [0.075, 0.062, 0.050, 0.040, 0.030, 0.022, 0.016, 0.011, 0.007, 0.003, -0.001, -0.005, -0.009, -0.013, -0.017, -0.021, -0.025]
