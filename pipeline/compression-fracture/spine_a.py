@@ -25,8 +25,7 @@ built["bone__sacrum"] = get("Sacrum")
 for d in ["T12-L1", "L1-L2", "L2-L3", "L3-L4", "L4-L5", "L5-S1"]:
     built[f"disc__{d.lower().replace('-', '_')}"] = get(f"Intervertebral disc {d}", clipz=False)
 built["nerve__dural_sac"] = get("Spinal dura")
-for k, n in {"lig__all": "Anterior longitudinal ligament", "lig__pll": "Posterior longitudinal ligament", "lig__flava": "Ligamenta flava",
-             "lig__interspinous": "Interspinous ligaments", "lig__supraspinous": "Supraspinous ligament"}.items():
+for k, n in {"lig__pll": "Posterior longitudinal ligament", "lig__flava": "Ligamenta flava"}.items():
     if n in objs: built[k] = get(n)
 
 STRUCT_CUT_Z = Z_TOP
@@ -87,6 +86,31 @@ for side in (-1, 1):
         for j in range(1, 5):                                                    # out through the foramen: lateral, slightly down and forward
             u = j / 4; pts.append(c + Vector((side * (0.005 + 0.020 * u), -0.003 - 0.007 * u, -0.005 * u)))
         built[f"nerve__root_{lv.lower()}_{'r' if side < 0 else 'l'}"] = tube_along(pts, 0.0011)
+# inter- and supraspinous ligaments built per segment between neighbouring spinous processes (Z-Anatomy's are one big sheet that crumples when the column bends)
+SP = []                                                                        # per level: (name, z_ref, tip, base) of the spinous process
+for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
+    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]
+    tip = max(vs, key=lambda v: v.y)                                             # most posterior point = spinous tip
+    ymin = min(v.y for v in vs); ymax = max(v.y for v in vs); yb = ymin + (ymax - ymin) * 0.70
+    base_pts = [v for v in vs if abs(v.y - yb) < 0.003 and abs(v.x) < 0.006]    # lamina/spinous root at the midline
+    base = (sum(base_pts, Vector()) / len(base_pts)) if base_pts else Vector((0, yb, tip.z))
+    SP.append((lv, tip, base))
+vs = [v.co for v in built["bone__sacrum"].verts]; s_top = max(v.z for v in vs); s_tip = max([v for v in vs if v.z > s_top - 0.02], key=lambda v: v.y)
+SP.append(("S", s_tip, Vector((0, s_tip.y - 0.012, s_tip.z))))
+def sheet(p0a, p0b, p1a, p1b, thick=0.002, n=6):
+    """flat quad sheet between edge a (upper, from base to tip) and edge b (lower)"""
+    bm = bmesh.new(); rows = []
+    for i in range(n + 1):
+        u = i / n; ea = p0a.lerp(p0b, u); eb = p1a.lerp(p1b, u)
+        rows.append([bm.verts.new(Vector((-thick / 2, ea.y, ea.z))), bm.verts.new(Vector((thick / 2, ea.y, ea.z))), bm.verts.new(Vector((thick / 2, eb.y, eb.z))), bm.verts.new(Vector((-thick / 2, eb.y, eb.z)))])
+    for r0, r1 in zip(rows, rows[1:]):
+        for kq in range(4): bm.faces.new((r0[kq], r0[(kq + 1) % 4], r1[(kq + 1) % 4], r1[kq]))
+    bm.faces.new(rows[0][::-1]); bm.faces.new(rows[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
+for (lvU, tipU, baseU), (lvL, tipL, baseL) in zip(SP, SP[1:]):
+    # interspinous: from the lower edge of the upper process to the upper edge of the lower one, base → tip
+    built[f"lig__interspinous_{lvU.lower()}_{lvL.lower()}"] = sheet(baseU + Vector((0, 0, -0.004)), tipU + Vector((0, -0.004, -0.003)), baseL + Vector((0, 0, 0.004)), tipL + Vector((0, -0.004, 0.003)))
+    # supraspinous: a cord over the tips
+    built[f"lig__supraspinous_{lvU.lower()}_{lvL.lower()}"] = tube_along([tipU + Vector((0, 0.002, -0.002)), tipU.lerp(tipL, 0.5) + Vector((0, 0.003, 0)), tipL + Vector((0, 0.002, 0.002))], 0.0016)
 # pedicle centres (right side, x < 0): the bridge between body and arch
 PED = {}
 for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:

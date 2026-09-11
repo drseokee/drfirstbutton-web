@@ -107,9 +107,10 @@ const KO = {
   bone__ilium_r:"오른쪽 장골 (골반 윗부분)", bone__ilium_l:"왼쪽 장골", bone__rib12_r:"오른쪽 12번 갈비뼈", bone__rib12_l:"왼쪽 12번 갈비뼈",
   disc__t12_l1:"추간판 T12-L1", disc__l1_l2:"추간판 L1-L2", disc__l2_l3:"추간판 L2-L3", disc__l3_l4:"추간판 L3-L4", disc__l4_l5:"추간판 L4-L5", disc__l5_s1:"추간판 L5-S1",
   nerve__dural_sac:"경막낭 (척수를 싸는 막)", nerve__cauda_equina:"마미신경 (신경 다발)",
-  lig__all:"전종인대", lig__pll:"후종인대", lig__flava:"황색인대", lig__interspinous:"극간인대", lig__supraspinous:"극상인대",
+  lig__pll:"후종인대", lig__flava:"황색인대",
   skin__trunk:"피부"
 };
+for (const [u, l] of [['t12','l1'],['l1','l2'],['l2','l3'],['l3','l4'],['l4','l5'],['l5','s']]) { KO['lig__interspinous_'+u+'_'+l] = '극간인대 ' + u.toUpperCase() + '-' + l.toUpperCase(); KO['lig__supraspinous_'+u+'_'+l] = '극상인대 ' + u.toUpperCase() + '-' + l.toUpperCase(); }
 for (const [k, w] of [['multifidus','다열근'],['longissimus','최장근'],['iliocostalis','장늑근'],['spinalis','극근'],['quadratus_lumborum','요방형근'],['psoas','대요근'],['latissimus','광배근'],['thoracolumbar_fascia','흉요근막'],['rectus_abdominis','복직근'],['ext_oblique','외복사근'],['int_oblique','내복사근'],['transversus','복횡근']]) { KO['muscle__'+k+'_r'] = '오른쪽 '+w; KO['muscle__'+k+'_l'] = '왼쪽 '+w; }
 const COL = { bone:0xdccfb4, nerve:0xffe27a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, disc:0xc9b5d9, vessel:0xb03a3a };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, disc:0.72, vessel:0.8 };
@@ -441,7 +442,7 @@ let last = performance.now();
   const bone = 'bone__' + LEVEL.toLowerCase(), F = FXL[LEVEL], discAbove = { T12: null, L1: 'disc__t12_l1', L2: 'disc__l1_l2', L3: 'disc__l2_l3', L4: 'disc__l3_l4', L5: 'disc__l4_l5' }[LEVEL];
   for (const m of meshes) if (m.morphTargetInfluences) { if (m.userData.base === bone) { m.morphTargetInfluences[0] = k; m.morphTargetInfluences[1] = k * anim.retro; }
     else if (discAbove && m.userData.base === discAbove) { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; }
-    else if (m.userData.base === 'lig__all' || m.userData.base === 'lig__pll') { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()), jr = names.indexOf('retro_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; if (jr >= 0) m.morphTargetInfluences[jr] = k * anim.retro; } }
+    else if (m.userData.base === 'lig__pll') { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()), jr = names.indexOf('retro_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; if (jr >= 0) m.morphTargetInfluences[jr] = k * anim.retro; } }
   { const m = meshes.find(x => x.userData.base === bone && !x.userData.cut); const mc = meshes.find(x => x.userData.base === bone && x.userData.cut);
     for (const mm of [m, mc]) if (mm && mm.userData.fx) { const col = mm.geometry.getAttribute('color'), base = mm.userData.baseCol, fx = mm.userData.fx;
       for (let i = 0; i < fx.length; i++) { const a = fx[i] * k; col.array[3*i] = base[3*i] * (1 - 0.15 * a) + 0.35 * a; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * a); col.array[3*i+2] = base[3*i+2] * (1 - 0.75 * a); } col.needsUpdate = true; } }

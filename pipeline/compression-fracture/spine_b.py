@@ -53,7 +53,7 @@ for lv in LEVEL_NAMES:
                 db = wedge_delta(Vector((p.x, p.y, z_top))); dt = R_full @ (p - hinge) + hinge - p; dd = db * (1 - fr) + dt * fr
                 dl += [round(dd.x, 5), round(dd.y, 5), round(dd.z, 5)]
             o2.setdefault("morphs", {})[f"wedge_{lv.lower()}"] = dl
-    for nm in ("lig__all", "lig__all__cut", "lig__pll", "lig__pll__cut"):
+    for nm in ("lig__pll", "lig__pll__cut"):
         if nm not in objs: continue
         o2 = objs[nm]; dwl = []; drl = []
         for i in range(nverts(o2)):
@@ -107,9 +107,18 @@ for L in LEVELS:
     if L["name"] == "sacrum": BR.append((min(p.z for p in pts_), max(p.z for p in pts_) - 0.004)); continue
     ys_ = [p.y for p in pts_]; yp_ = min(ys_) + (max(ys_) - min(ys_)) * 0.42; body_ = [p for p in pts_ if p.y < yp_]
     BR.append((min(p.z for p in body_), max(p.z for p in body_)))
+LEVEL_IDX = {L["name"].lower(): i for i, L in enumerate(LEVELS)}; LEVEL_IDX["s"] = 0
 for o in d["objects"]:
     base = o["name"].replace("__cut", "")
     if base.startswith(("bone__", "disc__")): continue
+    seg = None
+    if base.startswith(("lig__interspinous_", "lig__supraspinous_")):
+        parts = base.split("_"); seg = (LEVEL_IDX.get(parts[-2]), LEVEL_IDX.get(parts[-1]))      # (upper level, lower level)
+    if seg and seg[0] is not None and seg[1] is not None:
+        zs_ = [V(o, i).z for i in range(nverts(o))]; z0, z1 = min(zs_), max(zs_); w = []
+        for i in range(nverts(o)):
+            t = (V(o, i).z - z0) / max(1e-6, z1 - z0); w += [seg[1], round(1 - t, 2), seg[0], round(t, 2)]    # bottom → lower level, top → upper level
+        o["w"] = w; continue
     w = []
     for i in range(nverts(o)):
         z = V(o, i).z
