@@ -31,13 +31,24 @@ for k, n in {"lig__pll": "Posterior longitudinal ligament", "lig__flava": "Ligam
 STRUCT_CUT_Z = Z_TOP
 # ---- Z-Anatomy's cauda is one trunk with branches: build an anatomical bundle instead ----
 # conus ends at L1-L2; below it the roots run as separate strands inside the sac and each leaves at its own level
-# canal centreline from the vertebrae themselves (Z-Anatomy's dura mesh stops at L3): posterior wall of each body + 9 mm
+# canal centreline: Z-Anatomy's dural sac where it exists (T12 → ~L3), and its cauda-equina trunk below that (to S2)
+dura0 = world_bm("Spinal dura"); dz_min = min(v.co.z for v in dura0.verts)
 CANAL = []
-for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
-    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]; ymin = min(v.y for v in vs); ymax = max(v.y for v in vs)
-    CANAL.append((sum(v.z for v in vs) / len(vs), ymin + (ymax - ymin) * 0.45 + 0.009))
-vs = [v.co for v in built["bone__sacrum"].verts]; CANAL.append((max(v.z for v in vs) - 0.02, min(v.y for v in vs) + (max(v.y for v in vs) - min(v.y for v in vs)) * 0.62))
-CANAL.append((Z_BOT, CANAL[-1][1] + 0.004)); CANAL.sort(key=lambda t: -t[0])
+z = Z_TOP - 0.002
+while z > dz_min + 0.004:
+    pts_ = [v.co for v in dura0.verts if abs(v.co.z - z) < 0.002]
+    if pts_: c_ = sum(pts_, Vector()) / len(pts_); CANAL.append((z, c_.y))
+    z -= 0.006
+cq = objs["Cauda equina"]; best = None
+for sp in cq.data.splines:
+    pts_ = [cq.matrix_world @ (p.co if sp.type == "BEZIER" else Vector(p.co[:3])) for p in (sp.bezier_points if sp.type == "BEZIER" else sp.points)]
+    if best is None or len(pts_) > len(best): best = pts_
+for p in sorted(best, key=lambda q: -q.z):
+    if p.z < dz_min - 0.002 and p.z > Z_BOT: CANAL.append((p.z, p.y))
+CANAL.sort(key=lambda t: -t[0])
+# light smoothing along z so the sac has no wobble
+CANAL = [(CANAL[i][0], sum(CANAL[j][1] for j in range(max(0, i - 1), min(len(CANAL), i + 2))) / len(range(max(0, i - 1), min(len(CANAL), i + 2)))) for i in range(len(CANAL))]
+print("canal samples:", len(CANAL), "y at top %.1f, at L3-ish %.1f, bottom %.1f mm" % (CANAL[0][1]*1e3, CANAL[len(CANAL)//2][1]*1e3, CANAL[-1][1]*1e3))
 def sac_centre(z, dz=None):
     for (z0, y0), (z1, y1) in zip(CANAL, CANAL[1:]):
         if z1 <= z <= z0: u = (z0 - z) / max(1e-6, z0 - z1); return Vector((0, y0 + (y1 - y0) * u, z))
