@@ -21,7 +21,8 @@ HELP_HTML = """    <h2>조작</h2>
     </div>
 """
 
-CONTROLS = r"""// ---------- camera (common) ----------
+CONTROLS = r"""// ==== COMMON CONTROLS BEGIN ====
+// ---------- camera (common) ----------
 const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
 const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
 function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
@@ -48,14 +49,19 @@ function zoom(f){ camGoal.t = 1; off.setLength(Math.min(2.0, Math.max(0.02, off.
 function panKeys(dx, dy){ camGoal.t = 1; const k = off.length() * 0.0016;
   const r = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
   target.addScaledVector(r, -dx*k).addScaledVector(u, dy*k); applyCam(); }
-let drag = null, pinch0 = 0; const pointers = new Set();
-canvas.addEventListener('pointerdown', e => { if (typeof onPointerDownExtra === 'function' && onPointerDownExtra(e)) return;
+let drag = null, pinch0 = 0; const pointers = new Set(); const touchPts = new Map(); let touchPrev = null;
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); touchPrev = null; } if (typeof onPointerDownExtra === 'function' && onPointerDownExtra(e)) return;
   pointers.add(e.pointerId); drag = { x:e.clientX, y:e.clientY, b:e.button, shift:e.shiftKey, ctrl:e.ctrlKey || e.metaKey, alt:e.altKey }; canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointerup', e => { pointers.delete(e.pointerId); drag = null; if (typeof onPointerUpExtra === 'function') onPointerUpExtra(e); });
-canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('pointerup', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; if (typeof onPointerUpExtra === 'function') onPointerUpExtra(e); });
+canvas.addEventListener('pointercancel', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointermove', e => {
   if (typeof onPointerMoveExtra === 'function' && onPointerMoveExtra(e)) return;
+  if (pointers.size >= 2 && touchPts.size >= 2) {                          // two fingers: pan with the midpoint, pinch to zoom
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [a, b] = [...touchPts.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (touchPrev) { panKeys(mid.x - touchPrev.x, mid.y - touchPrev.y); if (touchPrev.d > 0) zoom(touchPrev.d / Math.max(1, dist)); }
+    touchPrev = { x: mid.x, y: mid.y, d: dist }; return; }
   hover(e); if (!drag || pointers.size > 1) return;
   const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
   if (drag.ctrl) { zoom(Math.exp(dy * 0.006)); }
@@ -85,17 +91,23 @@ addEventListener('keydown', e => {
     if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1);
   }
 });
+// ==== COMMON CONTROLS END ====
 """
 
 def apply_common(t, reset_view):
     # lights
     if LIGHTS_OLD in t: t = t.replace(LIGHTS_OLD, LIGHTS_NEW)
-    # controls: replace from the camera header to the wheel listener (inclusive)
-    m0 = re.search(r"// ---------- free orbit camera ----------|// ---------- camera ----------", t)
-    m1 = re.search(r"canvas\.addEventListener\('wheel'.*?\n", t[m0.start():], flags=re.S)
-    block = t[m0.start(): m0.start() + m1.end()]
+    # controls: replace the whole controls block (between sentinels if already common; else from the camera header to the wheel listener)
+    if "// ==== COMMON CONTROLS BEGIN ====" in t:
+        s0 = t.index("// ==== COMMON CONTROLS BEGIN ===="); s1 = t.index("// ==== COMMON CONTROLS END ====") + len("// ==== COMMON CONTROLS END ====\n")
+        block = t[s0:s1]
+    else:
+        m0 = re.search(r"// ---------- free orbit camera ----------|// ---------- camera ----------", t)
+        m1 = re.search(r"canvas\.addEventListener\('wheel'.*?\n", t[m0.start():], flags=re.S)
+        s0, s1 = m0.start(), m0.start() + m1.end(); block = t[s0:s1]
+        # an older-style pack may also carry its own stage keydown right after; the common block provides it
     views = re.search(r"const VIEWS = \{.*?\n\};", block, flags=re.S).group(0)
-    t = t[:m0.start()] + CONTROLS.replace("__VIEWS__", views).replace("__RESET__", repr(reset_view)) + t[m0.start() + m1.end():]
+    t = t[:s0] + CONTROLS.replace("__VIEWS__", views).replace("__RESET__", repr(reset_view)) + t[s1:]
     # any leftover stage keydown handler in the pack (the common one handles it)
     t = re.sub(r"\naddEventListener\('keydown', e => \{ if \(e\.target\.tagName === 'INPUT'\) return; if \(e\.key === ' '.*?\}\);\n", "\n", t, flags=re.S)
     # collapsible panel with help

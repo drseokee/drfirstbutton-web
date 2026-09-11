@@ -14,7 +14,7 @@ def normals(o):
     return [v.normal.copy() for v in bm.verts], bm
 def smooth01(t): t = max(0.0, min(1.0, t)); return t * t * (3 - 2 * t)
 
-TCL_PROX, TCL_DIST = 0.011, -0.013
+TCL_PROX, TCL_DIST = 0.0065, -0.0085
 
 # ---- 0. tuck anything that pokes through the skin back inside (full-model variants only) ----
 from mathutils.bvhtree import BVHTree

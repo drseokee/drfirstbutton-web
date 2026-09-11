@@ -206,21 +206,35 @@ def cut_z_bool(bm, z, keep="above", split_angle=1.0):
     bmesh.ops.triangulate(out, faces=out.faces)
     return out
 
-def build_tcl(O, thickness=0.0016, z_prox=0.011, z_dist=-0.013, nz=13, nx=25, sag=0.0045, overlap=0.0015):
-    """Procedural transverse carpal ligament: a solid arch band spanning scaphoid tubercle/trapezium ridge (radial)
-    to pisiform/hook of hamate (ulnar), sagging palmarly by `sag` at the middle. Coordinates: carpal-centred frame."""
-    def pal(n): vs = [v.co for v in O[n].data.vertices]; return min(vs, key=lambda v: v.y).copy()
-    sca, trz, pis, ham = pal("bone__scaphoid"), pal("bone__trapezium"), pal("bone__pisiform"), pal("bone__hamate")
-    def on_line(p, q, z):      # attachment edge: interpolate between the two landmarks, hold the landmark beyond them
-        t = (p.z - z) / (p.z - q.z) if abs(p.z - q.z) > 1e-6 else 0.0
-        t = max(0.0, min(1.0, t))
-        r = p + (q - p) * t; r.z = z; return r
+def build_tcl(O, thickness=0.0016, z_prox=0.011, z_dist=-0.013, nz=13, nx=25, sag=0.0085, overlap=0.0015):
+    """Procedural transverse carpal ligament as a true quadrilateral between its four bony attachments:
+    proximal edge  pisiform (ulnar)  ->  scaphoid tubercle (radial)
+    distal edge    hook of hamate (ulnar) -> ridge of trapezium (radial)
+    with the arch sagging palmarly by `sag` at mid-span. Coordinates: carpal-centred frame (palmar = -y, distal = -z)."""
+    def verts(n): return [v.co.copy() for v in O[n].data.vertices]
+    def most_palmar(pts): return min(pts, key=lambda v: v.y).copy()
+    sca_v, trz_v, pis_v, ham_v = verts("bone__scaphoid"), verts("bone__trapezium"), verts("bone__pisiform"), verts("bone__hamate")
+    # scaphoid tubercle: palmar prominence of the distal pole
+    zc = sum(v.z for v in sca_v) / len(sca_v); sca = most_palmar([v for v in sca_v if v.z < zc + 0.004])
+    # ridge of the trapezium: palmar crest on its distal half, radial side
+    zc = sum(v.z for v in trz_v) / len(trz_v); trz = most_palmar([v for v in trz_v if v.z < zc - 0.003])
+    # pisiform: the ligament takes its radial-palmar face
+    zc = sum(v.z for v in pis_v) / len(pis_v)
+    pis_pal = [v for v in pis_v if v.y < sum(q.y for q in pis_v) / len(pis_v) and v.z > zc]; pis = min(pis_pal, key=lambda v: v.x - 0.5 * v.y).copy()   # radial-palmar face, proximal half
+    # hook of hamate: the hook is the palmar process; take its radial face near the tip
+    hook = [v for v in ham_v if v.y < min(q.y for q in ham_v) + 0.006]; ham = min(hook, key=lambda v: v.x).copy()
+    print(f"TCL attachments (mm): scaphoid tubercle ({sca.x*1e3:+.1f},{sca.y*1e3:+.1f},{sca.z*1e3:+.1f})  trapezium ridge ({trz.x*1e3:+.1f},{trz.y*1e3:+.1f},{trz.z*1e3:+.1f})  pisiform ({pis.x*1e3:+.1f},{pis.y*1e3:+.1f},{pis.z*1e3:+.1f})  hamate hook ({ham.x*1e3:+.1f},{ham.y*1e3:+.1f},{ham.z*1e3:+.1f})")
+    def on_line(p, q, s):      # edge point at fraction s (0 = proximal attachment, 1 = distal attachment)
+        return p + (q - p) * s
     outer, deep = [], []
     for i in range(nz):
-        z = z_prox + (z_dist - z_prox) * i / (nz - 1)
-        A, B = on_line(sca, trz, z), on_line(pis, ham, z)
+        s = i / (nz - 1)
+        A, B = on_line(sca, trz, s), on_line(pis, ham, s)
+        # proximal/distal overhang so the band covers the full tunnel length (the retinaculum continues into fascia)
+        A = A + Vector((0, 0, (1 - s) * 0.003 - s * 0.003)); B = B + Vector((0, 0, (1 - s) * 0.003 - s * 0.003))
         chord = (B - A); chord.z = 0; d = chord.normalized()
         A = A - d * overlap; B = B + d * overlap               # bite into the bones a little
+        z = None
         mid = (A + B) / 2; ctrl = mid + Vector((0, -2 * sag, 0))   # quadratic Bezier through mid - sag
         row_o, row_d = [], []
         for j in range(nx):
@@ -229,7 +243,6 @@ def build_tcl(O, thickness=0.0016, z_prox=0.011, z_dist=-0.013, nz=13, nx=25, sa
             T = (ctrl - A) * 2 * (1 - t) + (B - ctrl) * 2 * t; T.z = 0; T.normalize()
             n = Vector((-T.y, T.x, 0))
             if n.y < 0: n = -n                                   # normal pointing dorsally (into the tunnel)
-            P.z = z
             row_o.append(P); row_d.append(P + n * thickness)
         outer.append(row_o); deep.append(row_d)
     bm = bmesh.new()

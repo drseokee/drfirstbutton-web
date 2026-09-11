@@ -5,7 +5,7 @@ from zana import *
 
 Z0 = Vector((0, 0, 0))
 Z_SEC, Z_TUBE_END = 0.008, -0.023
-TCL_PROX, TCL_DIST = 0.011, -0.013
+TCL_PROX, TCL_DIST = 0.0065, -0.0085
 FLAT, R, R_N = 0.78, 0.00145, 0.0018
 FLAT_N = 0.62
 GAP_ROOF, GAP_NERVE, GAP_FLOOR, GAP_ROW = 0.0008, 0.0010, 0.0008, 0.0024
@@ -49,7 +49,7 @@ def nerve_centre_za(z):
     s = nerve_slice(z, 0.002); return Vector((sum(p.x for p in s) / len(s), sum(p.y for p in s) / len(s), z))
 NERVE_END = min(p.z for p in NV) + 0.0005                        # where the Z-Anatomy trunk ends and the digital branches begin
 NX0 = -0.0025                                          # tunnel x reference (radial of Z-Anatomy's nerve centroid, which sits too close to the hook)
-def zr(z): return max(-0.0128, min(0.010, z))             # roof lookups clamp to where the band exists
+def zr(z): return max(-0.0075, min(0.0055, z))             # roof lookups clamp to where the band exists
 def tuck_y(z): return roof_at(NX0, zr(z), R_N) + GAP_ROOF + H_N
 def nerve_c(z):
     """centreline of the section-variant nerve tube: Z-Anatomy path proximally (forearm), straight and tucked under the
@@ -83,8 +83,8 @@ def floor_y(x, z, hw=None):
 
 # ---- tunnel layout: offsets relative to the nerve (x: radial -, ulnar +); rows are stacked UNDER the nerve everywhere ----
 layout = {   # absolute x at the section plane -> stored as offset from the nerve
-    "tendon__fdp2": (-0.0070, "deep"), "tendon__fdp3": (-0.0038, "deep"), "tendon__fdp4": (-0.0006, "deep"), "tendon__fdp5": (0.0026, "deep"),
-    "tendon__fds2": (-0.0068, "sup"),  "tendon__fds3": (-0.0036, "sup"),  "tendon__fds4": (-0.0004, "sup"),  "tendon__fds5": (0.0028, "sup"),
+    "tendon__fdp2": (-0.0070, "deep"), "tendon__fdp3": (-0.0038, "deep"), "tendon__fdp4": (-0.0006, "deep"), "tendon__fdp5": (0.0024, "deep"),
+    "tendon__fds2": (-0.0068, "sup"),  "tendon__fds3": (-0.0036, "sup"),  "tendon__fds4": (-0.0004, "sup"),  "tendon__fds5": (0.0026, "sup"),
     "tendon__fpl1": (-0.0101, "fpl"),   # thumb: "fpl1" so it never collides with the Z-Anatomy FPL object
 }
 H_MIN = 0.0007
@@ -104,7 +104,7 @@ def fcr_deep(x, z):
 _pl_bvh = None
 try:
     _m = O["tendon__pl"].data.copy(); _pb = bmesh.new(); _pb.from_mesh(_m); bpy.data.meshes.remove(_m)
-    cut_z(_pb, -0.048, keep="above", cap=True)                 # same trim as the exported section-set PL (distal fan dropped)
+    cut_z(_pb, -0.044, keep="above", cap=True)                 # same trim as the exported section-set PL (distal fan dropped)
     _pl_bvh = BVHTree.FromBMesh(_pb)
 except KeyError: pass
 def pl_deep(x, z):
@@ -135,13 +135,20 @@ def fit(k, z, h):
         h = min(h, max(H_MIN, (S - GAP_ROW) / 4))
     y_sup = top + h * inv_cos
     y_deep = y_sup + (2 * h + GAP_ROW) * inv_cos
+    wf = smooth01((TCL_DIST + 0.002 - z) / 0.010)             # 0 inside the tunnel .. 1 well past the ligament: rows go from nerve-stacked to floor-resting
+    if wf > 0:
+        fl2 = floor_y(x, z); yd2 = fl2 - GAP_FLOOR - h * inv_cos; ys2 = yd2 - (2 * h + GAP_ROW) * inv_cos
+        for ceil in (pl_deep(x, z), fcr_deep(x, z)):
+            if ceil is not None and ys2 - h < ceil + 0.0006:      # a superficial structure in the way: shrink the stack rather than sink into bone
+                h = max(H_MIN, h - ((ceil + 0.0006) - (ys2 - h)) / 4); yd2 = fl2 - GAP_FLOOR - h * inv_cos; ys2 = yd2 - (2 * h + GAP_ROW) * inv_cos
+        y_deep = y_deep * (1 - wf) + yd2 * wf; y_sup = y_sup * (1 - wf) + ys2 * wf
     y = {"deep": y_deep, "sup": y_sup, "fpl": y_sup + h * 0.6}[row]   # FPL rides just below the FDS level, radial of the row
     if z <= 0.016:
         lim = floor_y(x, z) - GAP_FLOOR - h                  # hard floor: never inside bone
         if y > lim:
             print(f"  ! tight at z {z*1e3:+.0f} for {k}: {row} row exceeds floor by {(y - lim)*1e3:.2f} mm")
             y = lim
-            if row == "sup": y = min(y, lim - 2 * h - 0.0008)   # keep the FDS row above the (also clamped) FDP row
+            if row == "sup": y = min(y, lim - 2 * h - 0.0016)   # keep the FDS row clear of the (also clamped) FDP row
     return y, h
 BAND_Z = (0.014, 0.012, 0.009, 0.006, 0.003, 0.0, -0.003, -0.006, -0.009, -0.012, -0.015, -0.018, -0.021)
 tube_h = {}
@@ -274,7 +281,7 @@ NERVE_ZS = [0.075, 0.062, 0.050, 0.040, 0.030, 0.022, 0.016, 0.011, 0.007, 0.003
 def nerve_path(): return [(nerve_c(z), 1.0, 0.0) for z in NERVE_ZS if z > NERVE_END] + [(nerve_c(NERVE_END), 1.0, 0.0)]
 sc = bpy.context.scene
 tubes = {}
-SPECS = {k: (path(k), R * (0.82 if k == 'tendon__fpl1' else 1.0), tube_h[k] / R, tube_h[k] / R) for k in layout}   # same oval along the whole tube; FPL is the slimmer tendon
+SPECS = {k: (path(k), R * (0.82 if k == 'tendon__fpl1' else 0.86 if k.endswith('5') else 1.0), tube_h[k] / R, tube_h[k] / R) for k in layout}   # FPL and the little-finger tendons are the slimmer ones (they also sit beside walls)
 SPECS["nerve__median"] = (nerve_path(), R_N, FLAT_N, 1.0)
 # ---- explicit sweep: rings placed exactly on the computed path (no spline overshoot), oval = (width w, height h) ----
 def resample(ctrl, step=0.001):
@@ -345,8 +352,7 @@ def obstacles_for(k, built_tubes):
     obs += [(bvh_, n) for n, bvh_ in built_tubes.items() if n != k]
     if _fcr_bvh is not None: obs.append((_fcr_bvh, "fcr"))
     if _pl_bvh is not None: obs.append((_pl_bvh, "pl"))
-    obs.append((tcl_bvh, "lig"))
-    return obs
+    return obs        # the ligament is handled by fit() (roof); its oblique edges must not shove tubes around
 def ring_points(p, t, w, h, segs=10):
     PAL = Vector((0, -1, 0)); npal = (PAL - t * t.dot(PAL)).normalized(); side = t.cross(npal).normalized()
     return [p + side * (w * math.cos(2 * math.pi * k / segs)) + npal * (h * math.sin(2 * math.pi * k / segs)) for k in range(segs)], npal
@@ -357,6 +363,8 @@ def penetration(pt, bvh_):
     inside = (pt - loc).dot(nrm) < 0
     return ((dist + CLEAR) if inside else max(0.0, CLEAR - dist)), loc
 def resolve(ctrl, rad, f_band, f_out, obs):
+    import os
+    if os.environ.get("NO_RESOLVE"): return [(c_[0].copy(), c_[1], (c_[2] if len(c_) > 2 else 1.0)) + tuple(c_[3:]) for c_ in ctrl], 0
     """move stations along the local palmar normal until their rings clear every obstacle: away from bones (palmar),
     away from superficial structures (dorsal). Skips the forearm; inside the band it only reacts to other tubes/ligament."""
     ctrl = [(c_[0].copy(), c_[1], (c_[2] if len(c_) > 2 else 1.0)) + tuple(c_[3:]) for c_ in ctrl]; moved = 0
@@ -370,7 +378,7 @@ def resolve(ctrl, rad, f_band, f_out, obs):
             pts_, npal = ring_points(p, t, rad * s, rad * s * f, segs=14)
             push = 0.0
             for b_, n_ in obs:
-                if p.z > -0.010 and n_ in ("bones", "pl"): continue                 # in the band the fit() stack already handles these
+                if p.z > -0.010 and n_ in ("bones", "pl", "fcr"): continue          # in the band the fit() stack already handles these
                 for q in pts_:
                     d, loc = penetration(q, b_)
                     if d > 0:
@@ -410,12 +418,12 @@ objects = [o for o in prev["objects"] if o["name"] not in ("nerve__median__cut",
 for o in objects:
     if o["name"] == "tendon__pl__cut":         # keep palmaris longus through the wrist and proximal palm only (its distal fan crowds the tendons)
         bm = bm_from_arrays([tuple(o["verts"][i:i+3]) for i in range(0, len(o["verts"]), 3)], [tuple(o["tris"][i:i+3]) for i in range(0, len(o["tris"]), 3)])
-        cut_z(bm, -0.048, keep="above", cap=True)
+        cut_z(bm, -0.044, keep="above", cap=True)
         o["verts"], o["tris"] = to_arrays(bm, center=Z0)
 for o in objects:
     if o["name"] == "tendon__pl__cut":         # palmaris longus runs OVER the ligament: lift any vertex that sits inside or touches it
-        v = o["verts"]; moved = 0; CLEAR_PL = 0.0025
-        for _pass in range(5):
+        v = o["verts"]; moved = 0; CLEAR_PL = 0.0032
+        for _pass in range(8):
             for i in range(0, len(v), 3):
                 p = Vector(v[i:i + 3])
                 hit = tcl_bvh.ray_cast(Vector((p.x, -0.06, p.z)), Vector((0, 1, 0)))

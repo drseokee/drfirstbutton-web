@@ -290,11 +290,11 @@ const tendons = [];
       const nearJoint = !!bo && i < nS - 1 && bo.J.some(v => Math.abs(p.clone().sub(v).dot(bo.a)) < 0.0055);   // pulleys sit >5.5 mm from the joints; the insertion is always kept
       // palm: keep only the tunnel stations and the A1 pulley (metacarpal head) so the tendon runs as a taut chord across the palm
       const tA = fg ? p.clone().sub(fg.MCP).dot(fg.a) : -1;
-      const palmDrop = !bo && fg && (-p.y) < -0.013 && !(tA > -0.009 && tA < 0);
+      const palmDrop = !bo && fg && fno !== 1 && (-p.y) < -0.013 && !(tA > -0.009 && tA < 0);   // thumb keeps its pipeline arc (trapezium → metacarpal), fingers get a taut chord
       return { p, s: s.s, bone: bo ? bo.b : null, local: bo ? p.clone().sub(bo.piv) : null, nearJoint: nearJoint || palmDrop };
     }).filter(s => !s.nearJoint);
     // taut palm chord: straight helper points between the last tunnel station and the A1 pulley so the spline cannot bow across the palm
-    { const iT = st.findIndex(s => (-s.p.y) < -0.013); if (iT > 0 && iT < st.length) { const a = st[iT - 1], b = st[iT];
+    if (fno !== 1) { const iT = st.findIndex(s => (-s.p.y) < -0.013); if (iT > 0 && iT < st.length) { const a = st[iT - 1], b = st[iT];
         const extra = [1, 2].map(k => { const p = a.p.clone().lerp(b.p, k / 3); return { p, s: a.s + (b.s - a.s) * k / 3, bone: null, local: null }; });
         st.splice(iT, 0, ...extra); } }
     const g = new THREE.BufferGeometry();
@@ -537,7 +537,7 @@ function rotate(dx, dy){ camGoal.t = 1;
   const f = target.clone().sub(camera.position).normalize(), right = new THREE.Vector3().crossVectors(f, up).normalize();
   const q = new THREE.Quaternion().setFromAxisAngle(up, -dx * 0.007).multiply(new THREE.Quaternion().setFromAxisAngle(right, -dy * 0.007));
   off.applyQuaternion(q); up.applyQuaternion(q).normalize(); applyCam(); }
-let drag = null, pinch0 = 0; const pointers = new Set();
+let drag = null, pinch0 = 0; const pointers = new Set(); const touchPts = new Map(); let touchPrev = null;
 function incisionHit(e){   // pointer near the incision line, tested in screen space (pixels)
   hoverT = -1;
   if (!cutMode() || incPts.length < 2) return null;
@@ -551,16 +551,21 @@ function incisionHit(e){   // pointer near the incision line, tested in screen s
   if (best.d < 22) { hoverT = best.t; return best; }   // within 22 px of the line
   return null;
 }
-canvas.addEventListener('pointerdown', e => {
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); touchPrev = null; }
   const ih = incisionHit(e);
   if (ih && e.button === 0) { cutting = true; canvas.setPointerCapture(e.pointerId);
     if (ih.t > state.cutProg && ih.t - state.cutProg < 0.3) state.cutProg = ih.t;            // click on the next dot(s) also advances the cut
     return; }
   pointers.add(e.pointerId); drag = { x:e.clientX, y:e.clientY, b:e.button, shift:e.shiftKey, ctrl:e.ctrlKey || e.metaKey, alt:e.altKey }; canvas.setPointerCapture(e.pointerId); });
-canvas.addEventListener('pointerup', e => { pointers.delete(e.pointerId); drag = null; cutting = false; });
-canvas.addEventListener('pointercancel', e => { pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('pointerup', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; cutting = false; });
+canvas.addEventListener('pointercancel', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; });
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 canvas.addEventListener('pointermove', e => {
+  if (pointers.size >= 2 && touchPts.size >= 2) {                          // two fingers: pan with the midpoint, pinch to zoom
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [a, b] = [...touchPts.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (touchPrev) { panKeys(mid.x - touchPrev.x, mid.y - touchPrev.y); if (touchPrev.d > 0) zoom(touchPrev.d / Math.max(1, dist)); }
+    touchPrev = { x: mid.x, y: mid.y, d: dist }; return; }
   const ih = incisionHit(e); const cur = ih ? SCALPEL : ''; canvas.style.cursor = cur; document.body.style.cursor = cur; if (ih && !canvas.style.cursor) { canvas.style.cursor = 'crosshair'; document.body.style.cursor = 'crosshair'; }
   if (cutting) { if (ih && ih.t > state.cutProg && ih.t - state.cutProg < 0.3) state.cutProg = ih.t; return; }
   hover(e); if (!drag || pointers.size > 1) return;
