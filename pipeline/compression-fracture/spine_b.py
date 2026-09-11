@@ -71,7 +71,25 @@ for lv in LEVEL_NAMES:
         pedv = Vector(ped); bodyc_ped_h = Vector((0, (y_ant + Y_POST) / 2, pedv.z))
         axis = (bodyc_ped_h - pedv); axis.z -= 0.003; axis.normalize()                     # slightly downward as it runs forward
         tip = pedv + axis * ((pedv - Vector((0, y_ant, pedv.z))).length * 0.72)              # to the anterior third
-    FX[lv] = {"hinge": [round(x, 5) for x in hinge], "pedicle_axis": ([round(x, 4) for x in axis] if ped else None), "cannula_tip": ([round(x, 5) for x in tip] if ped else None), "axis": [round(x, 3) for x in AXIS], "angle_at_full": round(wedge_angle, 2), "height": round(H, 5), "depth": round(DEPTH, 5),
+    # pedicle screw (right side; the left is mirrored in the viewer): trajectory = pedicle axis parallel to the superior plate,
+    # entry = where that line, run backward from the pedicle centre, leaves the posterior bone surface (the transverse-process / superior-facet junction),
+    # tip = 75 % of the AP depth of the body (anterior wall never breached), screw 6.5 x 45 mm
+    screw = None
+    if ped:
+        CONV = {"T12": 8, "L1": 10, "L2": 12, "L3": 15, "L4": 18, "L5": 27}[lv]          # medial convergence (deg), literature values by level
+        saxis = Vector((math.sin(math.radians(CONV)) * (1 if pedv.x < 0 else -1), -math.cos(math.radians(CONV)), 0)).normalized()   # anterior, converging toward the midline, parallel to the plate
+        bvh_v = BVHTree.FromBMesh(bm_of(o))
+        far = pedv - saxis * 0.06; hits = []
+        loc, nrm, idx, dist = bvh_v.ray_cast(far, saxis, 0.06)                     # first bone surface met when coming from behind = the entry point
+        entry_pt = loc if loc is not None else pedv - saxis * 0.018
+        t_tip = (pedv.y - (Y_POST - 0.75 * DEPTH)) / max(1e-6, -saxis.y)              # along the axis until y reaches 75 % depth
+        tip_pt = pedv + saxis * t_tip
+        L = (tip_pt - entry_pt).length
+        if L > 0.045: tip_pt = entry_pt + saxis * 0.045                                 # 45 mm screw
+        screw = {"entry": [round(x, 5) for x in entry_pt], "tip": [round(x, 5) for x in tip_pt], "axis": [round(x, 4) for x in saxis],
+                 "convergence_deg": round(math.degrees(math.atan2(abs(saxis.x), abs(saxis.y))), 1), "length_mm": round((tip_pt - entry_pt).length * 1e3, 1)}
+        print(f"   {lv} screw: convergence {screw['convergence_deg']} deg, length {screw['length_mm']} mm")
+    FX[lv] = {"hinge": [round(x, 5) for x in hinge], "pedicle_axis": ([round(x, 4) for x in axis] if ped else None), "cannula_tip": ([round(x, 5) for x in tip] if ped else None), "screw_r": screw, "axis": [round(x, 3) for x in AXIS], "angle_at_full": round(wedge_angle, 2), "height": round(H, 5), "depth": round(DEPTH, 5),
               "body_centre": [0, round((y_ant + Y_POST) / 2, 5), round(z_mid, 5)], "pedicle_r": d["meta"].get("pedicle_r", {}).get(lv)}
     print(f"{lv}: body {H*1e3:.1f} x {DEPTH*1e3:.1f} mm, kyphosis at 60 % {wedge_angle:.1f} deg")
 # chain: sacrum → L5 → ... → T12; each level pivots at the disc below; shares are set in the viewer relative to the chosen fracture level

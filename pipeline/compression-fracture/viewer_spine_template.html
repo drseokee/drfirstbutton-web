@@ -373,16 +373,18 @@ function placeProps(){
   entry = ped.clone().addScaledVector(nAxis, -0.05);
   needle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nAxis);
   hematoma.position.copy(bodyC).add(new THREE.Vector3(0, 0, 0.026));           // just behind the posterior wall, in the canal
-  // pedicle screws one level above and below, both sides, plus rods
+  // pedicle screws one level above and below, both sides: real entry (TP / superior-facet junction) and trajectory (level-specific convergence, parallel to the plate), 6.5 mm, tip at 75 % depth
   while (screws.children.length) screws.remove(screws.children[0]);
   const smat = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, metalness: 0.8, roughness: 0.3 }); const heads = [];
   const fi = idxOf(LEVEL); const lvAbove = LV[fi + 1] ? LV[fi + 1].name : null, lvBelow = LV[fi - 1] && LV[fi - 1].name !== 'sacrum' ? LV[fi - 1].name : null;
-  for (const lv of [lvAbove, lvBelow]) { if (!lv || !FXL[lv]) continue; const G = FXL[lv]; const bc = new THREE.Vector3(...A2S(G.body_centre)); const pr = G.pedicle_r ? new THREE.Vector3(...A2S(G.pedicle_r)) : bc.clone().add(new THREE.Vector3(-0.013, 0, 0.02));
-    for (const sx of [1, -1]) { const p = pr.clone(); p.x = Math.abs(pr.x) * sx * -1 * Math.sign(pr.x) * -1; const pedS = new THREE.Vector3(sx > 0 ? pr.x : -pr.x, pr.y, pr.z);
-      const ax = bc.clone().sub(pedS).normalize(); const head = pedS.clone().addScaledVector(ax, -0.014), tip = pedS.clone().addScaledVector(ax, 0.022);
-      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0022, head.distanceTo(tip), 10), smat); s.position.copy(head).lerp(tip, 0.5); s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tip.clone().sub(head).normalize()); screws.add(s);
-      const hd = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 12, 10), smat); hd.position.copy(head); screws.add(hd); heads.push({ sx, p: head }); } }
-  for (const sx of [1, -1]) { const hs = heads.filter(h => h.sx === sx).map(h => h.p); if (hs.length < 2) continue; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, hs[0].distanceTo(hs[1]) + 0.02, 10), smat); rod.position.copy(hs[0]).lerp(hs[1], 0.5); rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), hs[1].clone().sub(hs[0]).normalize()); screws.add(rod); }
+  for (const lv of [lvAbove, lvBelow]) { if (!lv || !FXL[lv] || !FXL[lv].screw_r) continue; const S = FXL[lv].screw_r;
+    for (const sx of [1, -1]) { const mirror = v => [v[0] * sx, v[1], v[2]];                                   // anatomical x mirrored for the left screw
+      const en = new THREE.Vector3(...A2S(mirror(S.entry))), tp = new THREE.Vector3(...A2S(mirror(S.tip))); const ax = tp.clone().sub(en).normalize();
+      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.00325, 0.0024, en.distanceTo(tp), 12), smat); s.position.copy(en).lerp(tp, 0.5); s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), ax); screws.add(s);
+      const headPos = en.clone().addScaledVector(ax, -0.006);                                                  // polyaxial tulip just behind the entry
+      const hd = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.009, 12), smat); hd.position.copy(headPos); hd.quaternion.copy(s.quaternion); screws.add(hd);
+      heads.push({ sx, p: headPos }); } }
+  for (const sx of [1, -1]) { const hs = heads.filter(h => h.sx === sx).map(h => h.p); if (hs.length < 2) continue; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.00275, 0.00275, hs[0].distanceTo(hs[1]) + 0.016, 10), smat); rod.position.copy(hs[0]).lerp(hs[1], 0.5); rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), hs[1].clone().sub(hs[0]).normalize()); screws.add(rod); }
 }
 // ---- level selector in the panel ----
 { const sel = document.createElement('div'); sel.id = 'levelSel'; sel.innerHTML = '<h2>다치는 척추</h2>' + ['T12','L1','L2','L3','L4','L5'].map(l => `<button data-lv="${l}" class="${l === LEVEL ? 'on' : ''}">${l}</button>`).join('');
