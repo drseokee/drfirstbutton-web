@@ -139,7 +139,7 @@ for o in d["objects"]:
         else: t = 1.0                                                                # over the body of k+1
         w += [k, round(1 - t, 2), k + 1, round(t, 2)]
     o["w"] = w
-meta = dict(d["meta"]); meta["rig"] = {"levels": LEVELS, "fx": FX, "default_level": "L2"}
+meta = dict(d["meta"]); meta["rig"] = {"levels": LEVELS, "fx": FX, "default_level": "L3"}
 d["meta"] = meta
 json.dump(d, open(f"{OUTS}/spine_b.json", "w"), separators=(",", ":"))
 print("exported spine_b:", len(d["objects"]), "objects")

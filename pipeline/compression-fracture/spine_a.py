@@ -86,55 +86,7 @@ for side in (-1, 1):
         for j in range(1, 5):                                                    # out through the foramen: lateral, slightly down and forward
             u = j / 4; pts.append(c + Vector((side * (0.005 + 0.020 * u), -0.003 - 0.007 * u, -0.005 * u)))
         built[f"nerve__root_{lv.lower()}_{'r' if side < 0 else 'l'}"] = tube_along(pts, 0.0011)
-# inter- and supraspinous ligaments built per segment between neighbouring spinous processes (Z-Anatomy's are one big sheet that crumples when the column bends)
-SP = []                                                                        # per level: (name, z_ref, tip, base) of the spinous process
-for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
-    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]
-    tip = max(vs, key=lambda v: v.y)                                             # most posterior point = spinous tip
-    ymin = min(v.y for v in vs); ymax = max(v.y for v in vs); yb = ymin + (ymax - ymin) * 0.70
-    base_pts = [v for v in vs if abs(v.y - yb) < 0.003 and abs(v.x) < 0.006]    # lamina/spinous root at the midline
-    base = (sum(base_pts, Vector()) / len(base_pts)) if base_pts else Vector((0, yb, tip.z))
-    SP.append((lv, tip, base))
-vs = [v.co for v in built["bone__sacrum"].verts]; s_top = max(v.z for v in vs); s_tip = max([v for v in vs if v.z > s_top - 0.02], key=lambda v: v.y)
-SP.append(("S", s_tip, Vector((0, s_tip.y - 0.012, s_tip.z))))
-def sheet(p0a, p0b, p1a, p1b, thick=0.002, n=6):
-    """flat quad sheet between edge a (upper, from base to tip) and edge b (lower)"""
-    bm = bmesh.new(); rows = []
-    for i in range(n + 1):
-        u = i / n; ea = p0a.lerp(p0b, u); eb = p1a.lerp(p1b, u)
-        rows.append([bm.verts.new(Vector((-thick / 2, ea.y, ea.z))), bm.verts.new(Vector((thick / 2, ea.y, ea.z))), bm.verts.new(Vector((thick / 2, eb.y, eb.z))), bm.verts.new(Vector((-thick / 2, eb.y, eb.z)))])
-    for r0, r1 in zip(rows, rows[1:]):
-        for kq in range(4): bm.faces.new((r0[kq], r0[(kq + 1) % 4], r1[(kq + 1) % 4], r1[kq]))
-    bm.faces.new(rows[0][::-1]); bm.faces.new(rows[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
-BONE_BVH = {lv: BVHTree.FromBMesh(built[f"bone__{lv.lower()}"]) for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]}; BONE_BVH["S"] = BVHTree.FromBMesh(built["bone__sacrum"])
-for (lvU, tipU, baseU), (lvL, tipL, baseL) in zip(SP, SP[1:]):
-    # interspinous: exactly fills the gap — for several y positions find the upper process's lower surface and the lower process's upper surface by ray casts
-    ya, yb = max(baseU.y, baseL.y) + 0.001, min(tipU.y, tipL.y) - 0.002
-    upper_edge, lower_edge = [], []
-    zc = (tipU.z + tipL.z) / 2
-    for i in range(7):
-        y = ya + (yb - ya) * i / 6; origin = Vector((0, y, zc))
-        hu = BONE_BVH[lvU].ray_cast(origin, Vector((0, 0, 1)), 0.05); hl = BONE_BVH[lvL].ray_cast(origin, Vector((0, 0, -1)), 0.05)
-        zu = hu[0].z if hu[0] is not None else (baseU.z if i == 0 else upper_edge[-1].z); zl = hl[0].z if hl[0] is not None else (baseL.z if i == 0 else lower_edge[-1].z)
-        upper_edge.append(Vector((0, y, zu + 0.0008))); lower_edge.append(Vector((0, y, zl - 0.0008)))     # bite 0.8 mm into each process
-    bm = bmesh.new(); rows = []
-    for ue, le in zip(upper_edge, lower_edge):
-        rows.append([bm.verts.new(Vector((-0.0012, ue.y, ue.z))), bm.verts.new(Vector((0.0012, ue.y, ue.z))), bm.verts.new(Vector((0.0012, le.y, le.z))), bm.verts.new(Vector((-0.0012, le.y, le.z)))])
-    for r0, r1 in zip(rows, rows[1:]):
-        for kq in range(4): bm.faces.new((r0[kq], r0[(kq + 1) % 4], r1[(kq + 1) % 4], r1[kq]))
-    bm.faces.new(rows[0][::-1]); bm.faces.new(rows[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces)
-    built[f"lig__interspinous_{lvU.lower()}_{lvL.lower()}"] = bm
-# supraspinous: ONE continuous cord over all the tips (weights are assigned per segment later), slightly posterior to the bone
-sp_pts = []
-for i, (lv, tip, base) in enumerate(SP):
-    sp_pts.append(tip + Vector((0, 0.0015, 0)))
-    if i < len(SP) - 1: sp_pts.append(tip.lerp(SP[i + 1][1], 0.5) + Vector((0, 0.0035, 0)))
-dense = []
-for p, q in zip(sp_pts, sp_pts[1:]):
-    for j in range(4): dense.append(p.lerp(q, j / 4))
-dense.append(sp_pts[-1])
-built["lig__supraspinous"] = tube_along(dense, 0.0017)
-SP_TIPS = [(lv, round(tip.z - CENTER.z, 5)) for lv, tip, base in SP]
+SP_TIPS = []
 # pedicle centres (right side, x < 0): the bridge between body and arch
 PED = {}
 for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:

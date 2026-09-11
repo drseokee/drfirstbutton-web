@@ -61,7 +61,7 @@
 <div id="ctl"><span>주저앉음</span><div style="position:relative;display:inline-block"><input id="collapse" type="range" min="0" max="100" value="0"><div style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#cfc7b8;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:33%;transform:translateX(-50%)">경도 20%</span><span style="position:absolute;left:67%;transform:translateX(-50%)">중등도 40%</span><span style="position:absolute;right:0">중증 60%</span></div></div><span id="gradeLbl" style="min-width:64px;text-align:center"></span><button id="retro">불안정형(후벽 밀림)</button></div>
 <div id="panel">
   <h1>척추 압박골절</h1>
-  <p class="sub">요추 2번 골다공증성 압박골절</p>
+  <p class="sub">요추 3번 골다공증성 압박골절</p>
   <details>
     <summary>층 보이기 · 표현 · 보는 방향 · 조작</summary>
   
@@ -110,8 +110,7 @@ const KO = {
   lig__pll:"후종인대", lig__flava:"황색인대",
   skin__trunk:"피부"
 };
-for (const [u, l] of [['t12','l1'],['l1','l2'],['l2','l3'],['l3','l4'],['l4','l5'],['l5','s']]) { KO['lig__interspinous_'+u+'_'+l] = '극간인대 ' + u.toUpperCase() + '-' + l.toUpperCase(); }
-KO['lig__supraspinous'] = '극상인대';
+
 for (const [k, w] of [['multifidus','다열근'],['longissimus','최장근'],['iliocostalis','장늑근'],['spinalis','극근'],['quadratus_lumborum','요방형근'],['psoas','대요근'],['latissimus','광배근'],['thoracolumbar_fascia','흉요근막'],['rectus_abdominis','복직근'],['ext_oblique','외복사근'],['int_oblique','내복사근'],['transversus','복횡근']]) { KO['muscle__'+k+'_r'] = '오른쪽 '+w; KO['muscle__'+k+'_l'] = '왼쪽 '+w; }
 const COL = { bone:0xdccfb4, nerve:0xffe27a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, disc:0xc9b5d9, vessel:0xb03a3a };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, disc:0.72, vessel:0.8 };
@@ -389,10 +388,10 @@ function placeProps(){
   for (const sx of [1, -1]) { const hs = heads.filter(h => h.sx === sx).map(h => h.p); if (hs.length < 2) continue; const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.00275, 0.00275, hs[0].distanceTo(hs[1]) + 0.016, 10), smat); rod.position.copy(hs[0]).lerp(hs[1], 0.5); rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), hs[1].clone().sub(hs[0]).normalize()); screws.add(rod); }
 }
 // ---- level selector in the panel ----
-{ const sel = document.createElement('div'); sel.id = 'levelSel'; sel.innerHTML = '<h2>다치는 척추</h2>' + ['T12','L1','L2','L3','L4','L5'].map(l => `<button data-lv="${l}" class="${l === LEVEL ? 'on' : ''}">${l}</button>`).join('');
+if (false) { const sel = document.createElement('div'); sel.id = 'levelSel'; sel.innerHTML = '<h2>다치는 척추</h2>' + ['T12','L1','L2','L3','L4','L5'].map(l => `<button data-lv="${l}" class="${l === LEVEL ? 'on' : ''}">${l}</button>`).join('');
   const views = document.querySelector('.views'); views.parentNode.insertBefore(sel, views.previousElementSibling); sel.querySelectorAll('button').forEach(b => b.onclick = () => setLevel(b.dataset.lv)); }
 const STAGES = [
-  { name:'구조', cap:'흉추 12번부터 천골까지의 척추뼈, 사이의 추간판, 척수관 속 척수 끝(원추)과 마미신경, 앞뒤 세로인대입니다. 왼쪽 패널에서 다치는 높이(T12~L5)를 고를 수 있습니다.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0, retro:0, por:0, brace:0, vp:0, screws:0, section:0 }, ctl:false },
+  { name:'구조', cap:'흉추 12번부터 천골까지의 척추뼈, 사이의 추간판, 척수관 속 척수 끝(원추)과 마미신경, 뒤쪽 인대입니다. 이 모형은 요추 3번 골절을 보여줍니다.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0, retro:0, por:0, brace:0, vp:0, screws:0, section:0 }, ctl:false },
   { name:'다치는 순간', cap:'', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, retro:0, brace:0, vp:0, screws:0 }, ctl:true,
     subs:[ { name:'ⓐ 골다공증', cap:'뼈 속 잔기둥(해면골)이 성글어져 같은 뼈라도 버티는 힘이 약해집니다. 단면에서 정상↔골다공증을 비교하세요.', set:{ retro:0, collapse:0, por:1, section:1 }, action:{ label:'정상 ↔ 골다공증', toggle:'por' } },
            { name:'ⓑ 주저앉음', cap:'엉덩방아를 찧거나 물건을 들 때 하중이 내려오면, 약해진 체부의 앞쪽이 쐐기 모양으로 찌그러집니다. 슬라이더로 경도→중등도→중증을 보세요.', set:{ retro:0, por:1, section:0 } },
