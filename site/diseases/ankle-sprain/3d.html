@@ -157,14 +157,14 @@ for (const o of DATA.objects) {
   const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH[o.layer], metalness:0, vertexColors: true,
     transparent: o.layer==='skin', opacity: 1, side: THREE.DoubleSide });
   m.onBeforeCompile = sh => {   // fresnel edge darkening: surfaces turning away from the eye get darker -> visible boundaries
-    sh.uniforms.uRim = RIM;
+    sh.uniforms.uRim = (o.layer === 'nerve') ? { value: 0.0 } : RIM;
     sh.fragmentShader = 'uniform float uRim;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
       '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));');
   };
   if (/^lig__(atfl|cfl|ptfl)$/.test(o.name)) { m.color.setHex(0x4f86e0); m.roughness = 0.45; }
   if (/saphenous/.test(o.name)) m.color.setHex(0x3f5fa8);   // veins blue, arteries red
   if (o.layer === 'lig' && !/^lig__(atfl|cfl|ptfl)$/.test(o.name)) { m.transparent = true; m.opacity = 0.32; m.depthWrite = false; m.color.setHex(0xc7d3e2); }   // retinacula & background ligaments: quiet
-  m.customProgramCacheKey = () => 'chk_' + o.layer + (m.transparent ? '_t' : '');
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.layer === 'nerve' ? '_norim' : '') + (m.transparent ? '_t' : '');
   if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x8a6a1a); m.emissiveIntensity = 0.85; m.roughness = 0.35; }
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline

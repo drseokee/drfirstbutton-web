@@ -152,14 +152,14 @@ for (const o of DATA.objects) {
   const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH[o.layer], metalness:0, vertexColors: true, morphTargets: !!o.morphs,
     transparent: o.layer==='skin', opacity: 1, side: THREE.DoubleSide });
   m.onBeforeCompile = sh => {   // fresnel edge darkening: surfaces turning away from the eye get darker -> visible boundaries
-    sh.uniforms.uRim = RIM; sh.uniforms.uPor = UPOR;
+    sh.uniforms.uRim = (o.layer === 'nerve') ? { value: 0.0 } : RIM; sh.uniforms.uPor = UPOR;
     sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
     sh.fragmentShader = 'uniform float uRim; uniform float uPor; varying vec3 vWp;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
       '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));' +
       (o.layer === 'bone' && o.name.endsWith('__cut') ? '\n if (vNormal.x < -0.9) { vec3 p = vWp * 1400.0; float n = sin(p.y) * sin(p.z * 1.3 + p.y * 0.7) + 0.5 * sin(p.y * 2.3 + 1.7) * sin(p.z * 2.1); float cell = smoothstep(0.15 - 0.55 * uPor, 0.35 - 0.55 * uPor, n);\n gl_FragColor.rgb = mix(gl_FragColor.rgb * 0.45, gl_FragColor.rgb, cell); }' : ''));   // cancellous bone: struts thin out and holes open as uPor rises
   };
   if (o.name.startsWith('nerve__dural_sac')) { m.color.setHex(0xe8e2cf); m.transparent = true; m.opacity = 0.55; m.depthWrite = false; }
-  m.customProgramCacheKey = () => 'chk_' + o.layer + (m.transparent ? '_t' : '') + (o.morphs ? '_m' : '') + (o.layer === 'bone' && o.name.endsWith('__cut') ? '_trab' : '');
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.layer === 'nerve' ? '_norim' : '') + (m.transparent ? '_t' : '') + (o.morphs ? '_m' : '') + (o.layer === 'bone' && o.name.endsWith('__cut') ? '_trab' : '');
   if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x8a6a1a); m.emissiveIntensity = 0.85; m.roughness = 0.35; }
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline
