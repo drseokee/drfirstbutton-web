@@ -37,14 +37,15 @@
   #scale i { display:block; height:0; border-bottom:2px solid var(--dim); margin-bottom:3px; }
   @media (max-width:520px){ #panel{ width:auto; right:16px; font-size:12px; } .views{ grid-template-columns:repeat(3,1fr); } }
 #ctl { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
-#ctl input[type=range] { width: 220px; }
+#ctl input[type=range] { width: 260px; }
+#ctl { padding-bottom: 22px; }
 #ctl button { background: transparent; color: #cfc7b8; border: 1px solid rgba(243,238,228,.16); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
 #ctl button.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<div id="ctl"><span>주저앉음</span><input id="collapse" type="range" min="0" max="100" value="0"><button data-g="0.33">경도 20%</button><button data-g="0.67">중등도 40%</button><button data-g="1" class="on">중증 60%</button><button id="retro">불안정형(후벽 밀림)</button></div>
+<div id="ctl"><span>주저앉음</span><div style="position:relative;display:inline-block"><input id="collapse" type="range" min="0" max="100" value="0"><div style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#cfc7b8;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:33%;transform:translateX(-50%)">경도 20%</span><span style="position:absolute;left:67%;transform:translateX(-50%)">중등도 40%</span><span style="position:absolute;right:0">중증 60%</span></div></div><span id="gradeLbl" style="min-width:64px;text-align:center"></span><button id="retro">불안정형(후벽 밀림)</button></div>
 <div id="panel">
   <h1>척추 — L2 압박골절 확인</h1>
   <p class="sub">아래 슬라이더로 L2가 주저앉는 정도 · 옆(왼쪽) 뷰 추천</p>
@@ -311,7 +312,7 @@ function applyChain(k){ const full = THREE.MathUtils.degToRad(RIG.hinge.angle_at
   LV.forEach((L, i) => { const q = new THREE.Quaternion().setFromAxisAngle(HAXIS, full * L.share); groups[i].quaternion.copy(q); bones[i].quaternion.copy(q); }); }
 const ctl = { collapse: 0, grade: 1.0, retro: 0 };
 document.getElementById('collapse').oninput = e => ctl.collapse = +e.target.value / 100;
-document.querySelectorAll('#ctl button[data-g]').forEach(b => b.onclick = () => { ctl.grade = +b.dataset.g; document.querySelectorAll('#ctl button[data-g]').forEach(x => x.classList.toggle('on', x === b)); });
+
 document.getElementById('retro').onclick = e => { ctl.retro = ctl.retro ? 0 : 1; e.target.classList.toggle('on', !!ctl.retro); applySection(!!ctl.retro); if (ctl.retro) setView('left', false); };
 function applySection(on){   // unstable fracture: show the midline sagittal section so the posterior wall bowing into the canal is visible
   for (const m of meshes) { const u = m.userData; if (!['bone','disc','nerve','lig'].includes(u.layer)) continue;
@@ -321,7 +322,8 @@ function applySection(on){   // unstable fracture: show the midline sagittal sec
 const _applyVis = applyVisibility; applyVisibility = function(){ _applyVis(); if (ctl.retro) applySection(true); };
 let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; last = now;
-  const k = ctl.collapse * ctl.grade;
+  const k = ctl.collapse;                                                    // the slider IS the severity: 33 % → mild (20 % loss), 67 % → moderate (40 %), 100 % → severe (60 %)
+  { const g = k < 0.02 ? '정상' : k < 0.34 ? '경도' : k < 0.67 ? '중등도' : '중증'; const el = document.getElementById('gradeLbl'); if (el.textContent !== g) el.textContent = g; }
   for (const m of meshes) if (m.morphTargetInfluences) { if (m.userData.base === 'bone__l2') { m.morphTargetInfluences[0] = k; m.morphTargetInfluences[1] = k * ctl.retro; } else if (m.userData.base === 'disc__l1_l2') m.morphTargetInfluences[0] = k; }
   // fracture zone colours as it collapses: crushed anterior body turns red
   { const m = meshes.find(x => x.userData.base === 'bone__l2'); if (m && m.userData.fx) { const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, fx = m.userData.fx;
