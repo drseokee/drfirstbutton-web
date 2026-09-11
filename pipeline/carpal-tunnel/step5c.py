@@ -209,7 +209,7 @@ def path(k):
         pex = Vector((x0, min(pts[-1][0].y, floor_or(x0, z0 - 0.003, 1.0, hw=0.0035) - GAP_FLOOR - h), z0 - 0.003))
         pts.append((pex, 1.0, 1.0))
         s_begin = 0.0
-        while s_begin < 0.08 and chain_point(chain, s_begin)[0].z > -0.024: s_begin += 0.001
+        while s_begin < 0.08 and chain_point(chain, s_begin)[0].z > -0.015: s_begin += 0.001   # pick up the trapezium→metacarpal column right past the tunnel exit
         bridge_from = pex                                                          # the bridge is added after the column run is known (see below)
     if f != 1:   # fingers: keep the tunnel column straight for 6 mm past the ligament before drifting to the finger's own line
         pex = Vector((x0, 0, z0 - 0.006)); fl = floor_or(pex.x, pex.z, pts[-1][0].y + GAP_FLOOR + h)
@@ -271,7 +271,7 @@ def path(k):
             lift = (pd + 0.0006 + hf) - (sup.y - hf); base = base + Vector((0, lift, 0)); sup = sup + Vector((0, lift, 0))
         run_pts.append((base if row != "sup" else sup, taper, 1.0 - i / max(1, len(sm) - 1), bone_at(s)))   # station rides on this bone
     if f == 1:   # thumb: smooth arc from the tunnel exit into the column's first station (quadratic Bezier continuing the tunnel line)
-        tgt = run_pts[0][0]; T0 = Vector((0, 0, -1)); L = (tgt - bridge_from).length; ctrl = bridge_from + T0 * (L * 0.45)
+        tgt = run_pts[0][0]; L = (tgt - bridge_from).length; T0 = (Vector((0, 0, -1)) * 0.35 + (tgt - bridge_from).normalized() * 0.65).normalized(); ctrl = bridge_from + T0 * (L * 0.3)   # turns toward the thumb column almost at once (the FPL runs along the first metacarpal, not with the index tendons)
         for j in range(1, 6):
             t = j / 6; q = bridge_from * (1 - t) ** 2 + ctrl * 2 * (1 - t) * t + tgt * t ** 2
             y = min(q.y, floor_or(q.x, q.z, 1.0, hw=0.0035) - GAP_FLOOR - h)
