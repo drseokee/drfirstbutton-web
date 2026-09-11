@@ -53,31 +53,53 @@ for lv in LEVEL_NAMES:
                 db = wedge_delta(Vector((p.x, p.y, z_top))); dt = R_full @ (p - hinge) + hinge - p; dd = db * (1 - fr) + dt * fr
                 dl += [round(dd.x, 5), round(dd.y, 5), round(dd.z, 5)]
             o2.setdefault("morphs", {})[f"wedge_{lv.lower()}"] = dl
-    FX[lv] = {"hinge": [round(x, 5) for x in hinge], "axis": [round(x, 3) for x in AXIS], "angle_at_full": round(wedge_angle, 2), "height": round(H, 5), "depth": round(DEPTH, 5),
+    for nm in ("lig__all", "lig__all__cut", "lig__pll", "lig__pll__cut"):
+        if nm not in objs: continue
+        o2 = objs[nm]; dwl = []; drl = []
+        for i in range(nverts(o2)):
+            p = V(o2, i)
+            inz = smooth01((p.z - (z_bot - 0.002)) / 0.004) * (1 - smooth01((p.z - (z_top - 0.001)) / 0.004))   # only over this body's height
+            q = Vector((p.x, max(p.y, y_ant + 0.0005) if nm.startswith("lig__all") else min(p.y, Y_POST - 0.0005), p.z))
+            dw = wedge_delta(q) * inz; dr = (wedge_delta(q, 0.60, 1.0) - wedge_delta(q)) * inz
+            if nm.startswith("lig__all"): dr = Vector((0, 0, 0))
+            dwl += [round(dw.x, 5), round(dw.y, 5), round(dw.z, 5)]; drl += [round(dr.x, 5), round(dr.y, 5), round(dr.z, 5)]
+        o2.setdefault("morphs", {})[f"wedge_{lv.lower()}"] = dwl
+        if nm.startswith("lig__pll"): o2["morphs"][f"retro_{lv.lower()}"] = drl
+    # cannula: straight through the pedicle centre along the pedicle axis (toward the body at the pedicle's height) → lands in the upper third
+    ped = d["meta"].get("pedicle_r", {}).get(lv)
+    if ped:
+        pedv = Vector(ped); bodyc_ped_h = Vector((0, (y_ant + Y_POST) / 2, pedv.z))
+        axis = (bodyc_ped_h - pedv); axis.z -= 0.003; axis.normalize()                     # slightly downward as it runs forward
+        tip = pedv + axis * ((pedv - Vector((0, y_ant, pedv.z))).length * 0.72)              # to the anterior third
+    FX[lv] = {"hinge": [round(x, 5) for x in hinge], "pedicle_axis": ([round(x, 4) for x in axis] if ped else None), "cannula_tip": ([round(x, 5) for x in tip] if ped else None), "axis": [round(x, 3) for x in AXIS], "angle_at_full": round(wedge_angle, 2), "height": round(H, 5), "depth": round(DEPTH, 5),
               "body_centre": [0, round((y_ant + Y_POST) / 2, 5), round(z_mid, 5)], "pedicle_r": d["meta"].get("pedicle_r", {}).get(lv)}
     print(f"{lv}: body {H*1e3:.1f} x {DEPTH*1e3:.1f} mm, kyphosis at 60 % {wedge_angle:.1f} deg")
 # chain: sacrum → L5 → ... → T12; each level pivots at the disc below; shares are set in the viewer relative to the chosen fracture level
 LEVELS = [{"name": "sacrum", "members": ["bone__sacrum"], "pivot": None}]
 for lv in ["L5", "L4", "L3", "L2", "L1", "T12"]:
-    mem = [f"bone__{lv.lower()}", DISC_BELOW[lv]] + (["bone__rib12_r", "bone__rib12_l"] if lv == "T12" else [])
+    mem = [f"bone__{lv.lower()}", DISC_BELOW[lv]]
     LEVELS.append({"name": lv, "members": mem, "pivot": [round(x, 5) for x in centre_of(DISC_BELOW[lv])]})
 # soft structures follow the column by HEIGHT: between two vertebra centres the weight ramps linearly (monotonic → no crumpling
 # where neighbouring vertices would otherwise pick different level pairs). Level centre heights from the sacrum top up to T12.
-LZ = []
+# body ranges (bottom, top plate) per level; a vertex over a body follows that level rigidly, across a disc space it ramps
+BR = []
 for L in LEVELS:
     bone = [n for n in L["members"] if n.startswith("bone__")][0]; o_ = objs[bone]
-    zs_ = [V(o_, i).z for i in range(nverts(o_))]
-    LZ.append((max(zs_) - 0.015) if L["name"] == "sacrum" else sum(zs_) / len(zs_))
+    pts_ = [V(o_, i) for i in range(nverts(o_))]
+    if L["name"] == "sacrum": BR.append((min(p.z for p in pts_), max(p.z for p in pts_) - 0.004)); continue
+    ys_ = [p.y for p in pts_]; yp_ = min(ys_) + (max(ys_) - min(ys_)) * 0.42; body_ = [p for p in pts_ if p.y < yp_]
+    BR.append((min(p.z for p in body_), max(p.z for p in body_)))
 for o in d["objects"]:
     base = o["name"].replace("__cut", "")
     if base.startswith(("bone__", "disc__")): continue
     w = []
     for i in range(nverts(o)):
         z = V(o, i).z
-        if z <= LZ[0]: w += [0, 1.0, 1, 0.0]; continue
-        if z >= LZ[-1]: w += [len(LZ) - 1, 1.0, len(LZ) - 2, 0.0]; continue
-        k = max(j for j in range(len(LZ) - 1) if LZ[j] <= z)
-        t = (z - LZ[k]) / max(1e-6, LZ[k + 1] - LZ[k]); t = t * t * (3 - 2 * t)
+        if z <= BR[0][1]: w += [0, 1.0, 1, 0.0]; continue
+        if z >= BR[-1][0]: w += [len(BR) - 1, 1.0, len(BR) - 2, 0.0]; continue
+        k = max(j for j in range(len(BR) - 1) if BR[j][1] <= z)                     # the level whose top plate is below z
+        if z < BR[k + 1][0]: t = (z - BR[k][1]) / max(1e-6, BR[k + 1][0] - BR[k][1]); t = t * t * (3 - 2 * t)   # in the disc space between k and k+1
+        else: t = 1.0                                                                # over the body of k+1
         w += [k, round(1 - t, 2), k + 1, round(t, 2)]
     o["w"] = w
 meta = dict(d["meta"]); meta["rig"] = {"levels": LEVELS, "fx": FX, "default_level": "L2"}

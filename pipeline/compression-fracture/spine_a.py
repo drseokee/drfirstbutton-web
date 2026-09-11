@@ -22,7 +22,6 @@ built = {}
 for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
     built[f"bone__{lv.lower()}"] = get(f"Vertebra {lv}", clipz=(lv == "T12"))
 built["bone__sacrum"] = get("Sacrum")
-built["bone__rib12_r"] = get("Twelfth rib.r"); built["bone__rib12_l"] = get("Twelfth rib.l")
 for d in ["T12-L1", "L1-L2", "L2-L3", "L3-L4", "L4-L5", "L5-S1"]:
     built[f"disc__{d.lower().replace('-', '_')}"] = get(f"Intervertebral disc {d}", clipz=False)
 built["nerve__dural_sac"] = get("Spinal dura")

@@ -327,8 +327,9 @@ const idxOf = name => LV.findIndex(L => L.name === name);
 const BELOW_SHARE = [-0.05, -0.07, -0.09, -0.06];   // compensation below the fracture (nearest first)
 function applyChain(k){
   const F = FXL[LEVEL], full = THREE.MathUtils.degToRad(F.angle_at_full) * k, axis = new THREE.Vector3(...A2S(F.axis)).normalize(), fi = idxOf(LEVEL);
+  const topLevel = fi === LV.length - 1;
   LV.forEach((L, i) => { let share = 0;
-    if (i === fi + 1) share = 1.0; else if (i > fi + 1) share = 0.12; else if (i > 0 && i <= fi) share = BELOW_SHARE[Math.min(BELOW_SHARE.length - 1, fi - i)] || 0;
+    if (i === fi + 1) share = 1.0; else if (i > fi + 1) share = 0.12; else if (!topLevel && i > 0 && i <= fi) share = BELOW_SHARE[Math.min(BELOW_SHARE.length - 1, fi - i)] || 0;
     const q = new THREE.Quaternion().setFromAxisAngle(axis, full * share); groups[i].quaternion.copy(q); bones[i].quaternion.copy(q); });
   // the level above the fracture hinges at the fractured body's posterior-superior corner, not at its disc centre
   const above = groups[fi + 1], bn = bones[fi + 1];
@@ -366,9 +367,10 @@ const cement = new THREE.Mesh(new THREE.SphereGeometry(0.012, 20, 14), new THREE
 const screws = new THREE.Group(); scene.add(screws); screws.visible = false;
 let bodyC = new THREE.Vector3(), entry = new THREE.Vector3(), nAxis = new THREE.Vector3(0, 0, 1);
 function placeProps(){
-  const F = FXL[LEVEL]; bodyC = new THREE.Vector3(...A2S(F.body_centre)); const ped = F.pedicle_r ? new THREE.Vector3(...A2S(F.pedicle_r)) : bodyC.clone().add(new THREE.Vector3(-0.013, 0, 0.02));
-  nAxis = ped.clone().sub(bodyC).normalize().negate();                        // straight line: entry (behind the pedicle) → pedicle centre → body centre
-  entry = ped.clone().addScaledVector(nAxis.clone().negate(), 0.05);
+  const F = FXL[LEVEL]; const ped = F.pedicle_r ? new THREE.Vector3(...A2S(F.pedicle_r)) : new THREE.Vector3(...A2S(F.body_centre)).add(new THREE.Vector3(-0.013, 0, 0.02));
+  nAxis = F.pedicle_axis ? new THREE.Vector3(...A2S(F.pedicle_axis)).normalize() : new THREE.Vector3(0, 0, -1);   // the pedicle's own axis: entry → pedicle centre → upper third of the body
+  bodyC = F.cannula_tip ? new THREE.Vector3(...A2S(F.cannula_tip)) : ped.clone().addScaledVector(nAxis, 0.03);           // cannula tip (balloon / cement centre)
+  entry = ped.clone().addScaledVector(nAxis, -0.05);
   needle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nAxis);
   hematoma.position.copy(bodyC).add(new THREE.Vector3(0, 0, 0.026));           // just behind the posterior wall, in the canal
   // pedicle screws one level above and below, both sides, plus rods
@@ -426,7 +428,7 @@ let last = performance.now();
   anim.screws += (state.screws - anim.screws) * Math.min(1, dt * 3);
   UPOR.value = anim.por; screws.visible = anim.screws > 0.02; screws.scale.setScalar(0.4 + 0.6 * Math.min(1, anim.screws));
   if (state.vp) { vpT += dt; const r = (a, b) => Math.max(0, Math.min(1, (vpT - a) / (b - a))); const nIn = r(0, 2), bal = r(2, 4), cem = r(4, 6);
-    vp.visible = true; needle.position.copy(entry).lerp(bodyC, nIn).addScaledVector(nAxis, -0.07); needle.visible = cem < 1;
+    vp.visible = true; needle.position.copy(entry).lerp(bodyC, nIn).addScaledVector(nAxis, -0.07); needle.visible = cem < 1;   // the shaft trails behind the tip along the same straight line
     balloon.visible = bal > 0.02 && cem < 0.95; balloon.position.copy(bodyC); balloon.scale.set(1.0, 0.75, 0.9).multiplyScalar(0.2 + 0.8 * bal * (1 - cem));
     cement.visible = cem > 0.02; cement.position.copy(bodyC); cement.scale.set(1.05, 0.8, 0.95).multiplyScalar(0.2 + 0.8 * cem);
     ctl.collapse = 0.67 - 0.25 * bal;
@@ -436,7 +438,8 @@ let last = performance.now();
   { const g = k < 0.02 ? '정상' : k < 0.34 ? '경도' : k < 0.67 ? '중등도' : '중증'; const el = document.getElementById('gradeLbl'); if (el.textContent !== g) el.textContent = g; }
   const bone = 'bone__' + LEVEL.toLowerCase(), F = FXL[LEVEL], discAbove = { T12: null, L1: 'disc__t12_l1', L2: 'disc__l1_l2', L3: 'disc__l2_l3', L4: 'disc__l3_l4', L5: 'disc__l4_l5' }[LEVEL];
   for (const m of meshes) if (m.morphTargetInfluences) { if (m.userData.base === bone) { m.morphTargetInfluences[0] = k; m.morphTargetInfluences[1] = k * anim.retro; }
-    else if (discAbove && m.userData.base === discAbove) { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; } }
+    else if (discAbove && m.userData.base === discAbove) { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; }
+    else if (m.userData.base === 'lig__all' || m.userData.base === 'lig__pll') { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()), jr = names.indexOf('retro_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; if (jr >= 0) m.morphTargetInfluences[jr] = k * anim.retro; } }
   { const m = meshes.find(x => x.userData.base === bone && !x.userData.cut); const mc = meshes.find(x => x.userData.base === bone && x.userData.cut);
     for (const mm of [m, mc]) if (mm && mm.userData.fx) { const col = mm.geometry.getAttribute('color'), base = mm.userData.baseCol, fx = mm.userData.fx;
       for (let i = 0; i < fx.length; i++) { const a = fx[i] * k; col.array[3*i] = base[3*i] * (1 - 0.15 * a) + 0.35 * a; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * a); col.array[3*i+2] = base[3*i+2] * (1 - 0.75 * a); } col.needsUpdate = true; } }
