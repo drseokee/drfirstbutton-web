@@ -323,7 +323,7 @@ for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w
   gm.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); gm.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
   const sm = new THREE.SkinnedMesh(gm, m.material); sm.material.skinning = true; sm.material.needsUpdate = true; sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
   if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(gm, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
-  scene.remove(m); scene.add(sm); sm.bind(skel, new THREE.Matrix4()); meshes[i] = sm; }
+  scene.remove(m); scene.add(sm); sm.bind(skel, new THREE.Matrix4()); meshes[i] = sm; byName[sm.name] = sm; }
 const idxOf = name => LV.findIndex(L => L.name === name);
 const BELOW_SHARE = [-0.05, -0.07, -0.09, -0.06];   // compensation below the fracture (nearest first)
 function applyChain(k){
