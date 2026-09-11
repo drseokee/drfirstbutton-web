@@ -26,103 +26,95 @@ built["bone__rib12_r"] = get("Twelfth rib.r"); built["bone__rib12_l"] = get("Twe
 for d in ["T12-L1", "L1-L2", "L2-L3", "L3-L4", "L4-L5", "L5-S1"]:
     built[f"disc__{d.lower().replace('-', '_')}"] = get(f"Intervertebral disc {d}", clipz=False)
 built["nerve__dural_sac"] = get("Spinal dura")
-def curve_tube(name, radius):
-    c = objs[name].data
-    for sp in c.splines:
-        for p in (sp.points if sp.type != "BEZIER" else sp.bezier_points): p.radius = 1.0
-    c.bevel_depth = radius; c.bevel_resolution = 5; c.use_fill_caps = True
-curve_tube("Cauda equina", 0.0011)                                  # cauda roots ≈ 2 mm each (bundle ≈ 10 mm inside the sac)
-for nm in ("Anterior root of spinal nerve.r", "Anterior root of spinal nerve.l", "Posterior root of spinal nerve.r", "Posterior root of spinal nerve.l"):
-    if nm in objs: curve_tube(nm, 0.0009)
-refresh()
-built["nerve__cauda_equina"] = get("Cauda equina")
-for k, nm in {"nerve__roots_ant_r": "Anterior root of spinal nerve.r", "nerve__roots_ant_l": "Anterior root of spinal nerve.l", "nerve__roots_post_r": "Posterior root of spinal nerve.r", "nerve__roots_post_l": "Posterior root of spinal nerve.l"}.items():
-    if nm in objs:
-        bm = get(nm)
-        if len(bm.verts): built[k] = bm
 for k, n in {"lig__all": "Anterior longitudinal ligament", "lig__pll": "Posterior longitudinal ligament", "lig__flava": "Ligamenta flava",
              "lig__interspinous": "Interspinous ligaments", "lig__supraspinous": "Supraspinous ligament"}.items():
     if n in objs: built[k] = get(n)
-MUSC = {"muscle__multifidus": ["Multifidus lumborum muscle", "Multifidus thoracis muscle"], "muscle__longissimus": ["Longissimus thoracis muscle"],
-        "muscle__iliocostalis": ["Iliocostalis lumborum muscle", "Iliocostalis thoracis muscle"], "muscle__spinalis": ["Spinalis thoracis muscle"],
-        "muscle__quadratus_lumborum": ["Quadratus lumborum muscle"], "muscle__psoas": ["Psoas major"], "muscle__latissimus": ["Latissimus dorsi muscle"],
-        "muscle__thoracolumbar_fascia": ["Posterior layer of thoracolumbar fascia"],
-        "muscle__rectus_abdominis": ["Rectus abdominis muscle"], "muscle__ext_oblique": ["External oblique muscle", "External abdominal oblique muscle"],
-        "muscle__int_oblique": ["Internal oblique muscle", "Internal abdominal oblique muscle"], "muscle__transversus": ["Transversus abdominis muscle", "Transverse abdominal muscle"]}
-missing = []
-for k, names in MUSC.items():
-    for side in ("r", "l"):
-        present = [f"{n}.{side}" for n in names if f"{n}.{side}" in objs]
-        if present: built[f"{k}_{side}"] = get_join(present)
-        else: missing.append(f"{names[0]}.{side}")
-print("missing:", missing)
-for k, bm in built.items(): print(f"{k:34} {len(bm.verts):6} v")
 
-# ---- torso skin: union of everything solid + skin-only context (pelvis, upper buttocks, arms with hands), subcutaneous closing ----
-Z_SKIN_BOT, Z_ARM_BOT, TRUNK_HALF_W = 0.850, 0.735, 0.185                 # trunk stops at the upper half of the buttocks; arms continue to the fingertips
-EXTRA = ["Hip bone", "Coccyx", "Piriformis muscle", "Gluteus maximus muscle", "Gluteus medius muscle", "Gluteus minimus muscle", "Tensor fasciae latae",
-         "Humerus", "Radius", "Ulna", "Long head of biceps brachii", "Short head of biceps brachii", "Brachialis muscle", "Lateral head of triceps brachii", "Medial head of triceps brachii", "Long head of triceps brachii",
-         "Brachioradialis muscle", "Extensor carpi radialis longus", "Extensor carpi radialis brevis", "Extensor digitorum", "Extensor digiti minimi", "Ulnar head of extensor carpi ulnaris", "Humeral head of extensor carpi ulnaris", "Anconeus muscle",
-         "Flexor carpi radialis", "Humeral head of flexor carpi ulnaris", "Ulnar head of flexor carpi ulnaris", "Superficial head of pronator teres", "Humero-ulnar head of flexor digitorum superficialis", "Radial head of flexor digitorum superficialis", "Flexor digitorum profundus", "Flexor pollicis longus", "Abductor pollicis longus"]
-HAND = [f"{w} metacarpal bone" for w in ("First", "Second", "Third", "Fourth", "Fifth")] + [f"{p} phalanx of {w} finger of hand" for p in ("Proximal", "Middle", "Distal") for w in ("first", "second", "third", "fourth", "fifth")]
-extras = []
-for side in ("r", "l"):
-    for n in EXTRA + HAND:
-        nm = f"{n}.{side}"
-        if nm in objs:
-            bm = world_bm(nm); cut_z(bm, Z_TOP, keep="below", cap=True, ngon=True); cut_z(bm, Z_ARM_BOT, keep="above", cap=True, ngon=True); extras.append(bm)
-# filler over the sacrum: the gluteal cleft leaves a pit between the two gluteus maximus masses that no muscle covers
-sac = objs["Sacrum"]; sv = [sac.matrix_world @ v.co for v in sac.data.vertices]; sc_ = sum(sv, Vector()) / len(sv)
-fill = bmesh.new(); bmesh.ops.create_uvsphere(fill, u_segments=24, v_segments=16, radius=1.0)
-bmesh.ops.transform(fill, matrix=Matrix.Translation((sc_.x, max(v.y for v in sv) - 0.014, sc_.z + 0.02)) @ Matrix.Diagonal((0.065, 0.02, 0.085, 1)), verts=fill.verts[:])
-cut_z(fill, Z_ARM_BOT, keep="above", cap=True); extras.append(fill)
-print("skin-only context objects:", len(extras))
-solid = [k for k in built if k.split("__")[0] in ("bone", "muscle", "disc")]
-union = join_bms([built[k].copy() for k in solid] + extras)
-bpy.ops.wm.read_homefile(use_empty=True)
-ob = bm_to_object(union, "skin_src")
-for kind, kw in [("REMESH", dict(mode="VOXEL", voxel_size=0.004)), ("SMOOTH", dict(factor=1.0, iterations=3)),
-                 ("DISPLACE", dict(strength=0.020, mid_level=0, direction="NORMAL")),          # dilate 20 mm: closes the gaps between muscle groups
-                 ("REMESH", dict(mode="VOXEL", voxel_size=0.004)), ("SMOOTH", dict(factor=1.0, iterations=6)),
-                 ("DISPLACE", dict(strength=-0.009, mid_level=0, direction="NORMAL")),         # erode 9 mm: net 11 mm of subcutaneous padding
-                 ("REMESH", dict(mode="VOXEL", voxel_size=0.0035)), ("SMOOTH", dict(factor=1.0, iterations=6)), ("DECIMATE", dict(ratio=0.5))]:
-    m = ob.modifiers.new(kind.lower() + str(len(ob.modifiers)), kind)
-    for a, v in kw.items(): setattr(m, a, v)
-skin = evaluated_bm(ob); cut_z(skin, Z_TOP - 0.004, keep="below", cap=True, ngon=True); cut_z(skin, Z_ARM_BOT + 0.004, keep="above", cap=True, ngon=True)
-# trunk ends at the upper buttocks; the arms keep going down to the hands: carve the lower trunk out with a box
-skin_ob = bm_to_object(skin, "skin_full"); box = bmesh.new(); bmesh.ops.create_cube(box, size=1.0)
-bmesh.ops.transform(box, matrix=Matrix.Translation((0, 0.03, (Z_SKIN_BOT + 0.5) / 2)) @ Matrix.Diagonal((TRUNK_HALF_W * 2, 0.6, Z_SKIN_BOT - 0.5, 1)), verts=box.verts[:])
-cutter = bm_to_object(box, "trunk_cutter")
-m = skin_ob.modifiers.new("trunk_cut", "BOOLEAN"); m.operation = "DIFFERENCE"; m.solver = "EXACT"; m.object = cutter; m.use_hole_tolerant = True
-skin = evaluated_bm(skin_ob)
-print("skin:", len(skin.verts), "verts")
-built["skin__trunk"] = skin
-skin_bvh = BVHTree.FromBMesh(skin); tucked = 0
-for k, bm in built.items():
-    if k.split("__")[0] not in ("nerve", "lig"): continue
-    for v in bm.verts:
-        loc, nrm, idx, dist = skin_bvh.find_nearest(v.co)
-        if loc is not None and (v.co - loc).dot(nrm) > -0.0004: v.co = v.co - nrm * ((v.co - loc).dot(nrm) + 0.001); tucked += 1
-print("tucked:", tucked)
+STRUCT_CUT_Z = Z_TOP
+# ---- Z-Anatomy's cauda is one trunk with branches: build an anatomical bundle instead ----
+# conus ends at L1-L2; below it the roots run as separate strands inside the sac and each leaves at its own level
+# canal centreline from the vertebrae themselves (Z-Anatomy's dura mesh stops at L3): posterior wall of each body + 9 mm
+CANAL = []
+for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
+    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]; ymin = min(v.y for v in vs); ymax = max(v.y for v in vs)
+    CANAL.append((sum(v.z for v in vs) / len(vs), ymin + (ymax - ymin) * 0.45 + 0.009))
+vs = [v.co for v in built["bone__sacrum"].verts]; CANAL.append((max(v.z for v in vs) - 0.02, min(v.y for v in vs) + (max(v.y for v in vs) - min(v.y for v in vs)) * 0.62))
+CANAL.append((Z_BOT, CANAL[-1][1] + 0.004)); CANAL.sort(key=lambda t: -t[0])
+def sac_centre(z, dz=None):
+    for (z0, y0), (z1, y1) in zip(CANAL, CANAL[1:]):
+        if z1 <= z <= z0: u = (z0 - z) / max(1e-6, z0 - z1); return Vector((0, y0 + (y1 - y0) * u, z))
+    return Vector((0, CANAL[0][1] if z > CANAL[0][0] else CANAL[-1][1], z))
+def disc_z(name):
+    vs = [v.co for v in built[name].verts]; return sum(v.z for v in vs) / len(vs)
+CONUS_END = disc_z("disc__l1_l2") + 0.006
+def tube_along(points, radius, segs=10):
+    bm = bmesh.new(); rings = []
+    for i, p in enumerate(points):
+        t = (points[min(i + 1, len(points) - 1)] - points[max(i - 1, 0)]).normalized()
+        a_ = Vector((1, 0, 0)) if abs(t.x) < 0.9 else Vector((0, 1, 0)); u = t.cross(a_).normalized(); w = t.cross(u)
+        rings.append([bm.verts.new(p + u * (radius * math.cos(2 * math.pi * k / segs)) + w * (radius * math.sin(2 * math.pi * k / segs))) for k in range(segs)])
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
+    for ring, rev in ((rings[0], True), (rings[-1], False)):
+        c0 = bm.verts.new(sum((v.co for v in ring), Vector()) / segs)
+        for k in range(segs): bm.faces.new((ring[(k + 1) % segs], ring[k], c0) if rev else (ring[k], ring[(k + 1) % segs], c0))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
+def tube_along_r(points, radii, segs=14):
+    bm = bmesh.new(); rings = []
+    for i, p in enumerate(points):
+        t = (points[min(i + 1, len(points) - 1)] - points[max(i - 1, 0)]).normalized()
+        a_ = Vector((1, 0, 0)) if abs(t.x) < 0.9 else Vector((0, 1, 0)); u = t.cross(a_).normalized(); w = t.cross(u); r = radii[i]
+        rings.append([bm.verts.new(p + u * (r * math.cos(2 * math.pi * k / segs)) + w * (r * 0.8 * math.sin(2 * math.pi * k / segs))) for k in range(segs)])
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
+# dural sac: Z-Anatomy's stops at L3, so build it along the canal from the block top to S2, tapering into the sacral canal (open ends)
+zs_d = []; z = Z_TOP - 0.002
+while z > Z_BOT + 0.002: zs_d.append(z); z -= 0.005
+built["nerve__dural_sac"] = tube_along_r([sac_centre(z) for z in zs_d], [0.0078 if z > Z_BOT + 0.045 else 0.0078 - (Z_BOT + 0.045 - z) / 0.043 * 0.0045 for z in zs_d])
+zs = []; z = Z_TOP - 0.003
+while z > CONUS_END: zs.append(z); z -= 0.004
+cord_pts = [sac_centre(z) or Vector((0, 0, z)) for z in zs]
+for i in range(len(cord_pts)):                                                   # taper into the conus over the last 2 cm
+    pass
+built["nerve__conus"] = tube_along_r(cord_pts, [0.0045 if i < len(cord_pts) - 5 else 0.0045 * (len(cord_pts) - i) / 5 for i in range(len(cord_pts))], segs=12)
+EXITS = {"L1": disc_z("disc__l1_l2"), "L2": disc_z("disc__l2_l3"), "L3": disc_z("disc__l3_l4"), "L4": disc_z("disc__l4_l5"), "L5": disc_z("disc__l5_s1"), "S1": Z_BOT + 0.028, "S2": Z_BOT + 0.014, "S3": Z_BOT + 0.004}
+for side in (-1, 1):
+    for ri, (lv, zx) in enumerate(EXITS.items()):
+        pts = []; z = CONUS_END + 0.004; ang = (ri / len(EXITS)) * math.pi * 0.85 + 0.2; rr = 0.0022 + 0.0016 * (ri % 3)
+        while z > zx:
+            c = sac_centre(z) or Vector((0, 0, z)); pts.append(c + Vector((side * rr * math.cos(ang), 0.001 + rr * 0.6 * math.sin(ang), 0))); z -= 0.004
+        c = sac_centre(zx) or Vector((0, 0, zx))
+        for j in range(1, 5):                                                    # out through the foramen: lateral, slightly down and forward
+            u = j / 4; pts.append(c + Vector((side * (0.005 + 0.020 * u), -0.003 - 0.007 * u, -0.005 * u)))
+        built[f"nerve__root_{lv.lower()}_{'r' if side < 0 else 'l'}"] = tube_along(pts, 0.0011)
+# pedicle centres (right side, x < 0): the bridge between body and arch
+PED = {}
+for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
+    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]; cz = sum(v.z for v in vs) / len(vs)
+    ymin = min(v.y for v in vs); ymax = max(v.y for v in vs); yp = ymin + (ymax - ymin) * 0.45
+    cand = [v for v in vs if yp - 0.004 < v.y < yp + 0.012 and -0.017 < v.x < -0.005 and abs(v.z - cz) < 0.010]
+    if cand: PED[lv] = sum(cand, Vector()) / len(cand)
+print("pedicle centres (block frame):", {k: [round(c, 4) for c in (v - CENTER)] for k, v in PED.items()})
+for k, bm in built.items(): print(f"{k:28} {len(bm.verts):6} v")
 
+# ---- export: full set + midline section set ----
 objects = []
 for k, bm in built.items():
     v, t = to_arrays(bm, center=CENTER); objects.append({"name": k, "layer": k.split("__")[0], "verts": v, "tris": t})
-    if k.split("__")[0] not in ("bone", "disc", "nerve", "lig") or k.startswith("bone__rib12") or k.endswith("_l"): continue
+    if k.startswith("bone__rib12") or k.endswith("_l"): continue
     c2 = bm.copy(); zj = (hash(k) % 11 - 5) * 0.00003
-    cut_plane(c2, (zj, 0, 0), (1, 0, 0), remove="outer", cap=True, ngon=True)          # midline sagittal: keep the patient's right half
+    cut_plane(c2, (zj, 0, 0), (1, 0, 0), remove="outer", cap=(k != "nerve__dural_sac"), ngon=True)   # keep the patient's right half; the sac stays open (hollow) so the roots inside show
     if len(c2.faces):
         v, t = to_arrays(c2, center=CENTER); objects.append({"name": k + "__cut", "layer": k.split("__")[0], "verts": v, "tris": t})
-meta = {"frame": "L2-body-centred; right=-x, anterior=-y, up=+z", "unit": "m", "attribution": ATTR, "levels": ["T12", "L1", "L2", "L3", "L4", "L5", "S1-2"]}
+meta = {"frame": "L2-body-centred; right=-x, anterior=-y, up=+z", "unit": "m", "attribution": ATTR, "levels": ["T12", "L1", "L2", "L3", "L4", "L5", "S1-2"],
+        "pedicle_r": {k: [round(c, 5) for c in (v - CENTER)] for k, v in PED.items()}}
 json.dump({"meta": meta, "objects": objects}, open(f"{OUTS}/spine_a.json", "w"), separators=(",", ":"))
 print("exported spine_a:", len(objects), "objects,", sum(len(o["verts"]) // 3 for o in objects), "verts,", os.path.getsize(f"{OUTS}/spine_a.json") // 1024, "KB")
-
-# ---- previews ----
-POST, LAT, UPV = Vector((0, 1, 0)), Vector((1, 0, 0)), Vector((0, 0, 1))   # posterior = +y; left side = +x
+POST, LAT, UPV = Vector((0, 1, 0)), Vector((1, 0, 0)), Vector((0, 0, 1))
 def look2(cam, sun, pos, up):
     fwd = (-pos).normalized(); right = fwd.cross(up).normalized(); up2 = right.cross(fwd).normalized()
     m = Matrix((right, up2, -fwd)).transposed(); cam.location = pos; cam.rotation_quaternion = m.to_quaternion(); sun.rotation_quaternion = (m @ Matrix.Rotation(0.5, 3, 'X') @ Matrix.Rotation(-0.4, 3, 'Y')).to_quaternion()
 zana.look = look2
-full = [o for o in objects if not o["name"].endswith("__cut")]
-rebuild_scene(full, meta); render_views({"skin_post": (POST + LAT * 0.3 + UPV * 0.1, UPV), "skin_lat": (LAT + POST * 0.2, UPV)}, "spine_a", dist=1.05, res=700, samples=14)
-rebuild_scene([o for o in full if o["layer"] in ("bone", "disc", "lig", "nerve")], meta); render_views({"bones_post": (POST + LAT * 0.25 + UPV * 0.15, UPV), "bones_lat": (LAT + POST * 0.15, UPV)}, "spine_a", dist=0.55, res=700, samples=14)
+rebuild_scene([o for o in objects if o["name"].endswith("__cut") and o["layer"] in ("bone", "disc", "nerve")], meta)
+render_views({"section_nerves": (LAT + POST * 0.15, UPV)}, "spine_a", dist=0.42, res=800, samples=14)
