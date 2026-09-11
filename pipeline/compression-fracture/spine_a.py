@@ -106,11 +106,35 @@ def sheet(p0a, p0b, p1a, p1b, thick=0.002, n=6):
     for r0, r1 in zip(rows, rows[1:]):
         for kq in range(4): bm.faces.new((r0[kq], r0[(kq + 1) % 4], r1[(kq + 1) % 4], r1[kq]))
     bm.faces.new(rows[0][::-1]); bm.faces.new(rows[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
+BONE_BVH = {lv: BVHTree.FromBMesh(built[f"bone__{lv.lower()}"]) for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]}; BONE_BVH["S"] = BVHTree.FromBMesh(built["bone__sacrum"])
 for (lvU, tipU, baseU), (lvL, tipL, baseL) in zip(SP, SP[1:]):
-    # interspinous: from the lower edge of the upper process to the upper edge of the lower one, base → tip
-    built[f"lig__interspinous_{lvU.lower()}_{lvL.lower()}"] = sheet(baseU + Vector((0, 0, -0.004)), tipU + Vector((0, -0.004, -0.003)), baseL + Vector((0, 0, 0.004)), tipL + Vector((0, -0.004, 0.003)))
-    # supraspinous: a cord over the tips
-    built[f"lig__supraspinous_{lvU.lower()}_{lvL.lower()}"] = tube_along([tipU + Vector((0, 0.002, -0.002)), tipU.lerp(tipL, 0.5) + Vector((0, 0.003, 0)), tipL + Vector((0, 0.002, 0.002))], 0.0016)
+    # interspinous: exactly fills the gap — for several y positions find the upper process's lower surface and the lower process's upper surface by ray casts
+    ya, yb = max(baseU.y, baseL.y) + 0.001, min(tipU.y, tipL.y) - 0.002
+    upper_edge, lower_edge = [], []
+    zc = (tipU.z + tipL.z) / 2
+    for i in range(7):
+        y = ya + (yb - ya) * i / 6; origin = Vector((0, y, zc))
+        hu = BONE_BVH[lvU].ray_cast(origin, Vector((0, 0, 1)), 0.05); hl = BONE_BVH[lvL].ray_cast(origin, Vector((0, 0, -1)), 0.05)
+        zu = hu[0].z if hu[0] is not None else (baseU.z if i == 0 else upper_edge[-1].z); zl = hl[0].z if hl[0] is not None else (baseL.z if i == 0 else lower_edge[-1].z)
+        upper_edge.append(Vector((0, y, zu + 0.0008))); lower_edge.append(Vector((0, y, zl - 0.0008)))     # bite 0.8 mm into each process
+    bm = bmesh.new(); rows = []
+    for ue, le in zip(upper_edge, lower_edge):
+        rows.append([bm.verts.new(Vector((-0.0012, ue.y, ue.z))), bm.verts.new(Vector((0.0012, ue.y, ue.z))), bm.verts.new(Vector((0.0012, le.y, le.z))), bm.verts.new(Vector((-0.0012, le.y, le.z)))])
+    for r0, r1 in zip(rows, rows[1:]):
+        for kq in range(4): bm.faces.new((r0[kq], r0[(kq + 1) % 4], r1[(kq + 1) % 4], r1[kq]))
+    bm.faces.new(rows[0][::-1]); bm.faces.new(rows[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces)
+    built[f"lig__interspinous_{lvU.lower()}_{lvL.lower()}"] = bm
+# supraspinous: ONE continuous cord over all the tips (weights are assigned per segment later), slightly posterior to the bone
+sp_pts = []
+for i, (lv, tip, base) in enumerate(SP):
+    sp_pts.append(tip + Vector((0, 0.0015, 0)))
+    if i < len(SP) - 1: sp_pts.append(tip.lerp(SP[i + 1][1], 0.5) + Vector((0, 0.0035, 0)))
+dense = []
+for p, q in zip(sp_pts, sp_pts[1:]):
+    for j in range(4): dense.append(p.lerp(q, j / 4))
+dense.append(sp_pts[-1])
+built["lig__supraspinous"] = tube_along(dense, 0.0017)
+SP_TIPS = [(lv, round(tip.z - CENTER.z, 5)) for lv, tip, base in SP]
 # pedicle centres (right side, x < 0): the bridge between body and arch
 PED = {}
 for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
@@ -132,7 +156,7 @@ for k, bm in built.items():
     if len(c2.faces):
         v, t = to_arrays(c2, center=CENTER); objects.append({"name": k + "__cut", "layer": k.split("__")[0], "verts": v, "tris": t})
 meta = {"frame": "L2-body-centred; right=-x, anterior=-y, up=+z", "unit": "m", "attribution": ATTR, "levels": ["T12", "L1", "L2", "L3", "L4", "L5", "S1-2"],
-        "pedicle_r": {k: [round(c, 5) for c in (v - CENTER)] for k, v in PED.items()}}
+        "pedicle_r": {k: [round(c, 5) for c in (v - CENTER)] for k, v in PED.items()}, "spinous_tips": SP_TIPS}
 json.dump({"meta": meta, "objects": objects}, open(f"{OUTS}/spine_a.json", "w"), separators=(",", ":"))
 print("exported spine_a:", len(objects), "objects,", sum(len(o["verts"]) // 3 for o in objects), "verts,", os.path.getsize(f"{OUTS}/spine_a.json") // 1024, "KB")
 POST, LAT, UPV = Vector((0, 1, 0)), Vector((1, 0, 0)), Vector((0, 0, 1))

@@ -114,6 +114,16 @@ for o in d["objects"]:
     seg = None
     if base.startswith(("lig__interspinous_", "lig__supraspinous_")):
         parts = base.split("_"); seg = (LEVEL_IDX.get(parts[-2]), LEVEL_IDX.get(parts[-1]))      # (upper level, lower level)
+    if base == "lig__supraspinous":                                            # continuous cord: weight by which pair of spinous tips the vertex lies between
+        tips = d["meta"]["spinous_tips"]; tz = [(LEVEL_IDX[lv.lower()], z) for lv, z in tips]; tz.sort(key=lambda t: t[1])   # ascending z: S, L5, ... T12
+        w = []
+        for i in range(nverts(o)):
+            z = V(o, i).z
+            if z <= tz[0][1]: w += [tz[0][0], 1.0, tz[1][0], 0.0]; continue
+            if z >= tz[-1][1]: w += [tz[-1][0], 1.0, tz[-2][0], 0.0]; continue
+            k = max(j for j in range(len(tz) - 1) if tz[j][1] <= z); t = (z - tz[k][1]) / max(1e-6, tz[k + 1][1] - tz[k][1]); t = t * t * (3 - 2 * t)
+            w += [tz[k][0], round(1 - t, 2), tz[k + 1][0], round(t, 2)]
+        o["w"] = w; continue
     if seg and seg[0] is not None and seg[1] is not None:
         zs_ = [V(o, i).z for i in range(nverts(o))]; z0, z1 = min(zs_), max(zs_); w = []
         for i in range(nverts(o)):

@@ -110,7 +110,8 @@ const KO = {
   lig__pll:"후종인대", lig__flava:"황색인대",
   skin__trunk:"피부"
 };
-for (const [u, l] of [['t12','l1'],['l1','l2'],['l2','l3'],['l3','l4'],['l4','l5'],['l5','s']]) { KO['lig__interspinous_'+u+'_'+l] = '극간인대 ' + u.toUpperCase() + '-' + l.toUpperCase(); KO['lig__supraspinous_'+u+'_'+l] = '극상인대 ' + u.toUpperCase() + '-' + l.toUpperCase(); }
+for (const [u, l] of [['t12','l1'],['l1','l2'],['l2','l3'],['l3','l4'],['l4','l5'],['l5','s']]) { KO['lig__interspinous_'+u+'_'+l] = '극간인대 ' + u.toUpperCase() + '-' + l.toUpperCase(); }
+KO['lig__supraspinous'] = '극상인대';
 for (const [k, w] of [['multifidus','다열근'],['longissimus','최장근'],['iliocostalis','장늑근'],['spinalis','극근'],['quadratus_lumborum','요방형근'],['psoas','대요근'],['latissimus','광배근'],['thoracolumbar_fascia','흉요근막'],['rectus_abdominis','복직근'],['ext_oblique','외복사근'],['int_oblique','내복사근'],['transversus','복횡근']]) { KO['muscle__'+k+'_r'] = '오른쪽 '+w; KO['muscle__'+k+'_l'] = '왼쪽 '+w; }
 const COL = { bone:0xdccfb4, nerve:0xffe27a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, disc:0xc9b5d9, vessel:0xb03a3a };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, disc:0.72, vessel:0.8 };
