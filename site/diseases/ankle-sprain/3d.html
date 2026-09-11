@@ -115,7 +115,7 @@ const KO = {
   vessel__small_saphenous:"소복재정맥", vessel__great_saphenous:"대복재정맥", vessel__post_tibial_a:"후경골동맥", vessel__ant_tibial_a:"전경골동맥", vessel__dorsalis_pedis:"족배동맥", skin__foot:"피부"
 };
 for (const [i, w] of [[1,'엄지'],[2,'둘째'],[3,'셋째'],[4,'넷째'],[5,'새끼']]) { KO['bone__pp'+i] = w+'발가락 기절골'; KO['bone__mp'+i] = w+'발가락 중절골'; KO['bone__dp'+i] = w+'발가락 말절골'; }
-const COL = { bone:0xdccfb4, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, vessel:0xb03a3a };
+const COL = { bone:0xdccfb4, nerve:0xffd45a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, vessel:0xb03a3a };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, vessel:0.8 };
 const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, vessel:0.45 };
 
@@ -149,7 +149,7 @@ for (const o of DATA.objects) {
     const nrm = g.getAttribute('normal').array, k = CAP_SHADE[o.layer];
     for (let i = 0; i < nrm.length; i += 3) if (nrm[i+1] > 0.97) { col[i] = col[i+1] = col[i+2] = k; }
   }
-  if (o.ao) { for (let i = 0; i < o.ao.length; i++) { const s = 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }   // baked ambient occlusion: crevices and contacts darken
+  if (o.ao) { const nerve = o.layer === 'nerve'; for (let i = 0; i < o.ao.length; i++) { const s = nerve ? 0.82 + 0.18 * o.ao[i] : 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }   // baked ambient occlusion: crevices and contacts darken
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   // subtle per-object tint so neighbouring bones / tendons don't merge into one white mass
   const tint = new THREE.Color(COL[o.layer]);
@@ -165,6 +165,7 @@ for (const o of DATA.objects) {
   if (/saphenous/.test(o.name)) m.color.setHex(0x3f5fa8);   // veins blue, arteries red
   if (o.layer === 'lig' && !/^lig__(atfl|cfl|ptfl)$/.test(o.name)) { m.transparent = true; m.opacity = 0.32; m.depthWrite = false; m.color.setHex(0xc7d3e2); }   // retinacula & background ligaments: quiet
   m.customProgramCacheKey = () => 'chk_' + o.layer + (m.transparent ? '_t' : '');
+  if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x3a2e08); m.emissiveIntensity = 0.5; }
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline
     const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });

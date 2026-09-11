@@ -111,7 +111,7 @@ const KO = {
   skin__trunk:"피부"
 };
 for (const [k, w] of [['multifidus','다열근'],['longissimus','최장근'],['iliocostalis','장늑근'],['spinalis','극근'],['quadratus_lumborum','요방형근'],['psoas','대요근'],['latissimus','광배근'],['thoracolumbar_fascia','흉요근막'],['rectus_abdominis','복직근'],['ext_oblique','외복사근'],['int_oblique','내복사근'],['transversus','복횡근']]) { KO['muscle__'+k+'_r'] = '오른쪽 '+w; KO['muscle__'+k+'_l'] = '왼쪽 '+w; }
-const COL = { bone:0xdccfb4, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, disc:0xc9b5d9, vessel:0xb03a3a };
+const COL = { bone:0xdccfb4, nerve:0xffd45a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, disc:0xc9b5d9, vessel:0xb03a3a };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, disc:0.72, vessel:0.8 };
 const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, disc:0.55, vessel:0.45 };
 
@@ -144,7 +144,7 @@ for (const o of DATA.objects) {
     const nrm = g.getAttribute('normal').array, k = CAP_SHADE[o.layer];
     for (let i = 0; i < nrm.length; i += 3) if (nrm[i] < -0.97) { col[i] = col[i+1] = col[i+2] = k; }
   }
-  if (o.ao) { for (let i = 0; i < o.ao.length; i++) { const s = 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }
+  if (o.ao) { const nerve = o.layer === 'nerve'; for (let i = 0; i < o.ao.length; i++) { const s = nerve ? 0.82 + 0.18 * o.ao[i] : 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   // subtle per-object tint so neighbouring bones / tendons don't merge into one white mass
   const tint = new THREE.Color(COL[o.layer]);
@@ -160,6 +160,7 @@ for (const o of DATA.objects) {
   };
   if (o.name.startsWith('nerve__dural_sac')) { m.color.setHex(0xe8e2cf); m.transparent = true; m.opacity = 0.55; m.depthWrite = false; }
   m.customProgramCacheKey = () => 'chk_' + o.layer + (m.transparent ? '_t' : '') + (o.morphs ? '_m' : '') + (o.layer === 'bone' && o.name.endsWith('__cut') ? '_trab' : '');
+  if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x3a2e08); m.emissiveIntensity = 0.5; }
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline
     const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
