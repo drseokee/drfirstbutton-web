@@ -123,7 +123,7 @@ const KO = {
   muscle__thenar:"무지구근 (엄지두덩)", muscle__adductor_pollicis:"엄지모음근", muscle__hypothenar:"소지구근 (새끼두덩)",
   muscle__lumbricals:"충양근", muscle__interossei:"골간근", muscle__forearm:"전완 근육", skin__hand:"피부", prop__syringe:"주사기", prop__incision:"절개선"
 };
-const COL = { bone:0xdccfb4, nerve:0xffd45a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, prop:0xcfd6df };
+const COL = { bone:0xdccfb4, nerve:0xffe27a, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, prop:0xcfd6df };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, prop:1 };
 const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, prop:0.35 };
 const NERVE_SICK = new THREE.Color(0xd9584a), NERVE_OK = new THREE.Color(COL.nerve), DERM = new THREE.Color(0xff3d14);
@@ -158,7 +158,7 @@ for (const o of DATA.objects) {
   const isCut = o.name.endsWith('__cut'), col = new Float32Array(pos.length).fill(1);
   if (isCut && CAP_SHADE[o.layer] < 1) { const n = g.getAttribute('normal').array, k = CAP_SHADE[o.layer];
     for (let i = 0; i < n.length; i += 3) if (n[i+1] < -0.97) col[i] = col[i+1] = col[i+2] = k; }
-  if (o.ao) { const nerve = o.layer === 'nerve'; for (let i = 0; i < o.ao.length; i++) { const s = nerve ? 0.82 + 0.18 * o.ao[i] : 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }   // baked ambient occlusion
+  if (o.ao) { const nerve = o.layer === 'nerve'; for (let i = 0; i < o.ao.length; i++) { const s = nerve ? 1.0 : 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }   // baked ambient occlusion
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
   if (o.morphs) {   // relative morph targets
     g.morphTargetsRelative = true; g.morphAttributes.position = [];
@@ -183,7 +183,7 @@ for (const o of DATA.objects) {
     sh.fragmentShader = 'uniform float uRim; uniform float uDerm;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
       '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));'); };
   m.customProgramCacheKey = () => 'ctv_' + o.layer + '_' + (kind || 'none') + (o.morphs ? '_m' : '');
-  if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x3a2e08); m.emissiveIntensity = 0.5; }
+  if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x8a6a1a); m.emissiveIntensity = 0.85; m.roughness = 0.35; }
   const mesh = new THREE.Mesh(g, m);
   mesh.name = o.name; mesh.userData = { layer: o.layer, cut: isCut, base: o.name.replace(/__cut$/, ''), baseTint: tint.clone(),
     hidden: !!o.hidden, overlay: o.overlay ? o.overlay.median : null, axis: o.axis ? new THREE.Vector3(...A2S(o.axis)) : null, tip: o.tip ? new THREE.Vector3(...A2S(o.tip)) : null };
@@ -505,7 +505,9 @@ function drugTick(dt){
 // ---------- camera ----------
 const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
 const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
+let RIM_BASE = RIM.value;
 function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
+  RIM.value = RIM_BASE * Math.min(1, Math.max(0.45, off.length() / 0.22));   // close-ups: less edge darkening
   key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
 const VIEWS = {
   palmar:  { off:[0,0,1],      up:[0,1,0], r:0.30 },
@@ -681,8 +683,8 @@ document.getElementById('derm').addEventListener('change', e => { state.derm = e
 document.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 document.getElementById('sidebtn').addEventListener('click', () => setSide(-state.side));
 document.getElementById('outline').addEventListener('change', e => meshes.forEach(m => { if (m.userData.hull) m.userData.hull.visible = e.target.checked; }));
-document.getElementById('rimshade').addEventListener('change', e => { RIM.value = e.target.checked ? +document.getElementById('rimamt').value : 0.0; });
-document.getElementById('rimamt').addEventListener('input', e => { if (document.getElementById('rimshade').checked) RIM.value = +e.target.value; });
+document.getElementById('rimshade').addEventListener('change', e => { RIM_BASE = e.target.checked ? +document.getElementById('rimamt').value : 0.0; applyCam(); });
+document.getElementById('rimamt').addEventListener('input', e => { if (document.getElementById('rimshade').checked) { RIM_BASE = +e.target.value; applyCam(); } });
 
 // ---------- loop ----------
 function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }

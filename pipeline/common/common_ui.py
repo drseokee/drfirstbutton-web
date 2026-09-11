@@ -25,7 +25,9 @@ CONTROLS = r"""// ==== COMMON CONTROLS BEGIN ====
 // ---------- camera (common) ----------
 const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
 const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
+let RIM_BASE = RIM.value;
 function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
+  RIM.value = RIM_BASE * Math.min(1, Math.max(0.45, off.length() / 0.22));   // close-ups: less edge darkening
   key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
 __VIEWS__
 function setView(name, instant){
