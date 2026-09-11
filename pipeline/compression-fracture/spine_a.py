@@ -90,9 +90,10 @@ for side in (-1, 1):
 # pedicle centres (right side, x < 0): the bridge between body and arch
 PED = {}
 for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
-    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]; cz = sum(v.z for v in vs) / len(vs)
+    vs = [v.co for v in built[f"bone__{lv.lower()}"].verts]
     ymin = min(v.y for v in vs); ymax = max(v.y for v in vs); yp = ymin + (ymax - ymin) * 0.45
-    cand = [v for v in vs if yp - 0.004 < v.y < yp + 0.012 and -0.017 < v.x < -0.005 and abs(v.z - cz) < 0.010]
+    body_ = [v for v in vs if v.y < yp]; zb, zt = min(v.z for v in body_), max(v.z for v in body_); zmid = (zb + zt) / 2
+    cand = [v for v in vs if yp - 0.003 < v.y < yp + 0.012 and -0.017 < v.x < -0.005 and zmid - 0.002 < v.z < zt - 0.002]   # pedicles spring from the upper half of the body
     if cand: PED[lv] = sum(cand, Vector()) / len(cand)
 print("pedicle centres (block frame):", {k: [round(c, 4) for c in (v - CENTER)] for k, v in PED.items()})
 for k, bm in built.items(): print(f"{k:28} {len(bm.verts):6} v")
