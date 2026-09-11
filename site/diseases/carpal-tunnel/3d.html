@@ -171,7 +171,7 @@ for (const o of DATA.objects) {
   const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH[o.layer], metalness:0, vertexColors: true,
     transparent: o.layer === 'skin', opacity: 1, side: THREE.DoubleSide, morphTargets: !!o.morphs });
   const kind = tubeKind(o.name.replace(/__cut$/, ''));
-  m.onBeforeCompile = sh => { sh.uniforms.uRim = RIM; sh.uniforms.uDerm = UDERM;
+  m.onBeforeCompile = sh => { sh.uniforms.uRim = (o.layer === 'nerve') ? { value: 0.0 } : RIM; sh.uniforms.uDerm = UDERM;
     if (kind) {   // tendon glide: a fibre pattern scrolls along the tube while the tube itself stays in its channel
       sh.uniforms.uGlide = GLIDE; sh.uniforms.uK = { value: EXC[kind] };
       sh.vertexShader = 'varying float vTubeY;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vTubeY = position.y;');
@@ -182,7 +182,7 @@ for (const o of DATA.objects) {
       '#include <emissivemap_fragment>\n totalEmissiveRadiance += vec3(1.0, 0.22, 0.05) * clamp((1.0 - vColor.g) * 1.8, 0.0, 1.0) * uDerm * 0.9;');
     sh.fragmentShader = 'uniform float uRim; uniform float uDerm;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
       '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));'); };
-  m.customProgramCacheKey = () => 'ctv_' + o.layer + '_' + (kind || 'none') + (o.morphs ? '_m' : '');
+  m.customProgramCacheKey = () => 'ctv_' + o.layer + '_' + (kind || 'none') + (o.morphs ? '_m' : '') + (o.layer === 'nerve' ? '_norim' : '');
   if (o.layer === 'nerve') { m.emissive = new THREE.Color(0x8a6a1a); m.emissiveIntensity = 0.85; m.roughness = 0.35; }
   const mesh = new THREE.Mesh(g, m);
   mesh.name = o.name; mesh.userData = { layer: o.layer, cut: isCut, base: o.name.replace(/__cut$/, ''), baseTint: tint.clone(),
@@ -307,7 +307,7 @@ const tendons = [];
     g.setIndex(idx); g.setDrawRange(0, 0);
     const tint = new THREE.Color(COL.tendon); const hsh = hash(rig.name); tint.offsetHSL((hsh % 7 - 3) * 0.004, (hsh % 5 - 2) * 0.02, (hsh % 4 - 1.5) * 0.035);
     const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH.tendon, metalness: 0, side: THREE.DoubleSide });
-    m.onBeforeCompile = sh => { sh.uniforms.uRim = RIM;
+    m.onBeforeCompile = sh => { sh.uniforms.uRim = (o.layer === 'nerve') ? { value: 0.0 } : RIM;
       sh.vertexShader = 'attribute float mat; varying float vMat;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMat = mat;');
       sh.fragmentShader = 'uniform float uRim; varying float vMat;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
         '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));\n float fib = 0.5 + 0.5 * sin(vMat * 6.2832 / 0.0045);\n gl_FragColor.rgb *= 0.86 + 0.14 * smoothstep(0.25, 0.75, fib);'); };
