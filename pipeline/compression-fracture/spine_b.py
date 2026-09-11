@@ -61,19 +61,24 @@ LEVELS = [{"name": "sacrum", "members": ["bone__sacrum"], "pivot": None}]
 for lv in ["L5", "L4", "L3", "L2", "L1", "T12"]:
     mem = [f"bone__{lv.lower()}", DISC_BELOW[lv]] + (["bone__rib12_r", "bone__rib12_l"] if lv == "T12" else [])
     LEVELS.append({"name": lv, "members": mem, "pivot": [round(x, 5) for x in centre_of(DISC_BELOW[lv])]})
-LBVH = [BVHTree.FromBMesh(join_bms([bm_of(objs[n]) for n in L["members"]])) for L in LEVELS]
+# soft structures follow the column by HEIGHT: between two vertebra centres the weight ramps linearly (monotonic → no crumpling
+# where neighbouring vertices would otherwise pick different level pairs). Level centre heights from the sacrum top up to T12.
+LZ = []
+for L in LEVELS:
+    bone = [n for n in L["members"] if n.startswith("bone__")][0]; o_ = objs[bone]
+    zs_ = [V(o_, i).z for i in range(nverts(o_))]
+    LZ.append((max(zs_) - 0.015) if L["name"] == "sacrum" else sum(zs_) / len(zs_))
 for o in d["objects"]:
     base = o["name"].replace("__cut", "")
     if base.startswith(("bone__", "disc__")): continue
     w = []
     for i in range(nverts(o)):
-        p = V(o, i); ds = []
-        for bvh in LBVH:
-            loc, nrm, idx, dist = bvh.find_nearest(p); ds.append(dist if loc is not None else 1.0)
-        order = sorted(range(len(LEVELS)), key=lambda k: ds[k]); a, bb = order[0], order[1]
-        if ds[bb] - ds[a] > 0.012: wa, wb = 1.0, 0.0
-        else: ia, ib = 1.0 / (ds[a] + 0.003) ** 2, 1.0 / (ds[bb] + 0.003) ** 2; wa, wb = ia / (ia + ib), ib / (ia + ib)
-        w += [a, round(wa, 2), bb, round(wb, 2)]
+        z = V(o, i).z
+        if z <= LZ[0]: w += [0, 1.0, 1, 0.0]; continue
+        if z >= LZ[-1]: w += [len(LZ) - 1, 1.0, len(LZ) - 2, 0.0]; continue
+        k = max(j for j in range(len(LZ) - 1) if LZ[j] <= z)
+        t = (z - LZ[k]) / max(1e-6, LZ[k + 1] - LZ[k]); t = t * t * (3 - 2 * t)
+        w += [k, round(1 - t, 2), k + 1, round(t, 2)]
     o["w"] = w
 meta = dict(d["meta"]); meta["rig"] = {"levels": LEVELS, "fx": FX, "default_level": "L2"}
 d["meta"] = meta
