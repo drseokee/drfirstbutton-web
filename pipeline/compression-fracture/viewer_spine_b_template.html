@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>압박골절(L2) — 주저앉음 확인</title>
+<title>압박골절(L2) — 척추 전체 움직임</title>
 <style>
   :root { --bg0:#1a2130; --bg1:#0d1119; --panel:rgba(16,21,31,.84); --ink:#e8ecf3; --dim:#9aa5b8; --line:rgba(255,255,255,.12); --acc:#f2c94c; }
   * { box-sizing:border-box; }
@@ -160,9 +160,9 @@ for (const o of DATA.objects) {
 
 // ---------- state ----------
 const state = { mode:'full', layers:{ skin:true, muscle:true, tendon:true, lig:true, nerve:true, bone:true, disc:true, vessel:true }, skinOp:1 };
-function applyVisibility(){
+var applyVisibility = function(){
   for (const m of meshes) {
-    const inMode = state.mode === 'cut' ? m.userData.cut : !m.userData.cut;
+    const inMode = !m.userData.cut;
     m.visible = inMode && state.layers[m.userData.layer];
     if (m.userData.layer === 'skin') { m.material.opacity = state.skinOp; m.material.depthWrite = state.skinOp > 0.95; }
   }
@@ -286,22 +286,39 @@ function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / 
 
 const A2S = a => [-a[0], a[2], a[1]];
 const RIG = DATA.meta.rig; const hinge = new THREE.Vector3(...A2S(RIG.hinge.point));
-const moveG = new THREE.Group(); moveG.position.copy(hinge); scene.add(moveG);
-const MOV = new Set(RIG.hinge.moves.flatMap(n => [n, n + '__cut']));
-const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone()]); const [bS, bM] = skel.bones; scene.add(bS); scene.add(bM); bM.position.copy(hinge); bS.updateMatrixWorld(true); bM.updateMatrixWorld(true); skel.calculateInverses();
-for (const m of meshes) { if (MOV.has(m.name)) { scene.remove(m); moveG.add(m); m.position.copy(hinge).negate(); } }
+// ---- chain rig: sacrum → L5 → L4 → L3 → L2 → (hinge) L1 → T12; each level = a group at its pivot holding its vertebra + the disc below ----
+const LV = RIG.levels; const groups = [], bones = [];
+let parentG = scene, parentB = null, parentPivot = new THREE.Vector3();
+for (let i = 0; i < LV.length; i++) {
+  const piv = LV[i].pivot ? new THREE.Vector3(...A2S(LV[i].pivot)) : new THREE.Vector3(0, 0, 0);
+  const g = new THREE.Group(), bn = new THREE.Bone(); g.position.copy(piv).sub(parentPivot); bn.position.copy(piv).sub(parentPivot);
+  parentG.add(g); if (parentB) parentB.add(bn); else scene.add(bn);
+  g.userData.piv = piv.clone(); groups.push(g); bones.push(bn); parentG = g; parentB = bn; parentPivot = piv;
+}
+scene.updateMatrixWorld(true); const skel = new THREE.Skeleton(bones); skel.calculateInverses();
+const levelOf = {}; LV.forEach((L, i) => L.members.forEach(n => { levelOf[n] = i; levelOf[n + '__cut'] = i; }));
+for (const m of meshes) { const li = levelOf[m.name]; if (li === undefined) continue; const g = groups[li]; scene.remove(m); g.add(m); m.position.copy(g.userData.piv).negate(); }
+// soft structures: two-level blend weights from the pipeline
 for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w) continue;
-  const g = m.geometry, n = g.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), W = m.userData.w;
-  for (let k = 0; k < n; k++) { si.set([0, 1, 0, 0], 4 * k); sw.set([W[2*k], W[2*k+1], 0, 0], 4 * k); }
-  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
-  const sm = new THREE.SkinnedMesh(g, m.material); sm.material.skinning = true; sm.material.needsUpdate = true; sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
-  if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(g, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
+  const gm = m.geometry, n = gm.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), W = m.userData.w;
+  for (let k = 0; k < n; k++) { si.set([W[4*k], W[4*k+2], 0, 0], 4 * k); sw.set([W[4*k+1], W[4*k+3], 0, 0], 4 * k); }
+  gm.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); gm.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  const sm = new THREE.SkinnedMesh(gm, m.material); sm.material.skinning = true; sm.material.needsUpdate = true; sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
+  if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(gm, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
   scene.remove(m); scene.add(sm); sm.bind(skel, new THREE.Matrix4()); meshes[i] = sm; }
-const HAXIS = new THREE.Vector3(...A2S(RIG.hinge.axis)).normalize(); const FLEX_SIGN = 1;   // axis exported by the pipeline (sign verified: the front drops)
+const HAXIS = new THREE.Vector3(...A2S(RIG.hinge.axis)).normalize();
+function applyChain(k){ const full = THREE.MathUtils.degToRad(RIG.hinge.angle_at_full) * k;
+  LV.forEach((L, i) => { const q = new THREE.Quaternion().setFromAxisAngle(HAXIS, full * L.share); groups[i].quaternion.copy(q); bones[i].quaternion.copy(q); }); }
 const ctl = { collapse: 0, grade: 1.0, retro: 0 };
 document.getElementById('collapse').oninput = e => ctl.collapse = +e.target.value / 100;
 document.querySelectorAll('#ctl button[data-g]').forEach(b => b.onclick = () => { ctl.grade = +b.dataset.g; document.querySelectorAll('#ctl button[data-g]').forEach(x => x.classList.toggle('on', x === b)); });
-document.getElementById('retro').onclick = e => { ctl.retro = ctl.retro ? 0 : 1; e.target.classList.toggle('on', !!ctl.retro); };
+document.getElementById('retro').onclick = e => { ctl.retro = ctl.retro ? 0 : 1; e.target.classList.toggle('on', !!ctl.retro); applySection(!!ctl.retro); if (ctl.retro) setView('left', false); };
+function applySection(on){   // unstable fracture: show the midline sagittal section so the posterior wall bowing into the canal is visible
+  for (const m of meshes) { const u = m.userData; if (!['bone','disc','nerve','lig'].includes(u.layer)) continue;
+    if (u.cut) m.visible = on && state.layers[u.layer] && !u.base.endsWith('_l') && !u.base.startsWith('bone__rib12');
+    else if (!u.base.endsWith('_l') && !u.base.startsWith('bone__rib12')) m.visible = !on && state.layers[u.layer];
+    else m.visible = !on && state.layers[u.layer]; } }
+const _applyVis = applyVisibility; applyVisibility = function(){ _applyVis(); if (ctl.retro) applySection(true); };
 let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; last = now;
   const k = ctl.collapse * ctl.grade;
@@ -309,8 +326,7 @@ let last = performance.now();
   // fracture zone colours as it collapses: crushed anterior body turns red
   { const m = meshes.find(x => x.userData.base === 'bone__l2'); if (m && m.userData.fx) { const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, fx = m.userData.fx;
       for (let i = 0; i < fx.length; i++) { const a = fx[i] * k; col.array[3*i] = base[3*i] * (1 - 0.15 * a) + 0.35 * a; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * a); col.array[3*i+2] = base[3*i+2] * (1 - 0.75 * a); } col.needsUpdate = true; } }
-  const q = new THREE.Quaternion().setFromAxisAngle(HAXIS, THREE.MathUtils.degToRad(RIG.hinge.angle_at_full) * k);
-  moveG.quaternion.copy(q); bM.quaternion.copy(q);
+  applyChain(k);
 })(performance.now());
 applyVisibility(); setView('left');
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();

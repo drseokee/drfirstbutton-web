@@ -41,7 +41,7 @@ delta_w = []; delta_r = []
 for p in pts:
     dw = wedge_delta(p, 0.60, 0.0); dr = wedge_delta(p, 0.60, 1.0) - dw
     delta_w += [round(dw.x, 5), round(dw.y, 5), round(dw.z, 5)]; delta_r += [round(dr.x, 5), round(dr.y, 5), round(dr.z, 5)]
-for nm in ("bone__l2",):
+for nm in ("bone__l2", "bone__l2__cut"):
     o = objs[nm]; dwl = []; drl = []
     for i in range(nverts(o)):
         p = V(o, i); dw = wedge_delta(p, 0.60, 0.0); dr = wedge_delta(p, 0.60, 1.0) - dw
@@ -55,6 +55,17 @@ hinge = Vector((0, Y_POST, z_top)); axis = Vector((1, 0, 0))          # transver
 wedge_angle = math.degrees(math.atan2(0.60 * H, DEPTH))
 print(f"kyphosis at 60 % loss: {wedge_angle:.1f} deg")
 MOVING = ["bone__t12", "bone__l1", "disc__t12_l1", "bone__rib12_r", "bone__rib12_l"]
+def centre_of(n): o = objs[n]; return sum((V(o, i) for i in range(nverts(o))), Vector()) / nverts(o)
+# levels from the sacrum up: each vertebra (with the disc below it) pivots at that disc's centre; shares of the total kyphosis angle
+LEVELS = [
+    {"name": "sacrum", "members": ["bone__sacrum"], "pivot": None, "share": 0.0},
+    {"name": "L5", "members": ["bone__l5", "disc__l5_s1"], "pivot": centre_of("disc__l5_s1"), "share": -0.05},
+    {"name": "L4", "members": ["bone__l4", "disc__l4_l5"], "pivot": centre_of("disc__l4_l5"), "share": -0.07},
+    {"name": "L3", "members": ["bone__l3", "disc__l3_l4"], "pivot": centre_of("disc__l3_l4"), "share": -0.09},
+    {"name": "L2", "members": ["bone__l2", "disc__l2_l3", "disc__l1_l2"], "pivot": centre_of("disc__l2_l3"), "share": -0.06},   # fractured body (morphs) — small extension below the wedge
+    {"name": "L1", "members": ["bone__l1", "disc__t12_l1"], "pivot": None, "share": 1.0},                                        # hinge at the L2 superior plate (set below)
+    {"name": "T12", "members": ["bone__t12", "bone__rib12_r", "bone__rib12_l"], "pivot": centre_of("disc__t12_l1"), "share": 0.12},
+]
 from mathutils import Matrix as _M
 AXIS = Vector((-1, 0, 0))
 R_full = _M.Rotation(math.radians(wedge_angle), 3, AXIS)
@@ -62,7 +73,7 @@ probe = Vector((0, y_ant, z_top + 0.03)); moved = R_full @ (probe - hinge) + hin
 if moved.z > probe.z: AXIS = -AXIS; R_full = _M.Rotation(math.radians(wedge_angle), 3, AXIS)   # forward tilt = the front drops
 print("hinge axis", tuple(AXIS), "front point z", round(probe.z*1e3, 1), "->", round((R_full @ (probe - hinge) + hinge).z*1e3, 1))
 def top_disp(p):  return R_full @ (p - hinge) + hinge - p
-for nm in ("disc__l1_l2",):
+for nm in ("disc__l1_l2", "disc__l1_l2__cut"):
     o = objs[nm]; zs = [V(o, i).z for i in range(nverts(o))]; zb, zt = min(zs), max(zs); dl = []
     for i in range(nverts(o)):
         p = V(o, i); fr = max(0.0, min(1.0, (p.z - zb) / max(1e-6, zt - zb)))
@@ -73,25 +84,24 @@ for nm in ("disc__l1_l2",):
     o["morphs"] = {"wedge": dl}
 print("disc L1-L2: deforms with the plate below and L1 above")
 # skinning weights for soft structures: nearest bone group (static below vs moving above), blended near the hinge
-GRP = {"static": [n for n in objs if n.startswith(("bone__", "disc__")) and n not in MOVING],
-       "moving": [n for n in MOVING if n in objs]}
-GBVH = {g: BVHTree.FromBMesh(join_bms([bm_of(objs[n]) for n in names])) for g, names in GRP.items()}
+LEVELS[5]["pivot"] = hinge
+LBVH = [BVHTree.FromBMesh(join_bms([bm_of(objs[n]) for n in L["members"]])) for L in LEVELS]
 for o in d["objects"]:
     base = o["name"].replace("__cut", "")
     if base.startswith(("bone__", "disc__")): continue
     w = []
     for i in range(nverts(o)):
         p = V(o, i); ds = []
-        for g in ("static", "moving"):
-            loc, nrm, idx, dist = GBVH[g].find_nearest(p); ds.append(dist if loc is not None else 1.0)
-        if p.z > hinge.z + 0.03: ww = [0.0, 1.0]
-        elif p.z < hinge.z - 0.03: ww = [1.0, 0.0]
-        else:
-            inv = [1.0 / (dd + 0.004) ** 2 for dd in ds]; tot = sum(inv); ww = [inv[0] / tot, inv[1] / tot]
-        w += [round(x, 2) for x in ww]
+        for bvh in LBVH:
+            loc, nrm, idx, dist = bvh.find_nearest(p); ds.append(dist if loc is not None else 1.0)
+        order = sorted(range(len(LEVELS)), key=lambda k: ds[k]); a, bb = order[0], order[1]
+        if ds[bb] - ds[a] > 0.012: wa, wb = 1.0, 0.0                              # clear winner
+        else: ia, ib = 1.0 / (ds[a] + 0.003) ** 2, 1.0 / (ds[bb] + 0.003) ** 2; wa, wb = ia / (ia + ib), ib / (ia + ib)
+        w += [a, round(wa, 2), bb, round(wb, 2)]                                  # [levelA, weightA, levelB, weightB]
     o["w"] = w
 meta = dict(d["meta"])
-meta["rig"] = {"hinge": {"point": [round(x, 5) for x in hinge], "axis": [round(x, 3) for x in AXIS], "moves": GRP["moving"], "angle_at_full": round(wedge_angle, 2)},
+meta["rig"] = {"hinge": {"point": [round(x, 5) for x in hinge], "axis": [round(x, 3) for x in AXIS], "moves": MOVING, "angle_at_full": round(wedge_angle, 2)},
+               "levels": [{"name": L["name"], "members": L["members"], "pivot": ([round(x, 5) for x in L["pivot"]] if L["pivot"] is not None else None), "share": L["share"]} for L in LEVELS],
                "level": "L2", "l2": {"height": round(H, 5), "depth": round(DEPTH, 5), "y_post": round(Y_POST, 5), "z_top": round(z_top, 5), "z_bot": round(z_bot, 5)}}
 d["meta"] = meta; json.dump(d, open(f"{OUTS}/spine_b.json", "w"), separators=(",", ":"))
 print("exported spine_b:", len(d["objects"]), "objects")
@@ -103,7 +113,7 @@ def look2(cam, sun, pos, up):
     m = Matrix((right, up2, -fwd)).transposed(); cam.location = pos; cam.rotation_quaternion = m.to_quaternion(); sun.rotation_quaternion = (m @ Matrix.Rotation(0.5, 3, 'X') @ Matrix.Rotation(-0.4, 3, 'Y')).to_quaternion()
 zana.look = look2
 LAT = Vector((1, 0, 0)); POST = Vector((0, 1, 0))
-sel = [o for o in d["objects"] if o["layer"] in ("bone", "disc", "nerve", "lig")]
+sel = [o for o in d["objects"] if o["layer"] in ("bone", "disc", "nerve", "lig") and not o["name"].endswith("__cut")]
 rebuild_scene(sel, meta)
 sc = bpy.context.scene
 for ob in sc.objects:

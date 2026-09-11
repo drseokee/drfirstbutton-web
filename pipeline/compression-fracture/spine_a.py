@@ -26,11 +26,20 @@ built["bone__rib12_r"] = get("Twelfth rib.r"); built["bone__rib12_l"] = get("Twe
 for d in ["T12-L1", "L1-L2", "L2-L3", "L3-L4", "L4-L5", "L5-S1"]:
     built[f"disc__{d.lower().replace('-', '_')}"] = get(f"Intervertebral disc {d}", clipz=False)
 built["nerve__dural_sac"] = get("Spinal dura")
-c = objs["Cauda equina"].data
-for sp in c.splines:
-    for p in (sp.points if sp.type != "BEZIER" else sp.bezier_points): p.radius = 1.0
-c.bevel_depth = 0.0007; c.bevel_resolution = 4; c.use_fill_caps = True; refresh()
+def curve_tube(name, radius):
+    c = objs[name].data
+    for sp in c.splines:
+        for p in (sp.points if sp.type != "BEZIER" else sp.bezier_points): p.radius = 1.0
+    c.bevel_depth = radius; c.bevel_resolution = 5; c.use_fill_caps = True
+curve_tube("Cauda equina", 0.0011)                                  # cauda roots ≈ 2 mm each (bundle ≈ 10 mm inside the sac)
+for nm in ("Anterior root of spinal nerve.r", "Anterior root of spinal nerve.l", "Posterior root of spinal nerve.r", "Posterior root of spinal nerve.l"):
+    if nm in objs: curve_tube(nm, 0.0009)
+refresh()
 built["nerve__cauda_equina"] = get("Cauda equina")
+for k, nm in {"nerve__roots_ant_r": "Anterior root of spinal nerve.r", "nerve__roots_ant_l": "Anterior root of spinal nerve.l", "nerve__roots_post_r": "Posterior root of spinal nerve.r", "nerve__roots_post_l": "Posterior root of spinal nerve.l"}.items():
+    if nm in objs:
+        bm = get(nm)
+        if len(bm.verts): built[k] = bm
 for k, n in {"lig__all": "Anterior longitudinal ligament", "lig__pll": "Posterior longitudinal ligament", "lig__flava": "Ligamenta flava",
              "lig__interspinous": "Interspinous ligaments", "lig__supraspinous": "Supraspinous ligament"}.items():
     if n in objs: built[k] = get(n)
@@ -99,6 +108,11 @@ print("tucked:", tucked)
 objects = []
 for k, bm in built.items():
     v, t = to_arrays(bm, center=CENTER); objects.append({"name": k, "layer": k.split("__")[0], "verts": v, "tris": t})
+    if k.split("__")[0] not in ("bone", "disc", "nerve", "lig") or k.startswith("bone__rib12") or k.endswith("_l"): continue
+    c2 = bm.copy(); zj = (hash(k) % 11 - 5) * 0.00003
+    cut_plane(c2, (zj, 0, 0), (1, 0, 0), remove="outer", cap=True, ngon=True)          # midline sagittal: keep the patient's right half
+    if len(c2.faces):
+        v, t = to_arrays(c2, center=CENTER); objects.append({"name": k + "__cut", "layer": k.split("__")[0], "verts": v, "tris": t})
 meta = {"frame": "L2-body-centred; right=-x, anterior=-y, up=+z", "unit": "m", "attribution": ATTR, "levels": ["T12", "L1", "L2", "L3", "L4", "L5", "S1-2"]}
 json.dump({"meta": meta, "objects": objects}, open(f"{OUTS}/spine_a.json", "w"), separators=(",", ":"))
 print("exported spine_a:", len(objects), "objects,", sum(len(o["verts"]) // 3 for o in objects), "verts,", os.path.getsize(f"{OUTS}/spine_a.json") // 1024, "KB")
@@ -109,6 +123,6 @@ def look2(cam, sun, pos, up):
     fwd = (-pos).normalized(); right = fwd.cross(up).normalized(); up2 = right.cross(fwd).normalized()
     m = Matrix((right, up2, -fwd)).transposed(); cam.location = pos; cam.rotation_quaternion = m.to_quaternion(); sun.rotation_quaternion = (m @ Matrix.Rotation(0.5, 3, 'X') @ Matrix.Rotation(-0.4, 3, 'Y')).to_quaternion()
 zana.look = look2
-full = objects
+full = [o for o in objects if not o["name"].endswith("__cut")]
 rebuild_scene(full, meta); render_views({"skin_post": (POST + LAT * 0.3 + UPV * 0.1, UPV), "skin_lat": (LAT + POST * 0.2, UPV)}, "spine_a", dist=1.05, res=700, samples=14)
 rebuild_scene([o for o in full if o["layer"] in ("bone", "disc", "lig", "nerve")], meta); render_views({"bones_post": (POST + LAT * 0.25 + UPV * 0.15, UPV), "bones_lat": (LAT + POST * 0.15, UPV)}, "spine_a", dist=0.55, res=700, samples=14)
