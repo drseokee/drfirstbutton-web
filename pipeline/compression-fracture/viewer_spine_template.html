@@ -334,11 +334,17 @@ function applyChain(k){
   const above = groups[fi + 1], bn = bones[fi + 1];
   if (above) { const h = new THREE.Vector3(...A2S(F.hinge)); const parentPiv = groups[fi].userData.piv;
     above.position.copy(h).sub(parentPiv); bn.position.copy(h).sub(parentPiv); above.userData.piv.copy(h);
-    above.children.forEach(m => { if (m.isMesh) m.position.copy(h).negate(); });
+    above.children.forEach(m => { if (m.isMesh) m.position.copy(h).negate(); });   // meshes of the level above follow the moved pivot
     if (groups[fi + 2]) { const nx = groups[fi + 2]; nx.position.copy(nx.userData.piv0).sub(h); bones[fi + 2].position.copy(nx.userData.piv0).sub(h); } }
 }
 function resetChainPivots(){ for (let i = 1; i < LV.length; i++) { const g = groups[i], p0 = g.userData.piv0, pp = groups[i - 1].userData.piv0; g.userData.piv.copy(p0); g.position.copy(p0).sub(pp); bones[i].position.copy(p0).sub(pp); g.children.forEach(m => { if (m.isMesh) m.position.copy(p0).negate(); }); } }
-function setLevel(name){ LEVEL = name; resetChainPivots(); for (const m of meshes) if (m.morphTargetInfluences) m.morphTargetInfluences.fill(0);
+const DISC_ABOVE = { T12: null, L1: 'disc__t12_l1', L2: 'disc__l1_l2', L3: 'disc__l2_l3', L4: 'disc__l3_l4', L5: 'disc__l4_l5' };
+function attachTo(m, gi){ const g = groups[gi]; if (m.parent) m.parent.remove(m); g.add(m); m.position.copy(g.userData.piv).negate(); }
+function reparentDiscs(){   // discs sit with the vertebra above them (rigid) — except the disc above the fractured body, which is morphed and must stay with the fractured level
+  for (const m of meshes) { const li = levelOf[m.name]; if (li !== undefined) attachTo(m, li); }
+  const da = DISC_ABOVE[LEVEL]; if (!da) return; const fi = idxOf(LEVEL);
+  for (const nm of [da, da + '__cut']) { const m = byName[nm]; if (m) attachTo(m, fi); } }
+function setLevel(name){ LEVEL = name; resetChainPivots(); reparentDiscs(); for (const m of meshes) if (m.morphTargetInfluences) m.morphTargetInfluences.fill(0);
   for (const m of meshes) if (m.userData.fx && m.userData.baseCol) { const col = m.geometry.getAttribute('color'); col.array.set(m.userData.baseCol); col.needsUpdate = true; }
   placeProps(); document.querySelectorAll('#levelSel button').forEach(b => b.classList.toggle('on', b.dataset.lv === name)); }
 // ---- section (midline) shown in place: no camera change ----
@@ -437,7 +443,7 @@ let last = performance.now();
   hematoma.visible = anim.retro * k > 0.05; hematoma.material.opacity = 0.75 * anim.retro * Math.min(1, k * 1.4); hematoma.scale.set(1.0, 1.1, 0.7).multiplyScalar(0.5 + 0.9 * anim.retro * k);
   applyChain(k);
 })(performance.now());
-placeProps();
+reparentDiscs(); placeProps();
 applyVisibility(); setView('left'); goStage(0);
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
 </script>
