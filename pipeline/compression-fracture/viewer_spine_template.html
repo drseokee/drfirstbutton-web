@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>압박골절 — 3D 환자 설명</title>
+<style>
+  :root { --bg0:#1a2130; --bg1:#0d1119; --panel:rgba(16,21,31,.84); --ink:#e8ecf3; --dim:#9aa5b8; --line:rgba(255,255,255,.12); --acc:#f2c94c; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:radial-gradient(120% 90% at 50% 40%, var(--bg0), var(--bg1)); color:var(--ink);
+    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; touch-action:none; }
+  #panel { position:fixed; top:16px; left:16px; width:240px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:14px; backdrop-filter:blur(8px); font-size:13px; line-height:1.5; }
+  #panel h1 { font-size:15px; font-weight:600; margin:0 0 2px; }
+  #panel .sub { color:var(--dim); font-size:12px; margin:0 0 10px; }
+  details summary { cursor:pointer; color:var(--dim); font-size:12px; margin:8px 0 4px; }
+  #panel h2 { font-size:12px; font-weight:500; color:var(--dim); margin:12px 0 6px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; background:transparent; color:var(--ink); border:0; padding:7px 0; font:inherit; font-size:13px; cursor:pointer; }
+  .seg button.on { background:var(--acc); color:#1a1400; font-weight:600; }
+  label.row { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; user-select:none; }
+  label.row input[type=checkbox] { accent-color:var(--acc); width:15px; height:15px; margin:0; }
+  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .views { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .views button { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid var(--line); border-radius:7px;
+    padding:6px 4px; font:inherit; font-size:12px; cursor:pointer; }
+  .views button:hover { background:rgba(255,255,255,.12); }
+  button:focus-visible, label.row:focus-within { outline:2px solid var(--acc); outline-offset:2px; }
+  #hint { color:var(--dim); font-size:11.5px; margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  #tag { position:fixed; pointer-events:none; background:rgba(0,0,0,.72); color:#fff; padding:4px 8px; border-radius:6px;
+    font-size:12.5px; transform:translate(12px,-50%); display:none; white-space:nowrap; }
+  #tag small { color:#c8cfdb; margin-left:6px; }
+  #foot { position:fixed; right:14px; bottom:10px; color:var(--dim); font-size:11px; }
+  #scale { position:fixed; left:16px; bottom:12px; color:var(--dim); font-size:11px; }
+  #scale i { display:block; height:0; border-bottom:2px solid var(--dim); margin-bottom:3px; }
+  @media (max-width:520px){ #panel{ width:auto; right:16px; font-size:12px; } .views{ grid-template-columns:repeat(3,1fr); } }
+#ctl { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
+#ctl input[type=range] { width: 260px; }
+#ctl { padding-bottom: 22px; }
+#ctl button { background: transparent; color: #cfc7b8; border: 1px solid rgba(243,238,228,.16); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
+#ctl button.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
+#stages { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 6px; backdrop-filter: blur(8px); }
+#stages button { background: transparent; color: #cfc7b8; border: none; padding: 8px 14px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+#stages button.on { background: #e5b04a; color: #1a1200; font-weight: 700; }
+#subbar { position: fixed; left: 50%; bottom: 66px; transform: translateX(-50%); display: none; gap: 6px; z-index: 12; }
+.sub-btn { background: rgba(16,26,44,.85); color: #cfc7b8; border: 1px solid rgba(243,238,228,.16); padding: 7px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
+.sub-btn.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
+#caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f3eee4; z-index: 12; }
+#ctl { bottom: 110px !important; border-radius: 999px; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="caption"></div>
+<div id="subbar"></div>
+<div id="stages"></div>
+<div id="ctl"><span>주저앉음</span><div style="position:relative;display:inline-block"><input id="collapse" type="range" min="0" max="100" value="0"><div style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#cfc7b8;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:33%;transform:translateX(-50%)">경도 20%</span><span style="position:absolute;left:67%;transform:translateX(-50%)">중등도 40%</span><span style="position:absolute;right:0">중증 60%</span></div></div><span id="gradeLbl" style="min-width:64px;text-align:center"></span><button id="retro">불안정형(후벽 밀림)</button></div>
+<div id="panel">
+  <h1>척추 압박골절</h1>
+  <p class="sub">요추 2번 골다공증성 압박골절</p>
+  <details>
+    <summary>층 보이기 · 표현 · 보는 방향 · 조작</summary>
+  
+  <h2>층 보이기</h2>
+  <label class="row"><input type="checkbox" data-layer="skin" checked><span class="sw" style="background:#d9a58f"></span>피부</label>
+  <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
+  <label class="row"><input type="checkbox" data-layer="muscle" checked><span class="sw" style="background:#a04a48"></span>근육</label>
+  <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
+  <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대</label>
+  <label class="row"><input type="checkbox" data-layer="nerve" checked><span class="sw" style="background:#f2c94c"></span>척수막·마미신경</label>
+  <label class="row"><input type="checkbox" data-layer="disc" checked><span class="sw" style="background:#c9b5d9"></span>추간판</label>
+  <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
+  <h2>표현</h2>
+  <label class="row"><input type="checkbox" id="outline">윤곽선 (얇게)</label>
+  <label class="row"><input type="checkbox" id="rimshade" checked>가장자리 음영</label>
+  <input type="range" id="rimamt" min="0.5" max="3" step="0.1" value="1.6" title="음영 강도">
+    <h2>조작</h2>
+    <div style="color:var(--dim);font-size:11.5px;line-height:1.6">
+      드래그 회전 · 우클릭/가운데/Shift+드래그 이동 · 휠 확대<br>
+      Ctrl+드래그 확대 · Alt+드래그 화면 기울이기<br>
+      더블클릭: 그 지점을 중심으로 · Shift+휠: 위아래 이동<br>
+      방향키 회전 · Shift+방향키 이동 · +/− 확대 · R 원래대로<br>
+      Space/PageDown 다음 · PageUp 이전 · 1~5 단계
+    </div>
+  <h2>보는 방향</h2>
+  <div class="views">
+    <button data-view="posterior">뒤(등)</button>
+    <button data-view="left">옆(왼쪽)</button>
+    <button data-view="anterior">앞</button>
+    <button data-view="reset">원래대로</button>
+  </div>
+  </details>
+  <div id="hint">드래그: 회전 · 휠/두 손가락: 확대 · 우클릭 드래그: 이동<br>구조에 마우스를 올리면 이름이 보입니다</div>
+</div>
+<div id="tag"></div>
+<div id="scale"><i style="width:60px"></i>1 cm</div>
+<div id="foot">모델: Z-Anatomy (CC BY-SA 4.0) · BodyParts3D</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = __DATA__;
+const KO = {
+  bone__t12:"흉추 12번", bone__l1:"요추 1번", bone__l2:"요추 2번", bone__l3:"요추 3번", bone__l4:"요추 4번", bone__l5:"요추 5번", bone__sacrum:"천골 (S1~S2)",
+  bone__ilium_r:"오른쪽 장골 (골반 윗부분)", bone__ilium_l:"왼쪽 장골", bone__rib12_r:"오른쪽 12번 갈비뼈", bone__rib12_l:"왼쪽 12번 갈비뼈",
+  disc__t12_l1:"추간판 T12-L1", disc__l1_l2:"추간판 L1-L2", disc__l2_l3:"추간판 L2-L3", disc__l3_l4:"추간판 L3-L4", disc__l4_l5:"추간판 L4-L5", disc__l5_s1:"추간판 L5-S1",
+  nerve__dural_sac:"경막낭 (척수를 싸는 막)", nerve__cauda_equina:"마미신경 (신경 다발)",
+  lig__all:"전종인대", lig__pll:"후종인대", lig__flava:"황색인대", lig__interspinous:"극간인대", lig__supraspinous:"극상인대",
+  skin__trunk:"피부"
+};
+for (const [k, w] of [['multifidus','다열근'],['longissimus','최장근'],['iliocostalis','장늑근'],['spinalis','극근'],['quadratus_lumborum','요방형근'],['psoas','대요근'],['latissimus','광배근'],['thoracolumbar_fascia','흉요근막'],['rectus_abdominis','복직근'],['ext_oblique','외복사근'],['int_oblique','내복사근'],['transversus','복횡근']]) { KO['muscle__'+k+'_r'] = '오른쪽 '+w; KO['muscle__'+k+'_l'] = '왼쪽 '+w; }
+const COL = { bone:0xdccfb4, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, disc:0xc9b5d9, vessel:0xb03a3a };
+const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, disc:0.72, vessel:0.8 };
+const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, disc:0.55, vessel:0.45 };
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.003, 5);
+// calmer studio: softer ambient, one key from above-front, weak fill, a small rim — so bone surfaces keep tone and boundaries read
+scene.add(new THREE.HemisphereLight(0xf2ede4, 0x2a3142, 0.5));
+const key = new THREE.DirectionalLight(0xfff4e6, 0.62); scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfd0ff, 0.16); fill.position.set(-0.6, -0.2, 0.4); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.28); rim.position.set(0, 0.4, -1); scene.add(rim);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
+
+// anatomical -> screen axes: radial(-x)->+X, distal(-z)->+Y, palmar(-y)->+Z
+const meshes = [];
+const RIM = { value: 1.9 }, OUTW = { value: 0.00012 }, UPOR = { value: 0.0 };
+function hash(s){ let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1000003; return h; }
+for (const o of DATA.objects) {
+  const v = o.verts, pos = new Float32Array(v.length);
+  for (let i = 0; i < v.length; i += 3) { pos[i] = -v[i]; pos[i+1] = v[i+2]; pos[i+2] = v[i+1]; }   // 척추: 화면 X = 환자 오른쪽→왼쪽 반대(등에서 볼 때 오른쪽이 오른쪽), Y = 위, Z = 뒤
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(o.tris); g.computeVertexNormals();
+  if (o.morphs) { g.morphAttributes.position = Object.values(o.morphs).map(dl => { const a = new Float32Array(dl.length); for (let i = 0; i < dl.length; i += 3) { a[i] = -dl[i]; a[i+1] = dl[i+2]; a[i+2] = dl[i+1]; } return new THREE.BufferAttribute(a, 3); }); g.morphTargetsRelative = true; }
+  // cut faces (facing +Y = toward the removed hand) are shaded darker so the section reads like an illustration
+  const isCut = o.name.endsWith('__cut'), col = new Float32Array(pos.length).fill(1);
+  if (isCut && CAP_SHADE[o.layer] < 1) {
+    const nrm = g.getAttribute('normal').array, k = CAP_SHADE[o.layer];
+    for (let i = 0; i < nrm.length; i += 3) if (nrm[i] < -0.97) { col[i] = col[i+1] = col[i+2] = k; }
+  }
+  if (o.ao) { for (let i = 0; i < o.ao.length; i++) { const s = 0.45 + 0.55 * Math.pow(o.ao[i], 0.55); col[3*i] *= s; col[3*i+1] *= s; col[3*i+2] *= s; } }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  // subtle per-object tint so neighbouring bones / tendons don't merge into one white mass
+  const tint = new THREE.Color(COL[o.layer]);
+  if (o.layer === 'bone' || o.layer === 'tendon') { const h = hash(o.name); tint.offsetHSL((h % 7 - 3) * 0.004, (h % 5 - 2) * 0.02, (h % 4 - 1.5) * 0.035); }
+  const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH[o.layer], metalness:0, vertexColors: true, morphTargets: !!o.morphs,
+    transparent: o.layer==='skin', opacity: 1, side: THREE.DoubleSide });
+  m.onBeforeCompile = sh => {   // fresnel edge darkening: surfaces turning away from the eye get darker -> visible boundaries
+    sh.uniforms.uRim = RIM; sh.uniforms.uPor = UPOR;
+    sh.vertexShader = 'varying vec3 vWp;\n' + sh.vertexShader.replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\n vWp = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = 'uniform float uRim; uniform float uPor; varying vec3 vWp;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
+      '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));' +
+      (o.layer === 'bone' && o.name.endsWith('__cut') ? '\n if (vNormal.x < -0.9) { vec3 p = vWp * 1400.0; float n = sin(p.y) * sin(p.z * 1.3 + p.y * 0.7) + 0.5 * sin(p.y * 2.3 + 1.7) * sin(p.z * 2.1); float cell = smoothstep(0.15 - 0.55 * uPor, 0.35 - 0.55 * uPor, n);\n gl_FragColor.rgb = mix(gl_FragColor.rgb * 0.45, gl_FragColor.rgb, cell); }' : ''));   // cancellous bone: struts thin out and holes open as uPor rises
+  };
+  if (o.name.startsWith('nerve__dural_sac')) { m.color.setHex(0xe8e2cf); m.transparent = true; m.opacity = 0.55; m.depthWrite = false; }
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (m.transparent ? '_t' : '') + (o.morphs ? '_m' : '') + (o.layer === 'bone' && o.name.endsWith('__cut') ? '_trab' : '');
+  const mesh = new THREE.Mesh(g, m);
+  if (o.layer !== 'skin') {   // inverted-hull outline
+    const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
+    om.onBeforeCompile = sh => { sh.uniforms.uW = OUTW;
+      sh.vertexShader = 'uniform float uW;\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * uW;'); };
+    const hull = new THREE.Mesh(g, om); hull.renderOrder = -1; hull.visible = false; mesh.userData.hull = hull; mesh.add(hull);
+  }
+  mesh.name = o.name; mesh.userData.layer = o.layer; mesh.userData.cut = o.name.endsWith('__cut');
+  mesh.userData.base = o.name.replace(/__cut$/, ''); if (o.w) mesh.userData.w = o.w; if (o.morphs) mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); if (o.fx) { mesh.userData.fx = o.fx; mesh.userData.baseCol = g.getAttribute('color').array.slice(); }
+  mesh.renderOrder = o.layer === 'skin' ? 10 : 0;
+  scene.add(mesh); meshes.push(mesh);
+}
+
+// ---------- state ----------
+const state = { mode:'full', layers:{ skin:true, muscle:true, tendon:true, lig:true, nerve:true, bone:true, disc:true, vessel:true }, skinOp:1 };
+var applyVisibility = function(){
+  for (const m of meshes) {
+    const inMode = !m.userData.cut;
+    m.visible = inMode && state.layers[m.userData.layer];
+    if (m.userData.layer === 'skin') { m.material.opacity = state.skinOp; m.material.depthWrite = state.skinOp > 0.95; }
+  }
+}
+
+// ==== COMMON CONTROLS BEGIN ====
+// ---------- camera (common) ----------
+const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
+const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
+function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
+  key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
+const VIEWS = {
+  posterior:{ off:[0.15,0.2,1],  up:[0,1,0], r:0.85 },
+  left:     { off:[-1,0.15,0.25], up:[0,1,0], r:0.6 },
+  anterior: { off:[-0.15,0.2,-1], up:[0,1,0], r:0.75 },
+  section:  { off:[-1,0.1,0.15], up:[0,1,0], r:0.6 },
+};
+function setView(name, instant){
+  if (name === 'reset') name = 'left';
+  const v = VIEWS[name]; if (!v) return;
+  camGoal.target.set(...(v.target || [0,0,0]));
+  camGoal.off.set(...v.off).normalize().multiplyScalar(v.r);
+  const f = camGoal.target.clone().sub(camGoal.target.clone().add(camGoal.off)).normalize();
+  camGoal.up.set(...v.up); camGoal.up.sub(f.clone().multiplyScalar(camGoal.up.dot(f))).normalize();
+  camGoal.t = instant === false ? 0 : 1;
+  if (camGoal.t >= 1) { off.copy(camGoal.off); up.copy(camGoal.up); target.copy(camGoal.target); applyCam(); }
+}
+function camTick(dt){ if (camGoal.t >= 1) return; camGoal.t = Math.min(1, camGoal.t + dt * 1.6); const s = camGoal.t * camGoal.t * (3 - 2 * camGoal.t);
+  off.lerp(camGoal.off, s); up.lerp(camGoal.up, s).normalize(); target.lerp(camGoal.target, s); applyCam(); }
+(function camLoop(){ let last = performance.now(); (function f(now){ requestAnimationFrame(f); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; last = now; camTick(Math.min(0.05, dt)); })(performance.now()); })();
+function rotate(dx, dy){ camGoal.t = 1;
+  const f = target.clone().sub(camera.position).normalize(), right = new THREE.Vector3().crossVectors(f, up).normalize();
+  const q = new THREE.Quaternion().setFromAxisAngle(up, -dx * 0.007).multiply(new THREE.Quaternion().setFromAxisAngle(right, -dy * 0.007));
+  off.applyQuaternion(q); up.applyQuaternion(q).normalize(); applyCam(); }
+function zoom(f){ camGoal.t = 1; off.setLength(Math.min(2.0, Math.max(0.02, off.length() * f))); applyCam(); }
+function panKeys(dx, dy){ camGoal.t = 1; const k = off.length() * 0.0016;
+  const r = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  target.addScaledVector(r, -dx*k).addScaledVector(u, dy*k); applyCam(); }
+let drag = null, pinch0 = 0; const pointers = new Set(); const touchPts = new Map(); let touchPrev = null;
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); touchPrev = null; } if (typeof onPointerDownExtra === 'function' && onPointerDownExtra(e)) return;
+  pointers.add(e.pointerId); drag = { x:e.clientX, y:e.clientY, b:e.button, shift:e.shiftKey, ctrl:e.ctrlKey || e.metaKey, alt:e.altKey }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; if (typeof onPointerUpExtra === 'function') onPointerUpExtra(e); });
+canvas.addEventListener('pointercancel', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointermove', e => {
+  if (typeof onPointerMoveExtra === 'function' && onPointerMoveExtra(e)) return;
+  if (pointers.size >= 2 && touchPts.size >= 2) {                          // two fingers: pan with the midpoint, pinch to zoom
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [a, b] = [...touchPts.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (touchPrev) { panKeys(mid.x - touchPrev.x, mid.y - touchPrev.y); if (touchPrev.d > 0) zoom(touchPrev.d / Math.max(1, dist)); }
+    touchPrev = { x: mid.x, y: mid.y, d: dist }; return; }
+  hover(e); if (!drag || pointers.size > 1) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.ctrl) { zoom(Math.exp(dy * 0.006)); }
+  else if (drag.alt) { camGoal.t = 1; const f = target.clone().sub(camera.position).normalize(); up.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(f, -dx * 0.006)).normalize(); applyCam(); }
+  else if (drag.b === 2 || drag.b === 1 || drag.shift) { panKeys(dx, dy); }
+  else rotate(dx, dy); });
+canvas.addEventListener('dblclick', e => {
+  ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1; ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible))[0];
+  if (hit) { camGoal.target.copy(hit.point); camGoal.off.copy(off).setLength(Math.max(0.03, off.length() * 0.7)); camGoal.up.copy(up); camGoal.t = 0; } });
+canvas.addEventListener('wheel', e => { e.preventDefault();
+  if (e.shiftKey) { const u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1); camGoal.t = 1; target.addScaledVector(u, -e.deltaY * off.length() * 0.0008); applyCam(); }
+  else zoom(Math.exp(e.deltaY * (e.ctrlKey ? 0.0004 : 0.0012))); }, { passive:false });
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const step = e.shiftKey ? 12 : 0;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? panKeys(-step, 0) : rotate(-18, 0); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? panKeys(step, 0) : rotate(18, 0); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); e.shiftKey ? panKeys(0, -step) : rotate(0, -18); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); e.shiftKey ? panKeys(0, step) : rotate(0, 18); }
+  if (e.key === '+' || e.key === '=') zoom(0.85);
+  if (e.key === '-' || e.key === '_') zoom(1 / 0.85);
+  if (e.key === 'Home' || e.key === 'r' || e.key === 'R') setView('reset', false);
+  if (typeof goStage === 'function' && typeof STAGES !== 'undefined') {
+    if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goStage(Math.min(STAGES.length - 1, Math.max(0, stage + 1))); }
+    if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); goStage(Math.max(0, stage - 1)); }
+    if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1);
+  }
+});
+// ==== COMMON CONTROLS END ====
+canvas.addEventListener('touchstart', e => { if (e.touches.length===2) pinch0 = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
+canvas.addEventListener('touchmove', e => { if (e.touches.length===2){ const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch0/d); pinch0 = d; } }, {passive:true});
+
+// ---------- hover ----------
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), tag = document.getElementById('tag');
+let hovered = null;
+function hover(e){
+  ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible && !(m.userData.layer==='skin' && state.skinOp < 0.5)))[0];
+  if (hovered && hovered !== (hit && hit.object)) { hovered.material.emissive.setHex(0); hovered = null; }
+  if (hit) {
+    hovered = hit.object; hovered.material.emissive.setHex(0x3a2f00);
+    tag.style.display = 'block'; tag.style.left = e.clientX + 'px'; tag.style.top = e.clientY + 'px';
+    tag.innerHTML = (KO[hovered.userData.base] || hovered.userData.base) + '<small>' + hovered.name + '</small>';
+  } else tag.style.display = 'none';
+}
+
+// ---------- ui ----------
+document.querySelectorAll('button[data-mode]').forEach(b => b.addEventListener('click', () => {
+  state.mode = b.dataset.mode;
+  document.querySelectorAll('button[data-mode]').forEach(x => x.classList.toggle('on', x === b));
+  if (state.mode === 'cut') { state.layers.skin = false; state.layers.muscle = false; }
+  else { state.layers.skin = true; state.layers.muscle = true; }
+  document.querySelectorAll('input[data-layer]').forEach(cb => cb.checked = state.layers[cb.dataset.layer]);
+  applyVisibility(); setView('reset');
+}));
+document.querySelectorAll('input[data-layer]').forEach(cb => cb.addEventListener('change', () => { state.layers[cb.dataset.layer] = cb.checked; applyVisibility(); }));
+document.getElementById('skinop').addEventListener('input', e => { state.skinOp = +e.target.value; applyVisibility(); });
+document.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+document.getElementById('outline').addEventListener('change', e => { meshes.forEach(m => { if (m.userData.hull) m.userData.hull.visible = e.target.checked; }); });
+document.getElementById('rimshade').addEventListener('change', e => { RIM.value = e.target.checked ? +document.getElementById('rimamt').value : 0.0; });
+document.getElementById('rimamt').addEventListener('input', e => { if (document.getElementById('rimshade').checked) RIM.value = +e.target.value; });
+
+// ---------- loop ----------
+function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
+  document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
+
+const A2S = a => [-a[0], a[2], a[1]];
+const RIG = DATA.meta.rig; const hinge = new THREE.Vector3(...A2S(RIG.hinge.point));
+// ---- chain rig: sacrum → L5 → L4 → L3 → L2 → (hinge) L1 → T12; each level = a group at its pivot holding its vertebra + the disc below ----
+const LV = RIG.levels; const groups = [], bones = [];
+let parentG = scene, parentB = null, parentPivot = new THREE.Vector3();
+for (let i = 0; i < LV.length; i++) {
+  const piv = LV[i].pivot ? new THREE.Vector3(...A2S(LV[i].pivot)) : new THREE.Vector3(0, 0, 0);
+  const g = new THREE.Group(), bn = new THREE.Bone(); g.position.copy(piv).sub(parentPivot); bn.position.copy(piv).sub(parentPivot);
+  parentG.add(g); if (parentB) parentB.add(bn); else scene.add(bn);
+  g.userData.piv = piv.clone(); groups.push(g); bones.push(bn); parentG = g; parentB = bn; parentPivot = piv;
+}
+scene.updateMatrixWorld(true); const skel = new THREE.Skeleton(bones); skel.calculateInverses();
+const levelOf = {}; LV.forEach((L, i) => L.members.forEach(n => { levelOf[n] = i; levelOf[n + '__cut'] = i; }));
+for (const m of meshes) { const li = levelOf[m.name]; if (li === undefined) continue; const g = groups[li]; scene.remove(m); g.add(m); m.position.copy(g.userData.piv).negate(); }
+// soft structures: two-level blend weights from the pipeline
+for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w) continue;
+  const gm = m.geometry, n = gm.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), W = m.userData.w;
+  for (let k = 0; k < n; k++) { si.set([W[4*k], W[4*k+2], 0, 0], 4 * k); sw.set([W[4*k+1], W[4*k+3], 0, 0], 4 * k); }
+  gm.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); gm.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
+  const sm = new THREE.SkinnedMesh(gm, m.material); sm.material.skinning = true; sm.material.needsUpdate = true; sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
+  if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(gm, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
+  scene.remove(m); scene.add(sm); sm.bind(skel, new THREE.Matrix4()); meshes[i] = sm; }
+const HAXIS = new THREE.Vector3(...A2S(RIG.hinge.axis)).normalize();
+function applyChain(k){ const full = THREE.MathUtils.degToRad(RIG.hinge.angle_at_full) * k;
+  LV.forEach((L, i) => { const q = new THREE.Quaternion().setFromAxisAngle(HAXIS, full * L.share); groups[i].quaternion.copy(q); bones[i].quaternion.copy(q); }); }
+const ctl = { collapse: 0, grade: 1.0, retro: 0 };
+document.getElementById('collapse').oninput = e => ctl.collapse = +e.target.value / 100;
+
+document.getElementById('retro').onclick = e => { ctl.retro = ctl.retro ? 0 : 1; e.target.classList.toggle('on', !!ctl.retro); applySection(!!ctl.retro); if (ctl.retro) setView('left', false); };
+function applySection(on){   // unstable fracture: show the midline sagittal section so the posterior wall bowing into the canal is visible
+  for (const m of meshes) { const u = m.userData; if (!['bone','disc','nerve','lig'].includes(u.layer)) continue;
+    if (u.cut) m.visible = on && state.layers[u.layer] && !u.base.endsWith('_l') && !u.base.startsWith('bone__rib12');
+    else if (!u.base.endsWith('_l') && !u.base.startsWith('bone__rib12')) m.visible = !on && state.layers[u.layer];
+    else m.visible = !on && state.layers[u.layer]; } }
+const _applyVis = applyVisibility; applyVisibility = function(){ _applyVis(); if (ctl.retro) applySection(true); };
+// ---------- props: pain patch, TLSO brace, vertebroplasty (needle / balloon / cement), pedicle screws + rods ----------
+Object.assign(state, { collapseTarget: null, por: 0, pain: 0, brace: 0, vp: 0, screws: 0, section: 0 });
+const anim = { collapse: 0, por: 0, pain: 0, brace: 0, vp: 0, screws: 0 };
+const l2 = meshes.find(m => m.name === 'bone__l2'); const l2c = new THREE.Vector3(); { const bb = new THREE.Box3().setFromBufferAttribute(l2.geometry.getAttribute('position')); bb.getCenter(l2c); l2c.z += 0.008; }   // body centre (anterior = -Z on screen)
+const bodyC = new THREE.Vector3(l2c.x, l2c.y, l2c.z - 0.014);
+const skinMesh = meshes.find(m => m.userData.layer === 'skin');
+if (skinMesh) { const g = skinMesh.geometry, pos = g.getAttribute('position'), col = g.getAttribute('color'); skinMesh.userData.baseCol = col.array.slice();
+  const back = new THREE.Vector3(0, l2c.y, 0.10); skinMesh.userData.pain = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) { const dx = pos.getX(i) - back.x, dy = pos.getY(i) - back.y, dz = pos.getZ(i) - back.z; const r = Math.sqrt(dx*dx*0.35 + dy*dy*0.9 + (dz > 0 ? dz*dz*0.3 : 1)); skinMesh.userData.pain[i] = Math.max(0, 1 - r / 0.09); } }
+function applyPain(a){ if (!skinMesh) return; const col = skinMesh.geometry.getAttribute('color'), base = skinMesh.userData.baseCol, pn = skinMesh.userData.pain;
+  for (let i = 0; i < pn.length; i++) { const k = pn[i] * a; col.array[3*i] = base[3*i] * (1 - 0.1 * k) + 0.3 * k; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * k); col.array[3*i+2] = base[3*i+2] * (1 - 0.7 * k); } col.needsUpdate = true; }
+let brace = null;
+if (skinMesh) { const gsk = skinMesh.geometry.clone(); gsk.deleteAttribute('color'); gsk.deleteAttribute('skinIndex'); gsk.deleteAttribute('skinWeight'); gsk.computeVertexNormals();
+  const pos = gsk.getAttribute('position'), nrm = gsk.getAttribute('normal'); for (let i = 0; i < pos.count; i++) pos.setXYZ(i, pos.getX(i) + nrm.getX(i) * 0.012, pos.getY(i) + nrm.getY(i) * 0.012, pos.getZ(i) + nrm.getZ(i) * 0.012);
+  const P = (nx, ny, nz, d) => new THREE.Plane(new THREE.Vector3(nx, ny, nz), d);
+  const bb = new THREE.Box3().setFromBufferAttribute(skinMesh.geometry.getAttribute('position'));
+  const shellMat = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.8, transparent: true, opacity: 0, clippingPlanes: [P(0, -1, 0, bb.max.y - 0.03), P(0, 1, 0, -(bb.min.y + 0.11)), P(-1, 0, 0, 0.19), P(1, 0, 0, 0.19)] });   // TLSO: trunk band, arms excluded
+  const strapMat = () => new THREE.MeshStandardMaterial({ color: 0x3b4656, roughness: 0.8, transparent: true, opacity: 0 });
+  brace = new THREE.Group(); scene.add(brace); brace.visible = false;
+  brace.add(new THREE.Mesh(gsk, shellMat));
+  for (const y of [bb.max.y - 0.05, l2c.y + 0.02, bb.min.y + 0.13]) { const m = strapMat(); m.clippingPlanes = [P(0, -1, 0, y + 0.012), P(0, 1, 0, -(y - 0.012)), P(-1, 0, 0, 0.19), P(1, 0, 0, 0.19)]; const gs = gsk.clone(); const p2 = gs.getAttribute('position'), n2 = gs.getAttribute('normal'); for (let i = 0; i < p2.count; i++) p2.setXYZ(i, p2.getX(i) + n2.getX(i) * 0.003, p2.getY(i) + n2.getY(i) * 0.003, p2.getZ(i) + n2.getZ(i) * 0.003); brace.add(new THREE.Mesh(gs, m)); }
+  brace.userData.mats = brace.children.map(c => c.material); renderer.localClippingEnabled = true; }
+// vertebroplasty props
+const vp = new THREE.Group(); scene.add(vp);
+const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.0016, 0.0016, 0.12, 12), new THREE.MeshStandardMaterial({ color: 0xcfd6df, metalness: 0.7, roughness: 0.3 })); vp.add(needle);
+const balloon = new THREE.Mesh(new THREE.SphereGeometry(0.012, 20, 14), new THREE.MeshStandardMaterial({ color: 0xffe6a0, transparent: true, opacity: 0.85, roughness: 0.3 })); vp.add(balloon);
+const cement = new THREE.Mesh(new THREE.SphereGeometry(0.012, 20, 14), new THREE.MeshStandardMaterial({ color: 0xe9e4d6, roughness: 0.9 })); vp.add(cement);
+const entry = new THREE.Vector3(bodyC.x - 0.018, bodyC.y + 0.006, bodyC.z + 0.075);   // through the (left) pedicle from the back
+const nAxis = bodyC.clone().sub(entry).normalize();
+needle.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), nAxis); vp.visible = false;
+// pedicle screws L1 / L3 + rods
+const screws = new THREE.Group(); scene.add(screws); screws.visible = false;
+{ const smat = new THREE.MeshStandardMaterial({ color: 0xb8bcc4, metalness: 0.8, roughness: 0.3 }); const heads = [];
+  for (const lv of ['bone__l1', 'bone__l3']) { const m = meshes.find(x => x.name === lv); const bb = new THREE.Box3().setFromBufferAttribute(m.geometry.getAttribute('position')); const c = new THREE.Vector3(); bb.getCenter(c);
+    for (const sx of [-1, 1]) { const head = new THREE.Vector3(c.x + sx * 0.02, c.y, c.z + 0.032); const tip = new THREE.Vector3(c.x + sx * 0.01, c.y, c.z - 0.012);
+      const s = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0022, head.distanceTo(tip), 10), smat); s.position.copy(head).lerp(tip, 0.5); s.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tip.clone().sub(head).normalize()); screws.add(s);
+      const hd = new THREE.Mesh(new THREE.SphereGeometry(0.0045, 12, 10), smat); hd.position.copy(head); screws.add(hd); heads.push({ sx, p: head }); } }
+  for (const sx of [-1, 1]) { const [a, b] = heads.filter(h => h.sx === sx).map(h => h.p); const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0028, 0.0028, a.distanceTo(b) + 0.02, 10), smat); rod.position.copy(a).lerp(b, 0.5); rod.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); screws.add(rod); } }
+
+const STAGES = [
+  { name:'외관', cap:'허리를 뒤에서 본 모습입니다. 돌려 보고 확대해 보세요. 척추뼈 위에 마우스를 올리면 이름이 보입니다.', set:{ layers:{skin:1,muscle:1,disc:1,lig:1,nerve:1,bone:1}, skinOp:1, collapse:0, retro:0, por:0, pain:0, brace:0, vp:0, screws:0 }, ctl:false },
+  { name:'구조 노출', cap:'피부와 근육을 걷어내면 척추뼈(흉추 12번~천골)와 사이의 추간판, 뒤쪽 척수관 속 신경, 앞뒤 세로인대가 보입니다. 앞쪽 몸통(체부)이 하중을 받는 기둥이고, 뒤쪽 고리는 신경을 감싸는 방패입니다.', set:{ layers:{skin:0,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.1, collapse:0, retro:0, por:0, pain:0, brace:0, vp:0, screws:0 }, ctl:false },
+  { name:'다치는 순간', cap:'', set:{ layers:{skin:0,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.1, retro:0, pain:0, brace:0, vp:0, screws:0 }, ctl:true,
+    subs:[ { name:'ⓐ 골다공증', cap:'뼈 속 잔기둥(해면골)이 성글어져 같은 뼈라도 버티는 힘이 약해집니다. 아래 단면에서 정상↔골다공증을 비교하세요.', set:{ retro:0, collapse:0, por:1, section:1 }, action:{ label:'정상 ↔ 골다공증', toggle:'por' } },
+           { name:'ⓑ 주저앉음', cap:'엉덩방아를 찧거나 물건을 들 때 위에서 하중이 내려오면, 약해진 요추 2번 체부의 앞쪽이 쐐기 모양으로 찌그러집니다. 슬라이더로 경도→중등도→중증을 보세요.', set:{ retro:0, por:1, section:0 } },
+           { name:'ⓒ 불안정형', cap:'뒤쪽 벽까지 무너져 척수관 쪽으로 밀리면(불안정형) 신경이 눌릴 수 있어 수술을 고려합니다. 단면으로 보여 드립니다.', set:{ retro:1, por:1, section:1, collapse:0.8 } } ] },
+  { name:'증상', cap:'골절 높이의 등 한가운데가 아프고, 앞으로 굽어 키가 줄어듭니다. 돌아눕거나 일어날 때 특히 아픕니다.', set:{ layers:{skin:1,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.55, collapse:0.67, retro:0, por:1, pain:1, brace:0, vp:0, screws:0 }, ctl:false },
+  { name:'치료', cap:'대부분 수술 없이 낫습니다. 아래 버튼으로 단계를 보세요.', set:{ layers:{skin:0,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.1, collapse:0.67, retro:0, por:1, pain:0, brace:0, vp:0, screws:0 }, ctl:false,
+    subs:[ { name:'① 보존 치료', cap:'침상안정 뒤 보조기(TLSO)로 허리를 세워 고정하고, 진통제와 골다공증 약으로 뼈를 다시 촘촘하게 만듭니다. 대개 6~12주 안에 아뭅니다.', set:{ layers:{skin:1,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.5, collapse:0.67, brace:1, vp:0, screws:0, por:1 }, action:{ label:'💊 골다공증 약', on:'복용 중…', set:{ por:0 } } },
+           { name:'② 척추성형술', cap:'통증이 심하면 뒤쪽에서 척추경을 통해 바늘을 넣고, 풍선으로 주저앉은 체부를 조금 세운 뒤 골시멘트를 채워 굳힙니다. "시술 시작"을 누르세요.', set:{ layers:{skin:0,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.1, collapse:0.67, brace:0, vp:0, screws:0, por:1 }, action:{ label:'💉 시술 시작', on:'시술 진행 중…', set:{ vp:1 } } },
+           { name:'③ 나사 고정술', cap:'뒤쪽 벽이 무너져 불안정하거나 신경 증상이 있으면, 위아래 척추(L1·L3)에 척추경 나사를 넣고 막대로 연결해 고정합니다.', set:{ layers:{skin:0,muscle:0,disc:1,lig:1,nerve:1,bone:1}, skinOp:0.1, collapse:0.8, retro:1, section:0, brace:0, vp:0, screws:1, por:1 } } ] },
+];
+let stage = -1, sub = -1, vpT = 0;
+const stagesEl = document.getElementById('stages');
+STAGES.forEach((S, i) => { const b = document.createElement('button'); b.textContent = `${i+1}. ${S.name}`; b.onclick = () => goStage(i); stagesEl.appendChild(b); });
+function applySet(s){ if (!s) return; if (s.layers) { for (const k in s.layers) { state.layers[k] = !!s.layers[k]; const cb = document.querySelector(`input[data-layer="${k}"]`); if (cb) cb.checked = !!s.layers[k]; } }
+  if (s.skinOp !== undefined) { state.skinOp = s.skinOp; const el = document.getElementById('skinop'); if (el) el.value = s.skinOp; }
+  for (const k of ['por','pain','brace','vp','screws']) if (s[k] !== undefined) state[k] = s[k];
+  if (s.collapse !== undefined) { ctl.collapse = s.collapse; document.getElementById('collapse').value = Math.round(s.collapse * 100); }
+  if (s.retro !== undefined) { ctl.retro = s.retro; document.getElementById('retro').classList.toggle('on', !!s.retro); }
+  if (s.section !== undefined) state.section = s.section; else state.section = ctl.retro;
+  applyVisibility(); applySection(!!(state.section || ctl.retro)); }
+function goStage(i, subIdx){
+  stage = i; sub = -1; const S = STAGES[i]; vpT = 0; applySet(S.set);
+  [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
+  const sb = document.getElementById('subbar'); sb.innerHTML = '';
+  if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = 0; sub = subIdx; applySet(S.subs[sub].set);
+    S.subs.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn' + (k === sub ? ' on' : ''); b.textContent = x.name; b.onclick = () => goStage(i, k); sb.appendChild(b); });
+    const act = S.subs[sub].action;
+    if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = act.label;
+      if (act.toggle) b.onclick = () => { state[act.toggle] = state[act.toggle] ? 0 : 1; b.classList.toggle('on', !state[act.toggle]); };
+      else b.onclick = () => { applySet(act.set); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); } }
+  else sb.style.display = 'none';
+  document.getElementById('caption').textContent = S.subs ? S.subs[sub].cap : S.cap;
+  const showCtl = S.ctl && sub === 1; document.getElementById('ctl').style.display = showCtl ? 'flex' : 'none';
+  document.getElementById('caption').style.bottom = showCtl ? '178px' : '112px';
+}
+const _applyVisPre = applyVisibility;
+let last = performance.now();
+(function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
+  anim.collapse += (ctl.collapse - anim.collapse) * Math.min(1, dt * 4); anim.por += (state.por - anim.por) * Math.min(1, dt * 2); anim.pain += (state.pain - anim.pain) * Math.min(1, dt * 2.5);
+  anim.brace += (state.brace - anim.brace) * Math.min(1, dt * 3); anim.screws += (state.screws - anim.screws) * Math.min(1, dt * 3);
+  UPOR.value = anim.por; applyPain(anim.pain);
+  if (brace) { brace.visible = anim.brace > 0.02 && state.layers.skin; brace.userData.mats.forEach(m => m.opacity = 0.96 * anim.brace); }
+  screws.visible = anim.screws > 0.02; screws.scale.setScalar(0.4 + 0.6 * Math.min(1, anim.screws));
+  // vertebroplasty: 0-2 s needle in, 2-4 s balloon inflates (height partly restored), 4-6 s balloon out & cement fills
+  if (state.vp) { vpT += dt; const r = (a, b) => Math.max(0, Math.min(1, (vpT - a) / (b - a))); const nIn = r(0, 2), bal = r(2, 4), cem = r(4, 6);
+    vp.visible = true; needle.position.copy(entry).lerp(bodyC, nIn).addScaledVector(nAxis, -0.06); needle.visible = cem < 1;
+    balloon.visible = bal > 0.02 && cem < 0.95; balloon.position.copy(bodyC); balloon.scale.set(1.0, 0.75, 0.9).multiplyScalar(0.2 + 0.8 * bal * (1 - cem));
+    cement.visible = cem > 0.02; cement.position.copy(bodyC); cement.scale.set(1.05, 0.8, 0.95).multiplyScalar(0.2 + 0.8 * cem);
+    ctl.collapse = 0.67 - 0.25 * bal;                                            // the balloon lifts the plate: collapse eases from moderate toward mild
+    const cap = document.getElementById('caption'); cap.textContent = vpT < 2 ? '① 뒤쪽에서 척추경을 통해 바늘을 체부 속으로 넣습니다.' : vpT < 4 ? '② 풍선을 부풀려 주저앉은 종판을 조금 들어 올립니다.' : vpT < 6 ? '③ 풍선을 빼고 그 공간에 골시멘트를 채웁니다.' : '④ 시멘트가 굳으면 체부가 안정되어 통증이 빠르게 줄어듭니다.'; }
+  else { vp.visible = false; }
+  const k = anim.collapse;                                                    // the slider IS the severity: 33 % → mild (20 % loss), 67 % → moderate (40 %), 100 % → severe (60 %)
+  { const g = k < 0.02 ? '정상' : k < 0.34 ? '경도' : k < 0.67 ? '중등도' : '중증'; const el = document.getElementById('gradeLbl'); if (el.textContent !== g) el.textContent = g; }
+  for (const m of meshes) if (m.morphTargetInfluences) { if (m.userData.base === 'bone__l2') { m.morphTargetInfluences[0] = k; m.morphTargetInfluences[1] = k * ctl.retro; } else if (m.userData.base === 'disc__l1_l2') m.morphTargetInfluences[0] = k; }
+  // fracture zone colours as it collapses: crushed anterior body turns red
+  { const m = meshes.find(x => x.userData.base === 'bone__l2'); if (m && m.userData.fx) { const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, fx = m.userData.fx;
+      for (let i = 0; i < fx.length; i++) { const a = fx[i] * k; col.array[3*i] = base[3*i] * (1 - 0.15 * a) + 0.35 * a; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * a); col.array[3*i+2] = base[3*i+2] * (1 - 0.75 * a); } col.needsUpdate = true; } }
+  applyChain(k);
+})(performance.now());
+applyVisibility(); setView('posterior'); goStage(0);
+(function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+</script>
+</body>
+</html>
