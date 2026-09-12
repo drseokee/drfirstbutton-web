@@ -46,6 +46,20 @@
 #twist { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: none; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
 #twist input { width: 260px; }
 #twist { padding-bottom: 22px; }
+
+/* ---- mobile: same page, tighter layout (no separate mobile version to maintain) ---- */
+@media (max-width: 720px), (max-height: 520px) {
+  #panel { max-width: 62vw; max-height: 46vh; overflow-y: auto; padding: 8px 10px; font-size: 12px; }
+  #panel h1 { font-size: 15px; } #panel .sub { font-size: 11px; }
+  #panel details summary { font-size: 11.5px; }
+  #caption { max-width: 92vw; font-size: 12.5px; line-height: 1.4; padding: 8px 12px; bottom: 96px; }
+  #stages { padding: 4px; gap: 3px; max-width: 96vw; }
+  #stages button { padding: 6px 8px; font-size: 11.5px; }
+  #subbar { flex-wrap: wrap; justify-content: center; max-width: 96vw; bottom: 58px; gap: 4px; }
+  .sub-btn { padding: 5px 9px; font-size: 11.5px; }
+  #twist, #surg, #ctl { max-width: 94vw; padding: 6px 10px; font-size: 11.5px; bottom: 96px; }
+  #twist input, #surg input, #ctl input[type=range] { width: 42vw; }
+}
 </style>
 </head>
 <body>
@@ -606,6 +620,10 @@ let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now; tick(dt); })(performance.now());
 applyVisibility(); setView('lateral', true); goStage(0);
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+
+// mobile: start with the side panel folded and lift the caption above the control bars
+(function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
+  if (narrow) { const c = document.getElementById('caption'); if (c) c.style.bottom = '96px'; } })();
 </script>
 </body>
 </html>

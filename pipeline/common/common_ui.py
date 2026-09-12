@@ -96,7 +96,29 @@ addEventListener('keydown', e => {
 // ==== COMMON CONTROLS END ====
 """
 
+MOBILE_CSS = '''
+/* ---- mobile: same page, tighter layout (no separate mobile version to maintain) ---- */
+@media (max-width: 720px), (max-height: 520px) {
+  #panel { max-width: 62vw; max-height: 46vh; overflow-y: auto; padding: 8px 10px; font-size: 12px; }
+  #panel h1 { font-size: 15px; } #panel .sub { font-size: 11px; }
+  #panel details summary { font-size: 11.5px; }
+  #caption { max-width: 92vw; font-size: 12.5px; line-height: 1.4; padding: 8px 12px; bottom: 96px; }
+  #stages { padding: 4px; gap: 3px; max-width: 96vw; }
+  #stages button { padding: 6px 8px; font-size: 11.5px; }
+  #subbar { flex-wrap: wrap; justify-content: center; max-width: 96vw; bottom: 58px; gap: 4px; }
+  .sub-btn { padding: 5px 9px; font-size: 11.5px; }
+  #twist, #surg, #ctl { max-width: 94vw; padding: 6px 10px; font-size: 11.5px; bottom: 96px; }
+  #twist input, #surg input, #ctl input[type=range] { width: 42vw; }
+}
+'''
+MOBILE_JS = '''
+// mobile: start with the side panel folded and lift the caption above the control bars
+(function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
+  if (narrow) { const c = document.getElementById('caption'); if (c) c.style.bottom = '96px'; } })();
+'''
 def apply_common(t, reset_view):
+    if '/* ---- mobile:' not in t: t = t.replace('</style>', MOBILE_CSS + '</style>', 1)
+    if 'mobile: start with the side panel folded' not in t: t = t.replace('</script>\n</body>', MOBILE_JS + '</script>\n</body>')
     # lights
     if LIGHTS_OLD in t: t = t.replace(LIGHTS_OLD, LIGHTS_NEW)
     # controls: replace the whole controls block (between sentinels if already common; else from the camera header to the wheel listener)

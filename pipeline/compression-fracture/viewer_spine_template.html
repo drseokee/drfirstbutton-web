@@ -51,6 +51,20 @@
 .sub-btn.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
 #caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f3eee4; z-index: 12; }
 #ctl { bottom: 110px !important; border-radius: 999px; }
+
+/* ---- mobile: same page, tighter layout (no separate mobile version to maintain) ---- */
+@media (max-width: 720px), (max-height: 520px) {
+  #panel { max-width: 62vw; max-height: 46vh; overflow-y: auto; padding: 8px 10px; font-size: 12px; }
+  #panel h1 { font-size: 15px; } #panel .sub { font-size: 11px; }
+  #panel details summary { font-size: 11.5px; }
+  #caption { max-width: 92vw; font-size: 12.5px; line-height: 1.4; padding: 8px 12px; bottom: 96px; }
+  #stages { padding: 4px; gap: 3px; max-width: 96vw; }
+  #stages button { padding: 6px 8px; font-size: 11.5px; }
+  #subbar { flex-wrap: wrap; justify-content: center; max-width: 96vw; bottom: 58px; gap: 4px; }
+  .sub-btn { padding: 5px 9px; font-size: 11.5px; }
+  #twist, #surg, #ctl { max-width: 94vw; padding: 6px 10px; font-size: 11.5px; bottom: 96px; }
+  #twist input, #surg input, #ctl input[type=range] { width: 42vw; }
+}
 </style>
 </head>
 <body>
@@ -452,6 +466,10 @@ let last = performance.now();
 reparentDiscs(); placeProps();
 applyVisibility(); setView('left'); goStage(0);
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+
+// mobile: start with the side panel folded and lift the caption above the control bars
+(function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
+  if (narrow) { const c = document.getElementById('caption'); if (c) c.style.bottom = '96px'; } })();
 </script>
 </body>
 </html>
