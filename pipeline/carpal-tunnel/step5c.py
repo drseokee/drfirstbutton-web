@@ -106,7 +106,7 @@ def fcr_deep(x, z):
 _pl_bvh = None
 try:
     _m = O["tendon__pl"].data.copy(); _pb = bmesh.new(); _pb.from_mesh(_m); bpy.data.meshes.remove(_m)
-    cut_z(_pb, -0.027, keep="above", cap=True)                 # same trim as the exported section-set PL (distal fan dropped)
+    cut_z(_pb, -0.040, keep="above", cap=True)                 # same trim as the exported section-set PL (distal fan dropped)
     _pl_bvh = BVHTree.FromBMesh(_pb)
 except KeyError: pass
 def pl_deep(x, z):
@@ -422,7 +422,7 @@ objects = [o for o in prev["objects"] if o["name"] not in ("nerve__median__cut",
 for o in objects:
     if o["name"] == "tendon__pl__cut":         # keep palmaris longus through the wrist and proximal palm only (its distal fan crowds the tendons)
         bm = bm_from_arrays([tuple(o["verts"][i:i+3]) for i in range(0, len(o["verts"]), 3)], [tuple(o["tris"][i:i+3]) for i in range(0, len(o["tris"]), 3)])
-        cut_z(bm, -0.027, keep="above", cap=True)
+        cut_z(bm, -0.040, keep="above", cap=True)
         o["verts"], o["tris"] = to_arrays(bm, center=Z0)
 for o in objects:
     if o["name"] == "tendon__pl__cut":         # palmaris longus runs OVER the ligament: lift any vertex that sits inside or touches it

@@ -49,11 +49,14 @@
   #caption { position:fixed; left:50%; top:18px; transform:translateX(-50%); color:var(--ink); font-size:15px; background:var(--panel);
     border:1px solid var(--line); border-radius:10px; padding:8px 16px; max-width:min(640px, 90vw); text-align:center; }
   @media (max-width:640px){ #panel { display:none; } #caption { top:auto; bottom:150px; font-size:13px; } }
+#surg { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: none; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
+#surg input { width: 260px; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="caption"></div>
+<div id="surg"><span>수술 진행</span><input id="surgRange" type="range" min="0" max="100" value="0"><button class="sub-btn" id="surgPlay">▶ 재생</button></div>
 <button id="sidebtn" title="좌우 반전">오른손 ⇄ 왼손</button>
 
 <div id="panel">
@@ -307,7 +310,7 @@ const tendons = [];
     g.setIndex(idx); g.setDrawRange(0, 0);
     const tint = new THREE.Color(COL.tendon); const hsh = hash(rig.name); tint.offsetHSL((hsh % 7 - 3) * 0.004, (hsh % 5 - 2) * 0.02, (hsh % 4 - 1.5) * 0.035);
     const m = new THREE.MeshStandardMaterial({ color: tint, roughness: ROUGH.tendon, metalness: 0, side: THREE.DoubleSide });
-    m.onBeforeCompile = sh => { sh.uniforms.uRim = (o.layer === 'nerve') ? { value: 0.0 } : RIM;
+    m.onBeforeCompile = sh => { sh.uniforms.uRim = RIM;
       sh.vertexShader = 'attribute float mat; varying float vMat;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMat = mat;');
       sh.fragmentShader = 'uniform float uRim; varying float vMat;\n' + sh.fragmentShader.replace('#include <dithering_fragment>',
         '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));\n float fib = 0.5 + 0.5 * sin(vMat * 6.2832 / 0.0045);\n gl_FragColor.rgb *= 0.86 + 0.14 * smoothstep(0.25, 0.75, fib);'); };
@@ -447,13 +450,16 @@ function placeScalpel(t){
   scalpel.position.copy(p).addScaledVector(zB, -0.0006); scalpel.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tan, yA, zB));
 }
 let surgT = 0;
+const surgRange = document.getElementById('surgRange'), surgPlay = document.getElementById('surgPlay');
+surgRange.oninput = e => { state.surgery = 0; surgPlay.textContent = '▶ 재생'; state.cutProg = +e.target.value / 100; surgT = state.cutProg * 3.2; };
+surgPlay.onclick = () => { if (state.surgery === 1) { state.surgery = 0; surgPlay.textContent = '▶ 재생'; } else { if (state.cutProg >= 1) { state.cutProg = 0; surgT = 0; } state.surgery = 1; surgPlay.textContent = '■ 멈춤'; } };
 function cutTick(dt){
   const on = cutMode();
-  if (state.surgery > 0 && on) {                      // scripted operation: 0-3 s scalpel runs proximal -> distal, then the ligament opens
-    surgT += dt; const prog = Math.min(1, surgT / 3.2);
-    state.cutProg = Math.max(state.cutProg, prog); placeScalpel(Math.min(0.995, prog)); scalpel.visible = prog < 1;
-    if (prog >= 1) state.surgery = 2;
-  } else scalpel.visible = false;
+  if (state.surgery === 1 && on) {                    // playing: the scalpel runs proximal -> distal over 3.2 s and the slider follows
+    surgT += dt; state.cutProg = Math.min(1, surgT / 3.2); surgRange.value = Math.round(state.cutProg * 100);
+    if (state.cutProg >= 1) { state.surgery = 0; surgPlay.textContent = '▶ 재생'; } }
+  if (on && state.cutProg > 0 && state.cutProg < 1) { placeScalpel(Math.min(0.995, state.cutProg)); scalpel.visible = true; } else scalpel.visible = false;
+  if (on && state.tclSplit && state.cutProg < 0.9) { state.tclSplit = false; state.release = 0; state.patho = 1; state.inflam = 1; applyVisibility(); }   // scrub back: the ligament re-joins
   dots.forEach(d => { d.visible = on; const done = d.userData.t <= state.cutProg && state.cutProg > 0; d.material = done ? cutMat : dotMat;
     const near = hoverT >= 0 && Math.abs(d.userData.t - hoverT) < 0.08; d.scale.setScalar(near ? 1.9 : 1.0); });
   if (on && state.cutProg > 0) document.getElementById('caption').textContent = `절개 진행 ${Math.round(state.cutProg * 100)}%`;
@@ -618,11 +624,12 @@ const STAGES = [
            {name:'② 국소 주사', cap:'인대 바로 아래, 정중신경 옆으로 바늘을 넣고 약을 주입합니다. (아래 "약물 주입" 버튼)', set:{patho:0.7, inflam:1, oral:0, syringe:1, inject:0, incision:0, tclSplit:false, release:0},
              action:{ label:'💉 약물 주입', on:'주입 중…', set:{inject:1} } },
            {name:'③ 인대 절개 (수술)', cap:'정중신경 바로 위 노란 점선이 절개선입니다. "수술 시작"을 누르면 메스가 절개선을 따라 인대를 열고, 통로가 넓어지며 신경 압박이 풀립니다. (점선을 직접 드래그해도 됩니다)', set:{patho:1, inflam:1, oral:0, syringe:-1, inject:0, incision:0, tclSplit:false, release:0, cutProg:0, surgery:0},
-             action:{ label:'🔪 수술 시작', on:'수술 진행 중…', set:{surgery:1} } } ] },
+             surgBar:true } ] },
 ];
 let stage = -1, sub = -1;
 function applySet(s){ for (const [k, v] of Object.entries(s)) { if (k === 'layers') for (const [l, on] of Object.entries(v)) state.layers[l] = !!on; else state[k] = v; } }
 function goStage(i, subIdx){
+  document.getElementById('surg').style.display = 'none'; state.surgery = 0; surgPlay.textContent = '▶ 재생';
   const prevStage = stage;
   stage = Math.max(0, Math.min(STAGES.length - 1, i)); const S = STAGES[stage];
   applySet(S.set); sub = -1;
@@ -631,6 +638,7 @@ function goStage(i, subIdx){
   if (prevStage < 0) setView(S.view);   // camera is set only on first load; changing stages keeps whatever view you are in (R / '원래대로' resets)
   syncPanel();
   document.getElementById('caption').textContent = (sub >= 0 && S.subs[sub].cap) ? S.subs[sub].cap : S.cap;
+  if (sub >= 0 && S.subs[sub].surgBar) { document.getElementById('surg').style.display = 'flex'; surgRange.value = Math.round((state.cutProg || 0) * 100); document.getElementById('caption').style.bottom = '162px'; } else document.getElementById('caption').style.bottom = '112px';
   document.querySelectorAll('#stbtns button').forEach((b, k) => b.classList.toggle('on', k === stage));
   const sb = document.getElementById('subbar'); sb.innerHTML = '';
   state.motion = false; applyVisibility();
