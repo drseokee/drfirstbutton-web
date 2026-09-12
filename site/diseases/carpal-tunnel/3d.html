@@ -454,12 +454,13 @@ const surgRange = document.getElementById('surgRange'), surgPlay = document.getE
 surgRange.oninput = e => { state.surgery = 0; surgPlay.textContent = '▶ 재생'; state.cutProg = +e.target.value / 100; surgT = state.cutProg * 3.2; };
 surgPlay.onclick = () => { if (state.surgery === 1) { state.surgery = 0; surgPlay.textContent = '▶ 재생'; } else { if (state.cutProg >= 1) { state.cutProg = 0; surgT = 0; } state.surgery = 1; surgPlay.textContent = '■ 멈춤'; } };
 function cutTick(dt){
+  const inSurg = stage === 4 && sub === 2;
+  if (inSurg && state.tclSplit && state.cutProg < 0.9) { state.tclSplit = false; state.release = 0; state.patho = 1; state.inflam = 1; applyVisibility(); }   // scrub back: the ligament re-joins
   const on = cutMode();
-  if (state.surgery === 1 && on) {                    // playing: the scalpel runs proximal -> distal over 3.2 s and the slider follows
+  if (state.surgery === 1 && inSurg) {                // playing: the scalpel runs proximal -> distal over 3.2 s and the slider follows
     surgT += dt; state.cutProg = Math.min(1, surgT / 3.2); surgRange.value = Math.round(state.cutProg * 100);
     if (state.cutProg >= 1) { state.surgery = 0; surgPlay.textContent = '▶ 재생'; } }
   if (on && state.cutProg > 0 && state.cutProg < 1) { placeScalpel(Math.min(0.995, state.cutProg)); scalpel.visible = true; } else scalpel.visible = false;
-  if (on && state.tclSplit && state.cutProg < 0.9) { state.tclSplit = false; state.release = 0; state.patho = 1; state.inflam = 1; applyVisibility(); }   // scrub back: the ligament re-joins
   dots.forEach(d => { d.visible = on; const done = d.userData.t <= state.cutProg && state.cutProg > 0; d.material = done ? cutMat : dotMat;
     const near = hoverT >= 0 && Math.abs(d.userData.t - hoverT) < 0.08; d.scale.setScalar(near ? 1.9 : 1.0); });
   if (on && state.cutProg > 0) document.getElementById('caption').textContent = `절개 진행 ${Math.round(state.cutProg * 100)}%`;
@@ -623,7 +624,7 @@ const STAGES = [
              action:{ label:'💊 복용', on:'복용 중…', set:{oral:1} } },
            {name:'② 국소 주사', cap:'인대 바로 아래, 정중신경 옆으로 바늘을 넣고 약을 주입합니다. (아래 "약물 주입" 버튼)', set:{patho:0.7, inflam:1, oral:0, syringe:1, inject:0, incision:0, tclSplit:false, release:0},
              action:{ label:'💉 약물 주입', on:'주입 중…', set:{inject:1} } },
-           {name:'③ 인대 절개 (수술)', cap:'정중신경 바로 위 노란 점선이 절개선입니다. "수술 시작"을 누르면 메스가 절개선을 따라 인대를 열고, 통로가 넓어지며 신경 압박이 풀립니다. (점선을 직접 드래그해도 됩니다)', set:{patho:1, inflam:1, oral:0, syringe:-1, inject:0, incision:0, tclSplit:false, release:0, cutProg:0, surgery:0},
+           {name:'③ 인대 절개 (수술)', cap:'정중신경 바로 위 노란 점선이 절개선입니다. 아래 슬라이더를 밀거나 재생을 누르면 메스가 절개선을 따라 지나가고, 인대가 갈라지며 통로가 넓어집니다. 되돌리면 다시 붙습니다.', set:{patho:1, inflam:1, oral:0, syringe:-1, inject:0, incision:0, tclSplit:false, release:0, cutProg:0, surgery:0},
              surgBar:true } ] },
 ];
 let stage = -1, sub = -1;
