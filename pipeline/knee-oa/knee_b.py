@@ -114,7 +114,7 @@ def principal_axis(pts):
     return Vector(c), ax
 for o in objects:
     lay = o["layer"]
-    if lay not in ("muscle", "lig", "tendon", "capsule", "fat"): continue
+    if lay not in ("lig", "tendon"): continue
     pts = [V(o, i) for i in range(nverts(o))]
     c0, ax = principal_axis(pts)
     proj = [(p - c0).dot(ax) for p in pts]; pmin, pmax = min(proj), max(proj); L = pmax - pmin

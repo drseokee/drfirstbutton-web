@@ -20,20 +20,9 @@ def get(name, cutz=True):
 built = {}
 built["bone__femur"] = get("Femur.r"); built["bone__tibia"] = get("Tibia.r"); built["bone__fibula"] = get("Fibula.r"); built["bone__patella"] = get("Patella.r", False)
 built["meniscus__medial"] = get("Medial meniscus.r", False); built["meniscus__lateral"] = get("Lateral meniscus.r", False)
-LIGS = {"lig__acl": "Anterior cruciate ligament.r", "lig__pcl": "Posterior cruciate ligament.r", "lig__mcl": "Superficial part of tibial collateral ligament.r",
-        "lig__mcl_deep": "Deep part of tibial collateral ligament.r", "lig__lcl": "Fibular collateral ligament.r", "lig__med_retinaculum": "Medial patellar retinaculum.r", "lig__lat_retinaculum": "Lateral patellar retinaculum.r"}
+LIGS = {"lig__acl": "Anterior cruciate ligament.r", "lig__pcl": "Posterior cruciate ligament.r", "lig__mcl": "Superficial part of tibial collateral ligament.r", "lig__lcl": "Fibular collateral ligament.r"}
 for k, n in LIGS.items():
     if n in objs: built[k] = get(n, False)
-if "Articular capsule of knee joint.r" in objs: built["capsule__knee"] = get("Articular capsule of knee joint.r", False)
-if "Infrapatellar fat pad.r" in objs: built["fat__infrapatellar"] = get("Infrapatellar fat pad.r", False)
-MUSC = {"muscle__rectus_femoris": "Rectus femoris muscle.r", "muscle__vastus_medialis": "Vastus medialis muscle.r", "muscle__vastus_lateralis": "Vastus lateralis muscle.r", "muscle__vastus_intermedius": "Vastus intermedius muscle.r",
-        "muscle__biceps_long": "Long head of biceps femoris.r", "muscle__biceps_short": "Short head of biceps femoris.r", "muscle__semitendinosus": "Semitendinosus muscle.r", "muscle__semimembranosus": "Semimembranosus muscle.r",
-        "muscle__gracilis": "Gracilis muscle.r", "muscle__sartorius": "Sartorius muscle.r", "muscle__gastroc_med": "Medial head of gastrocnemius.r", "muscle__gastroc_lat": "Lateral head of gastrocnemius.r",
-        "muscle__popliteus": "Popliteus muscle.r", "muscle__plantaris": "Plantaris muscle.r", "muscle__itb": "Iliotibial tract.r", "muscle__adductor_magnus": "Adductor magnus.r"}
-for k, n in MUSC.items():
-    if n in objs:
-        bm = get(n)
-        if len(bm.faces): built[k] = bm
 print("objects:", len(built))
 
 # ---- articular cartilage: shells offset from the bone surfaces (2.5 mm femur/tibia, 3 mm patella) over the articular regions ----
@@ -90,19 +79,6 @@ built["cartilage__patella"] = shell(patella, patella_art, 0.003, "cp")
 for k in ("cartilage__femur", "cartilage__tibia", "cartilage__patella"):
     print(k, len(built[k].verts) if built[k] else None, "verts")
 
-# ---- skin: union of bones + muscles + ligaments, subcutaneous closing, leg segment ----
-solid = [k for k in built if k.split("__")[0] in ("bone", "muscle", "lig", "capsule", "fat")]
-union = join_bms([built[k].copy() for k in solid])
-bpy.ops.wm.read_homefile(use_empty=True)
-ob = bm_to_object(union, "skin_src")
-for kind, kw in [("REMESH", dict(mode="VOXEL", voxel_size=0.003)), ("SMOOTH", dict(factor=1.0, iterations=3)),
-                 ("DISPLACE", dict(strength=0.014, mid_level=0, direction="NORMAL")), ("REMESH", dict(mode="VOXEL", voxel_size=0.003)), ("SMOOTH", dict(factor=1.0, iterations=6)),
-                 ("DISPLACE", dict(strength=-0.006, mid_level=0, direction="NORMAL")), ("REMESH", dict(mode="VOXEL", voxel_size=0.0028)), ("SMOOTH", dict(factor=1.0, iterations=5)), ("DECIMATE", dict(ratio=0.5))]:
-    m = ob.modifiers.new(kind.lower() + str(len(ob.modifiers)), kind)
-    for a, v in kw.items(): setattr(m, a, v)
-skin = evaluated_bm(ob); cut_z(skin, Z_TOP - 0.004, keep="below", cap=True, ngon=True); cut_z(skin, Z_BOT + 0.004, keep="above", cap=True, ngon=True)
-built["skin__knee"] = skin; print("skin:", len(skin.verts), "verts")
-
 objects = []
 for k, bm in built.items():
     if bm is None: continue
@@ -119,5 +95,3 @@ zana.look = look2
 rebuild_scene([o for o in objects if o["layer"] in ("bone", "cartilage", "meniscus", "lig")], meta)
 bpy.data.materials.get("mat__cartilage") or None
 render_views({"ant": (ANT + UPV * 0.15, UPV), "antmed": (ANT * 0.7 + MED * 0.7 + UPV * 0.1, UPV), "flexed_lat": (LAT + ANT * 0.3, UPV)}, "knee_a", dist=0.30, res=700, samples=14)
-rebuild_scene([o for o in objects if o["layer"] == "skin"], meta)
-render_views({"skin_ant": (ANT + LAT * 0.3 + UPV * 0.1, UPV)}, "knee_a", dist=0.5, res=700, samples=14)

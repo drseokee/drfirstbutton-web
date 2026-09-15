@@ -60,19 +60,17 @@
 <div id="ctl"><div class="row2"><span style="min-width:60px">굽히기</span><input id="flex" type="range" min="0" max="100" value="0"><span id="flexLbl">0°</span></div><div class="row2"><span style="min-width:60px">관절염</span><input id="oa" type="range" min="0" max="100" value="0"><span id="oaLbl" style="min-width:48px">정상</span></div></div>
 <div id="panel">
   <h1>무릎 — 관절염 morph 확인</h1>
-  <p class="sub">아래 슬라이더: 굽히기 · 관절염 진행 (정상→초기→중기→말기)</p>
+  <p class="sub">오른쪽 무릎 · 뼈·연골·반월판·인대 4개</p>
   <details>
     <summary>층 보이기 · 표현 · 보는 방향 · 조작</summary>
   
   <h2>층 보이기</h2>
-  <label class="row"><input type="checkbox" data-layer="skin" checked><span class="sw" style="background:#d9a58f"></span>피부</label>
-  <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
-  <label class="row"><input type="checkbox" data-layer="muscle" checked><span class="sw" style="background:#a04a48"></span>근육</label>
-  <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
+    <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
+    <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
   <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대</label>
   <label class="row"><input type="checkbox" data-layer="cartilage" checked><span class="sw" style="background:#dbe9f3"></span>관절연골</label>
   <label class="row"><input type="checkbox" data-layer="meniscus" checked><span class="sw" style="background:#d9c9a3"></span>반월판</label>
-  <label class="row"><input type="checkbox" data-layer="capsule" checked><span class="sw" style="background:#c9d6e0"></span>관절낭·지방</label>
+  
   <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
   <h2>표현</h2>
   <label class="row"><input type="checkbox" id="outline">윤곽선 (얇게)</label>
