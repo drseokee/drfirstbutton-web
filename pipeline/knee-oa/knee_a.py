@@ -20,9 +20,38 @@ def get(name, cutz=True):
 built = {}
 built["bone__femur"] = get("Femur.r"); built["bone__tibia"] = get("Tibia.r"); built["bone__fibula"] = get("Fibula.r"); built["bone__patella"] = get("Patella.r", False)
 built["meniscus__medial"] = get("Medial meniscus.r", False); built["meniscus__lateral"] = get("Lateral meniscus.r", False)
-LIGS = {"lig__acl": "Anterior cruciate ligament.r", "lig__pcl": "Posterior cruciate ligament.r", "lig__mcl": "Superficial part of tibial collateral ligament.r", "lig__lcl": "Fibular collateral ligament.r"}
+LIGS = {"lig__acl": "Anterior cruciate ligament.r", "lig__pcl": "Posterior cruciate ligament.r"}
 for k, n in LIGS.items():
     if n in objs: built[k] = get(n, False)
+# ---- collateral ligaments built from bony landmarks (Z-Anatomy's are crude sheets) ----
+fv_ = [v.co for v in built["bone__femur"].verts]; tv_ = [v.co for v in built["bone__tibia"].verts]; fbv_ = [v.co for v in built["bone__fibula"].verts]
+epi_zone = [v for v in fv_ if JZ + 0.008 < v.z < JZ + 0.045]
+MED_EPI = max(epi_zone, key=lambda v: v.x); LAT_EPI = min(epi_zone, key=lambda v: v.x)
+# superficial MCL: origin just proximal-posterior of the medial epicondyle; insertion on the medial tibia ~5.5 cm below the joint, posterior to the pes
+mcl_o = MED_EPI + Vector((0, 0.004, 0.003))
+tib_med_zone = [v for v in tv_ if JZ - 0.062 < v.z < JZ - 0.048]; mcl_i = max(tib_med_zone, key=lambda v: v.x - 0.3 * v.y); mcl_i = mcl_i + Vector((0, 0.004, 0))
+# LCL: origin proximal-posterior of the lateral epicondyle; insertion on the anterolateral fibular head
+lcl_o = LAT_EPI + Vector((0, 0.003, 0.003))
+fib_head = [v for v in fbv_ if v.z > max(q.z for q in fbv_) - 0.018]; lcl_i = min(fib_head, key=lambda v: v.x + 0.4 * v.y)
+print("MCL %.0f mm (%s -> %s), LCL %.0f mm" % ((mcl_i - mcl_o).length * 1e3, [round(c*1e3) for c in (mcl_o - CENTER)], [round(c*1e3) for c in (mcl_i - CENTER)], (lcl_i - lcl_o).length * 1e3))
+BONE_BVH = BVHTree.FromBMesh(join_bms([built["bone__femur"].copy(), built["bone__tibia"].copy(), built["bone__fibula"].copy()]))
+def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
+    """band from a to b hugging the bone: at each station the centre is pushed to (bone surface + clearance) along `out`; width tapers w0 -> w1, elliptical section"""
+    d = b - a; t = d.normalized(); side = t.cross(out).normalized(); nrm = side.cross(t).normalized()
+    bm = bmesh.new(); rings = []
+    for i in range(n + 1):
+        u = i / n; c = a + d * u
+        hit = BONE_BVH.ray_cast(c + nrm * 0.02, -nrm, 0.04)
+        off = ((hit[0] - c).dot(nrm) + clearance) if hit[0] is not None else 0.0
+        off = max(-0.006, min(0.014, off)); c = c + nrm * off              # wraps over the bulging condyle/plateau
+        w = w0 * (1 - u) + w1 * u
+        rings.append([bm.verts.new(c + side * (w / 2 * math.cos(2 * math.pi * k / segs)) + nrm * (thick / 2 * math.sin(2 * math.pi * k / segs))) for k in range(segs)])
+    for r0, r1 in zip(rings, rings[1:]):
+        for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
+    bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
+built["lig__mcl"] = collateral(mcl_o, mcl_i, 0.012, 0.020, 0.0025, Vector((1, 0, 0)))     # superficial MCL: 12 mm proximally widening to 20 mm, 2.5 mm thick, ~10 cm
+built["lig__lcl"] = collateral(lcl_o, lcl_i, 0.006, 0.006, 0.004, Vector((-1, 0, 0)))     # LCL: 6 x 4 mm cord, ~6 cm
+LANDMARKS = {"medial_epicondyle": MED_EPI, "lateral_epicondyle": LAT_EPI, "mcl_origin": mcl_o, "mcl_insertion": mcl_i, "lcl_origin": lcl_o, "lcl_insertion": lcl_i}
 print("objects:", len(built))
 
 # ---- articular cartilage: shells offset from the bone surfaces (2.5 mm femur/tibia, 3 mm patella) over the articular regions ----
@@ -83,7 +112,7 @@ objects = []
 for k, bm in built.items():
     if bm is None: continue
     v, t = to_arrays(bm, center=CENTER); objects.append({"name": k, "layer": k.split("__")[0], "verts": v, "tris": t})
-meta = {"frame": "knee-joint-centred; right=-x, anterior=-y, up=+z; medial=+x (right knee)", "unit": "m", "attribution": ATTR, "joint_z": 0.0}
+meta = {"frame": "knee-joint-centred; right=-x, anterior=-y, up=+z; medial=+x (right knee)", "unit": "m", "attribution": ATTR, "joint_z": 0.0, "landmarks": {k: [round(c, 5) for c in (v - CENTER)] for k, v in LANDMARKS.items()}}
 json.dump({"meta": meta, "objects": objects}, open(f"{OUTK}/knee_a.json", "w"), separators=(",", ":"))
 print("exported knee_a:", len(objects), "objects,", sum(len(o["verts"]) // 3 for o in objects), "verts,", os.path.getsize(f"{OUTK}/knee_a.json") // 1024, "KB")
 
