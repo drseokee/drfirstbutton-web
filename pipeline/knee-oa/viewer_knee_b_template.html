@@ -324,10 +324,34 @@ for (const m of meshes) { const cv = m.userData.curve; if (!cv) continue;
   const framesOf = P => { const out = []; let Nprev = null; for (let i = 0; i < P.length; i++) { const T = P[Math.min(i + 1, P.length - 1)].clone().sub(P[Math.max(i - 1, 0)]).normalize(); const src = Nprev || new THREE.Vector3(0, 0, 1); let N = src.clone().sub(T.clone().multiplyScalar(T.dot(src))); if (N.lengthSq() < 1e-9) N.set(1, 0, 0); N.normalize(); const B = new THREE.Vector3().crossVectors(T, N).normalize(); out.push({ T, N, B }); Nprev = N; } return out; };   // parallel transport: no frame flips as segments swing
   // local point offsets relative to the bone group pivots (axP) in screen space
   const local = pts.map(p => p.clone().sub(axP));
-  deformers.push({ mesh: m, pts, local, w, tv, L0: cv.L0, framesOf }); m.userData.deformer = true; }
+  const S0 = [0]; for (let i = 1; i < pts.length; i++) S0.push(S0[i - 1] + pts[i].distanceTo(pts[i - 1]));
+  const mode = /biceps|semiten|semimem|gracilis|sartorius/.test(m.name) ? 'belly_femur' : /gastroc|plantaris/.test(m.name) ? 'belly_tibia' : 'blend';
+  const ft = 0.28; let kBelly = 0; if (mode === 'belly_femur') { for (let i = 0; i < pts.length; i++) if (S0[i] <= S0[pts.length - 1] * (1 - ft)) kBelly = i; } else if (mode === 'belly_tibia') { kBelly = pts.length - 1; for (let i = pts.length - 1; i >= 0; i--) if (S0[i] >= S0[pts.length - 1] * ft) kBelly = i; }
+  deformers.push({ mesh: m, pts, rest: pts.map(p => p.clone()), S0, kBelly, mode, local, w, tv, L0: cv.L0, framesOf }); m.userData.deformer = true; }
 function deformCurves(){
   root.updateMatrixWorld(true);
   for (const D of deformers) { const n = D.pts.length; const cur = [];
+    const tibiaXf = v => v.clone().sub(axP).applyQuaternion(GROUPS[1].quaternion).add(GROUPS[1].position);
+    if (D.mode === 'belly_femur' || D.mode === 'belly_tibia') {
+      // a muscle that crosses the knee: the BELLY stays straight along its own bone and simply shortens; only the short tendon crosses the joint to the moving insertion
+      const R = D.rest, S0 = D.S0, Ltot = S0[n - 1];
+      if (D.mode === 'belly_femur') {                                          // hamstrings / pes: belly on the femur side (fixed), tendon runs down to the tibia
+        const kb = D.kBelly, P0 = R[0], dir = R[kb].clone().sub(P0).normalize(), Lb0 = S0[kb], Lt0 = Ltot - Lb0, I = tibiaXf(R[n - 1]);
+        // belly end F on the line P0 + dir*u with |F - I| = Lt0 (closest root to the rest length)
+        const w0 = P0.clone().sub(I); const b = 2 * dir.dot(w0), c = w0.lengthSq() - Lt0 * Lt0; const disc = b * b - 4 * c; let u = Lb0;
+        if (disc >= 0) { const r1 = (-b + Math.sqrt(disc)) / 2, r2 = (-b - Math.sqrt(disc)) / 2; u = Math.abs(r1 - Lb0) < Math.abs(r2 - Lb0) ? r1 : r2; } else u = -b / 2;
+        u = Math.max(0.35 * Lb0, Math.min(1.05 * Lb0, u)); const F = P0.clone().addScaledVector(dir, u);
+        const bulgeDir = new THREE.Vector3(0, 0, -1);                          // the tendon bows slightly behind the condyle
+        for (let i = 0; i < n; i++) { if (i <= kb) cur.push(P0.clone().addScaledVector(dir, u * S0[i] / Lb0)); else { const s = (S0[i] - Lb0) / Lt0; cur.push(F.clone().lerp(I, s).addScaledVector(bulgeDir, 0.006 * Math.sin(Math.PI * s) * anim.flex)); } }
+      } else {                                                                 // gastrocnemius: belly on the calf (rides with the tibia), short tendinous origin up to the femoral condyle
+        const kb = D.kBelly, Pend = tibiaXf(R[n - 1]), Pk = tibiaXf(R[kb]), dir = Pk.clone().sub(Pend).normalize(), Lb0 = Ltot - S0[kb], Lt0 = S0[kb], O = R[0];
+        const w0 = Pend.clone().sub(O); const b = 2 * dir.dot(w0), c = w0.lengthSq() - Lt0 * Lt0; const disc = b * b - 4 * c; let u = Lb0;
+        if (disc >= 0) { const r1 = (-b + Math.sqrt(disc)) / 2, r2 = (-b - Math.sqrt(disc)) / 2; u = Math.abs(r1 - Lb0) < Math.abs(r2 - Lb0) ? r1 : r2; } else u = -b / 2;
+        u = Math.max(0.35 * Lb0, Math.min(1.05 * Lb0, u)); const F = Pend.clone().addScaledVector(dir, u);
+        const bulgeDir = new THREE.Vector3(0, 0, -1);
+        for (let i = 0; i < n; i++) { if (i >= kb) cur.push(Pend.clone().addScaledVector(dir, u * (Ltot - S0[i]) / Lb0)); else { const s = S0[i] / Lt0; cur.push(O.clone().lerp(F, s).addScaledVector(bulgeDir, 0.005 * Math.sin(Math.PI * s) * anim.flex)); } }
+      }
+    } else
     for (let i = 0; i < n; i++) { const wt = D.w[3 * i + 1], wp = D.w[3 * i + 2];        // rotational blend about the axis (chords would fold the curve into a hairpin at high flexion)
       const qt = new THREE.Quaternion().slerp(GROUPS[1].quaternion, wt), qp = new THREE.Quaternion().slerp(GROUPS[2].quaternion, wp);
       const p = D.local[i].clone().applyQuaternion(qp).applyQuaternion(qt).add(axP).addScaledVector(GROUPS[1].position.clone().sub(axP), wt); cur.push(p); }
@@ -337,7 +361,7 @@ function deformCurves(){
     // passive: stretched → thinner, slack → thicker; active: the knee flexors contract (bulge) as the knee bends, the quadriceps relaxes
     const flexor = /gastroc|biceps|semiten|semimem|gracilis|sartorius|popliteus|plantaris/.test(D.mesh.name), extensor = /rectus|vastus/.test(D.mesh.name);
     const bulge = Math.pow(D.L0 / L, 0.35) * (flexor ? 1 + 0.22 * anim.flex : extensor ? 1 - 0.08 * anim.flex : 1);
-    const F = D.framesOf(cur);
+    const F = D.framesOf(cur); D.lastF = F; D.lastCur = cur;
     const pos = D.mesh.geometry.getAttribute('position'), tv = D.tv;
     for (let v = 0; v < pos.count; v++) { const t = tv[4 * v], ot = tv[4 * v + 1], on = tv[4 * v + 2], ob = tv[4 * v + 3];
       const s = t * L; let i = 1; while (i < n - 1 && S[i] < s) i++; const u = (s - S[i - 1]) / Math.max(1e-6, S[i] - S[i - 1]);
