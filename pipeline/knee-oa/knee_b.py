@@ -76,13 +76,8 @@ def band(pts_line, width, thick, segs=12):
     for r0, r1 in zip(rings, rings[1:]):
         for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
     bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
-pl = [pat_bot + Vector((0, -0.004, 0)), (pat_bot + tub) / 2 + Vector((0, -0.006, 0)), tub + Vector((0, -0.002, 0))]
-qt = [fsh + Vector((0, -0.003, 0)), (fsh + pat_top) / 2 + Vector((0, -0.006, 0)), pat_top + Vector((0, -0.003, 0))]
 objects = d["objects"]
-for nm, line, w, th in (("tendon__patellar", pl, 0.026, 0.006), ("tendon__quadriceps", qt, 0.030, 0.006)):
-    bm = band([line[0].lerp(line[1], u) if u < 1 else line[1].lerp(line[2], u - 1) for u in [i / 6 for i in range(13)]], w, th)
-    v, t = to_arrays(bm, center=Vector((0, 0, 0))); objects.append({"name": nm, "layer": "tendon", "verts": v, "tris": t})
-print("tendons: patellar", [round(c*1e3) for c in tub], "quadriceps origin", [round(c*1e3) for c in fsh])
+print("no tendons (removed by request)")
 
 # ---------- skinning weights: femur / tibia(+fibula) / patella groups, blended near the joint ----------
 GRP = {"femur": ["bone__femur"], "tibia": ["bone__tibia", "bone__fibula"], "patella": ["bone__patella"]}
@@ -159,7 +154,9 @@ for o in objects:
     o["curve"] = {"pts": [round(c, 5) for cpt in curve for c in cpt], "w": cw, "tv": tv, "L0": round(Ltot, 5)}
     o.pop("w", None)
 print("curve deformers built")
-meta = dict(d["meta"]); meta["rig"] = {"flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
+ct = objs["cartilage__tibia"]; cpts = [V(ct, i) for i in range(nverts(ct))]; xm2 = sorted(p.x for p in cpts)[len(cpts) // 2]
+med_piv = sum((p for p in cpts if p.x > xm2), Vector()) / max(1, len([p for p in cpts if p.x > xm2]))
+meta = dict(d["meta"]); meta["rig"] = {"medial_pivot": [round(c, 5) for c in med_piv], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
 json.dump(d, open(f"{OUTK}/knee_b.json", "w"), separators=(",", ":"))
