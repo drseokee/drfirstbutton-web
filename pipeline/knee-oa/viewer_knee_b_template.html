@@ -121,6 +121,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true })
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputEncoding = THREE.sRGBEncoding;
 const scene = new THREE.Scene();
+const root = new THREE.Group(); scene.add(root);
 const camera = new THREE.PerspectiveCamera(32, 1, 0.003, 5);
 // calmer studio: softer ambient, one key from above-front, weak fill, a small rim — so bone surfaces keep tone and boundaries read
 scene.add(new THREE.HemisphereLight(0xf2ede4, 0x2a3142, 0.5));
@@ -170,7 +171,7 @@ for (const o of DATA.objects) {
   mesh.name = o.name; mesh.userData.layer = o.layer; mesh.userData.cut = o.name.endsWith('__cut');
   mesh.userData.base = o.name.replace(/__cut$/, ''); if (o.w) mesh.userData.w = o.w; if (o.group !== undefined) mesh.userData.group = o.group; if (o.morphs) { mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); mesh.userData.morphNames = Object.keys(o.morphs); }
   mesh.renderOrder = o.layer === 'skin' ? 10 : 0;
-  scene.add(mesh); meshes.push(mesh);
+  root.add(mesh); meshes.push(mesh);
 }
 
 // ---------- state ----------
