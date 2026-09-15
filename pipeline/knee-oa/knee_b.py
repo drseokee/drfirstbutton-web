@@ -103,6 +103,59 @@ for o in objects:
             inv = [1.0 / (dd + 0.004) ** 2 for dd in ds]; tot = sum(inv); ww = [x / tot for x in inv]
         w += [round(x, 2) for x in ww]
     o["w"] = w
+# ---------- curve deformers for muscles / ligaments / tendons crossing the joint ----------
+# each object gets a rest centreline (slab centroids along its principal axis); every vertex is stored as (t along the curve, offsets in the
+# curve frame). At runtime the curve's points move with the bone they sit on (blended near the joint), the curve is re-smoothed, and the
+# vertices are rebuilt around it — the belly bends and shortens as one piece instead of crumpling.
+import numpy as np
+def principal_axis(pts):
+    P = np.array([[p.x, p.y, p.z] for p in pts]); c = P.mean(axis=0); u, s, vt = np.linalg.svd(P - c, full_matrices=False); ax = Vector(vt[0])
+    if ax.z < 0: ax = -ax                                                       # proximal = +z end
+    return Vector(c), ax
+for o in objects:
+    lay = o["layer"]
+    if lay not in ("muscle", "lig", "tendon", "capsule", "fat"): continue
+    pts = [V(o, i) for i in range(nverts(o))]
+    c0, ax = principal_axis(pts)
+    proj = [(p - c0).dot(ax) for p in pts]; pmin, pmax = min(proj), max(proj); L = pmax - pmin
+    n_sl = max(3, min(14, int(L / 0.012) + 1))
+    curve = []
+    for k in range(n_sl):
+        a = pmin + L * k / (n_sl - 1); sl = [p for p, q in zip(pts, proj) if abs(q - a) <= L / (n_sl - 1) * 0.75]
+        if not sl: sl = [c0 + ax * a]
+        curve.append(sum(sl, Vector()) / len(sl))
+    curve = curve[::-1]                                                          # index 0 = proximal end (max projection)
+    # smooth the polyline
+    for _ in range(2): curve = [curve[0]] + [(curve[i - 1] + curve[i] * 2 + curve[i + 1]) / 4 for i in range(1, len(curve) - 1)] + [curve[-1]]
+    S = [0.0]
+    for i in range(1, len(curve)): S.append(S[-1] + (curve[i] - curve[i - 1]).length)
+    Ltot = max(1e-6, S[-1])
+    def frame(i):
+        T = (curve[min(i + 1, len(curve) - 1)] - curve[max(i - 1, 0)]).normalized(); N = (ANT - T * T.dot(ANT)); N = N.normalized() if N.length > 1e-6 else Vector((1, 0, 0)); B = T.cross(N).normalized(); return T, N, B
+    frames = [frame(i) for i in range(len(curve))]
+    tv = []
+    for p in pts:
+        # nearest point on the polyline
+        best = (1e9, 0, 0.0)
+        for i in range(len(curve) - 1):
+            a_, b_ = curve[i], curve[i + 1]; ab = b_ - a_; u = max(0.0, min(1.0, (p - a_).dot(ab) / max(1e-9, ab.length_squared))); q = a_ + ab * u; dd = (p - q).length
+            if dd < best[0]: best = (dd, i, u)
+        dd, i, u = best; q = curve[i] + (curve[i + 1] - curve[i]) * u; t = (S[i] + (S[i + 1] - S[i]) * u) / Ltot
+        T0, N0, B0 = frames[i]; T1, N1, B1 = frames[i + 1]; T = (T0 * (1 - u) + T1 * u).normalized(); N = (N0 * (1 - u) + N1 * u).normalized(); Bv = (B0 * (1 - u) + B1 * u).normalized()
+        off = p - q; tv += [round(t, 4), round(off.dot(T), 5), round(off.dot(N), 5), round(off.dot(Bv), 5)]
+    # curve points → bone group weights (femur / tibia / patella), blended within ±25 mm of the joint line
+    cw = []
+    for cpt in curve:
+        ds = []
+        for g in ("femur", "tibia", "patella"):
+            loc, nrm, idx, dist = GBVH[g].find_nearest(cpt); ds.append(dist if loc is not None else 1.0)
+        if cpt.z > 0.05: ww = [1.0, 0.0, 0.0]
+        elif cpt.z < -0.04: ww = [0.0, 1.0, 0.0]
+        else: inv = [1.0 / (dd + 0.006) ** 2 for dd in ds]; tot = sum(inv); ww = [x / tot for x in inv]
+        cw += [round(x, 3) for x in ww]
+    o["curve"] = {"pts": [round(c, 5) for cpt in curve for c in cpt], "w": cw, "tv": tv, "L0": round(Ltot, 5)}
+    o.pop("w", None)
+print("curve deformers built")
 meta = dict(d["meta"]); meta["rig"] = {"flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta

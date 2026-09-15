@@ -169,7 +169,7 @@ for (const o of DATA.objects) {
     const hull = new THREE.Mesh(g, om); hull.renderOrder = -1; hull.visible = false; mesh.userData.hull = hull; mesh.add(hull);
   }
   mesh.name = o.name; mesh.userData.layer = o.layer; mesh.userData.cut = o.name.endsWith('__cut');
-  mesh.userData.base = o.name.replace(/__cut$/, ''); if (o.w) mesh.userData.w = o.w; if (o.group !== undefined) mesh.userData.group = o.group; if (o.morphs) { mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); mesh.userData.morphNames = Object.keys(o.morphs); }
+  mesh.userData.base = o.name.replace(/__cut$/, ''); if (o.w) mesh.userData.w = o.w; if (o.curve) mesh.userData.curve = o.curve; if (o.group !== undefined) mesh.userData.group = o.group; if (o.morphs) { mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); mesh.userData.morphNames = Object.keys(o.morphs); }
   mesh.renderOrder = o.layer === 'skin' ? 10 : 0;
   root.add(mesh); meshes.push(mesh);
 }
@@ -308,17 +308,43 @@ const GROUPS = [new THREE.Group(), new THREE.Group(), new THREE.Group()];   // f
 for (const g of GROUPS) { g.position.copy(axP); root.add(g); }
 const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.Bone()]); skel.bones.forEach(b => { b.position.copy(axP); root.add(b); }); root.updateMatrixWorld(true); skel.calculateInverses();
 for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
-for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w) continue;
+for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w || m.userData.curve) continue;
   const g = m.geometry, n = g.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), W = m.userData.w;
   for (let k = 0; k < n; k++) { si.set([0, 1, 2, 0], 4 * k); sw.set([W[3*k], W[3*k+1], W[3*k+2], 0], 4 * k); }
   g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
   const sm = new THREE.SkinnedMesh(g, m.material); sm.material.skinning = true; sm.material.needsUpdate = true; sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
   if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(g, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
   root.remove(m); root.add(sm); sm.bind(skel, new THREE.Matrix4()); meshes[i] = sm; }
+// ---- curve deformers: the muscle/ligament belly follows a centreline whose points ride on the bones (blended near the joint) ----
+const deformers = [];
+for (const m of meshes) { const cv = m.userData.curve; if (!cv) continue;
+  const pts = []; for (let i = 0; i < cv.pts.length; i += 3) pts.push(new THREE.Vector3(...A2S([cv.pts[i], cv.pts[i+1], cv.pts[i+2]])));
+  const w = cv.w, tv = cv.tv; const rest = m.geometry.getAttribute('position').array.slice();
+  // rest frames along the curve
+  const frameAt = (P, i) => { const T = P[Math.min(i + 1, P.length - 1)].clone().sub(P[Math.max(i - 1, 0)]).normalize(); const ANT_S = new THREE.Vector3(0, 0, 1); let N = ANT_S.clone().sub(T.clone().multiplyScalar(T.dot(ANT_S))); if (N.lengthSq() < 1e-9) N.set(1, 0, 0); N.normalize(); const B = new THREE.Vector3().crossVectors(T, N).normalize(); return { T, N, B }; };
+  // local point offsets relative to the bone group pivots (axP) in screen space
+  const local = pts.map(p => p.clone().sub(axP));
+  deformers.push({ mesh: m, pts, local, w, tv, L0: cv.L0, frameAt }); m.userData.deformer = true; }
+function deformCurves(){
+  root.updateMatrixWorld(true);
+  for (const D of deformers) { const n = D.pts.length; const cur = [];
+    for (let i = 0; i < n; i++) { const p = new THREE.Vector3(); for (let g = 0; g < 3; g++) { const wg = D.w[3 * i + g]; if (wg > 0) { const q = D.local[i].clone().applyQuaternion(GROUPS[g].quaternion).add(GROUPS[g].position); p.addScaledVector(q, wg); } } cur.push(p); }
+    // smooth (2 passes) and arc lengths
+    for (let k = 0; k < 2; k++) for (let i = 1; i < n - 1; i++) cur[i] = cur[i - 1].clone().add(cur[i].clone().multiplyScalar(2)).add(cur[i + 1]).multiplyScalar(0.25);
+    const S = [0]; for (let i = 1; i < n; i++) S.push(S[i - 1] + cur[i].distanceTo(cur[i - 1])); const L = Math.max(1e-6, S[n - 1]); const bulge = Math.pow(D.L0 / L, 0.35);   // shortening → slight thickening (contraction)
+    const F = cur.map((p, i) => D.frameAt(cur, i));
+    const pos = D.mesh.geometry.getAttribute('position'), tv = D.tv;
+    for (let v = 0; v < pos.count; v++) { const t = tv[4 * v], ot = tv[4 * v + 1], on = tv[4 * v + 2], ob = tv[4 * v + 3];
+      const s = t * L; let i = 1; while (i < n - 1 && S[i] < s) i++; const u = (s - S[i - 1]) / Math.max(1e-6, S[i] - S[i - 1]);
+      const c = cur[i - 1].clone().lerp(cur[i], u); const T = F[i - 1].T.clone().lerp(F[i].T, u).normalize(), N = F[i - 1].N.clone().lerp(F[i].N, u).normalize(), B = F[i - 1].B.clone().lerp(F[i].B, u).normalize();
+      // anatomical offsets (ot along the curve, on anterior-ish, ob sideways) mapped to screen frame components
+      const p = c.addScaledVector(T, ot).addScaledVector(N, -on * bulge).addScaledVector(B, ob * bulge);   // N is screen-anterior (+Z) = anatomical -y, so 'on' (measured along anatomical anterior) enters with the same sign
+      pos.setXYZ(v, p.x, p.y, p.z); }
+    pos.needsUpdate = true; D.mesh.geometry.computeVertexNormals(); } }
 // sign: flexion moves the distal tibia backward (screen -Z)
 let FLEX_SIGN = 1; { const probe = new THREE.Vector3(0, -0.1, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(axD, 0.5)); if (r.z > 0) FLEX_SIGN = -1; }
 const varusAxis = new THREE.Vector3(0, 0, 1);   // anterior-posterior axis: varus tips the tibia so the medial joint space closes
-let VARUS_SIGN = 1; { const probe = new THREE.Vector3(0, -0.15, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(varusAxis, 0.3)); if (r.x > 0) VARUS_SIGN = -1; }   // the distal tibia must swing lateral (-X) for an O-leg
+let VARUS_SIGN = 1; { const probe = new THREE.Vector3(0, -0.15, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(varusAxis, 0.3)); if (r.x < 0) VARUS_SIGN = -1; }   // O-leg (varus): the distal tibia swings toward the midline (+X medial), the knee bows outward
 const ctl = { flex: 0, oa: 0 };
 document.getElementById('flex').oninput = e => ctl.flex = +e.target.value / 100;
 document.getElementById('oa').oninput = e => ctl.oa = +e.target.value / 100;
@@ -336,6 +362,7 @@ let last = performance.now();
   const qT = qV.clone().multiply(qF); const qP = new THREE.Quaternion().setFromAxisAngle(axD, THREE.MathUtils.degToRad(deg * 0.55) * FLEX_SIGN);
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT); GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP);
   GROUPS[1].position.copy(axP).add(new THREE.Vector3(0, 0.0025 * wear, 0)); skel.bones[1].position.copy(GROUPS[1].position);   // joint space: medial cartilage loss lets the tibia ride up
+  deformCurves();
 })(performance.now());
 applyVisibility(); setView('anterior');
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
