@@ -328,7 +328,9 @@ for (const m of meshes) { const cv = m.userData.curve; if (!cv) continue;
 function deformCurves(){
   root.updateMatrixWorld(true);
   for (const D of deformers) { const n = D.pts.length; const cur = [];
-    for (let i = 0; i < n; i++) { const p = new THREE.Vector3(); for (let g = 0; g < 3; g++) { const wg = D.w[3 * i + g]; if (wg > 0) { const q = D.local[i].clone().applyQuaternion(GROUPS[g].quaternion).add(GROUPS[g].position); p.addScaledVector(q, wg); } } cur.push(p); }
+    for (let i = 0; i < n; i++) { const wt = D.w[3 * i + 1], wp = D.w[3 * i + 2];        // rotational blend about the axis (chords would fold the curve into a hairpin at high flexion)
+      const qt = new THREE.Quaternion().slerp(GROUPS[1].quaternion, wt), qp = new THREE.Quaternion().slerp(GROUPS[2].quaternion, wp);
+      const p = D.local[i].clone().applyQuaternion(qp).applyQuaternion(qt).add(axP).addScaledVector(GROUPS[1].position.clone().sub(axP), wt); cur.push(p); }
     // smooth (2 passes) and arc lengths
     for (let k = 0; k < 2; k++) for (let i = 1; i < n - 1; i++) cur[i] = cur[i - 1].clone().add(cur[i].clone().multiplyScalar(2)).add(cur[i + 1]).multiplyScalar(0.25);
     const S = [0]; for (let i = 1; i < n; i++) S.push(S[i - 1] + cur[i].distanceTo(cur[i - 1])); const L = Math.max(1e-6, S[n - 1]);
