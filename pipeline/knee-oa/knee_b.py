@@ -130,9 +130,12 @@ for o in objects:
     S = [0.0]
     for i in range(1, len(curve)): S.append(S[-1] + (curve[i] - curve[i - 1]).length)
     Ltot = max(1e-6, S[-1])
-    def frame(i):
-        T = (curve[min(i + 1, len(curve) - 1)] - curve[max(i - 1, 0)]).normalized(); N = (ANT - T * T.dot(ANT)); N = N.normalized() if N.length > 1e-6 else Vector((1, 0, 0)); B = T.cross(N).normalized(); return T, N, B
-    frames = [frame(i) for i in range(len(curve))]
+    # parallel-transport frame: N starts anterior at the proximal end and is carried along the curve (no flips when a segment turns)
+    frames = []; N_prev = None
+    for i in range(len(curve)):
+        T = (curve[min(i + 1, len(curve) - 1)] - curve[max(i - 1, 0)]).normalized()
+        src = ANT if N_prev is None else N_prev
+        N = (src - T * T.dot(src)); N = N.normalized() if N.length > 1e-6 else Vector((1, 0, 0)); B = T.cross(N).normalized(); frames.append((T, N, B)); N_prev = N
     tv = []
     for p in pts:
         # nearest point on the polyline

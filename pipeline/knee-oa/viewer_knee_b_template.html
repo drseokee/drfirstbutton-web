@@ -321,10 +321,10 @@ for (const m of meshes) { const cv = m.userData.curve; if (!cv) continue;
   const pts = []; for (let i = 0; i < cv.pts.length; i += 3) pts.push(new THREE.Vector3(...A2S([cv.pts[i], cv.pts[i+1], cv.pts[i+2]])));
   const w = cv.w, tv = cv.tv; const rest = m.geometry.getAttribute('position').array.slice();
   // rest frames along the curve
-  const frameAt = (P, i) => { const T = P[Math.min(i + 1, P.length - 1)].clone().sub(P[Math.max(i - 1, 0)]).normalize(); const ANT_S = new THREE.Vector3(0, 0, 1); let N = ANT_S.clone().sub(T.clone().multiplyScalar(T.dot(ANT_S))); if (N.lengthSq() < 1e-9) N.set(1, 0, 0); N.normalize(); const B = new THREE.Vector3().crossVectors(T, N).normalize(); return { T, N, B }; };
+  const framesOf = P => { const out = []; let Nprev = null; for (let i = 0; i < P.length; i++) { const T = P[Math.min(i + 1, P.length - 1)].clone().sub(P[Math.max(i - 1, 0)]).normalize(); const src = Nprev || new THREE.Vector3(0, 0, 1); let N = src.clone().sub(T.clone().multiplyScalar(T.dot(src))); if (N.lengthSq() < 1e-9) N.set(1, 0, 0); N.normalize(); const B = new THREE.Vector3().crossVectors(T, N).normalize(); out.push({ T, N, B }); Nprev = N; } return out; };   // parallel transport: no frame flips as segments swing
   // local point offsets relative to the bone group pivots (axP) in screen space
   const local = pts.map(p => p.clone().sub(axP));
-  deformers.push({ mesh: m, pts, local, w, tv, L0: cv.L0, frameAt }); m.userData.deformer = true; }
+  deformers.push({ mesh: m, pts, local, w, tv, L0: cv.L0, framesOf }); m.userData.deformer = true; }
 function deformCurves(){
   root.updateMatrixWorld(true);
   for (const D of deformers) { const n = D.pts.length; const cur = [];
@@ -335,7 +335,7 @@ function deformCurves(){
     // passive: stretched → thinner, slack → thicker; active: the knee flexors contract (bulge) as the knee bends, the quadriceps relaxes
     const flexor = /gastroc|biceps|semiten|semimem|gracilis|sartorius|popliteus|plantaris/.test(D.mesh.name), extensor = /rectus|vastus/.test(D.mesh.name);
     const bulge = Math.pow(D.L0 / L, 0.35) * (flexor ? 1 + 0.22 * anim.flex : extensor ? 1 - 0.08 * anim.flex : 1);
-    const F = cur.map((p, i) => D.frameAt(cur, i));
+    const F = D.framesOf(cur);
     const pos = D.mesh.geometry.getAttribute('position'), tv = D.tv;
     for (let v = 0; v < pos.count; v++) { const t = tv[4 * v], ot = tv[4 * v + 1], on = tv[4 * v + 2], ob = tv[4 * v + 3];
       const s = t * L; let i = 1; while (i < n - 1 && S[i] < s) i++; const u = (s - S[i - 1]) / Math.max(1e-6, S[i] - S[i - 1]);
