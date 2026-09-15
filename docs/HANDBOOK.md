@@ -69,3 +69,8 @@ docs/                 이 핸드북
 5. 핵심 구조 생성·리그 → 검토.
 6. 뷰어 5단계 → 피드백 반복.
 7. 사이트 팩 등록(`diseases/<id>/`), `data.js`에 한 줄, 관통 검사 통과 확인, push → 자동 배포 → 주소 확인.
+
+## 10. 뷰어 공통 규칙 (강제)
+- 모든 뷰어(확인용 포함)는 `pipeline/common/common_ui.py`의 `apply_common(template, reset_view)`를 통과한 뒤에만 배포·전달한다. 이 모듈이 조작(Alt 기울이기·Ctrl 확대·두 손가락 이동·더블클릭 중심·키보드), 접히는 패널+조작 설명, 조명, 모바일 레이아웃을 심는다.
+- 새 팩의 확인용 뷰어를 만들 때: `python common_ui.py <템플릿> <템플릿> <기본시점>` 을 실행하고, 결과 HTML에 `COMMON CONTROLS BEGIN`과 `<details>`가 있는지 확인한 뒤 전달한다. 빠져 있으면 전달하지 않는다.
+- 셰이더(onBeforeCompile)는 오브젝트 루프 밖에서 `o`를 참조하면 안 된다(브라우저에서만 터지는 오류). 새 재질을 추가하면 `customProgramCacheKey`를 다르게 준다.
