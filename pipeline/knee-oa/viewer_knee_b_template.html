@@ -318,6 +318,7 @@ for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w
 // sign: flexion moves the distal tibia backward (screen -Z)
 let FLEX_SIGN = 1; { const probe = new THREE.Vector3(0, -0.1, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(axD, 0.5)); if (r.z > 0) FLEX_SIGN = -1; }
 const varusAxis = new THREE.Vector3(0, 0, 1);   // anterior-posterior axis: varus tips the tibia so the medial joint space closes
+let VARUS_SIGN = 1; { const probe = new THREE.Vector3(0, -0.15, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(varusAxis, 0.3)); if (r.x > 0) VARUS_SIGN = -1; }   // the distal tibia must swing lateral (-X) for an O-leg
 const ctl = { flex: 0, oa: 0 };
 document.getElementById('flex').oninput = e => ctl.flex = +e.target.value / 100;
 document.getElementById('oa').oninput = e => ctl.oa = +e.target.value / 100;
@@ -336,8 +337,6 @@ let last = performance.now();
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT); GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP);
   GROUPS[1].position.copy(axP).add(new THREE.Vector3(0, 0.0025 * wear, 0)); skel.bones[1].position.copy(GROUPS[1].position);   // joint space: medial cartilage loss lets the tibia ride up
 })(performance.now());
-// varus sign: the medial side (+X) of the distal tibia must move toward the midline (the lower leg angles outward)
-let VARUS_SIGN = 1; { const probe = new THREE.Vector3(0, -0.15, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(varusAxis, 0.3)); if (r.x > 0) VARUS_SIGN = -1; }
 applyVisibility(); setView('anterior');
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
 
