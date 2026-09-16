@@ -187,7 +187,7 @@ for (const o of DATA.objects) {
 const state = { mode:'full', layers:{ skin:true, muscle:true, tendon:true, lig:true, nerve:true, bone:true, vessel:true, cartilage:true, meniscus:true, capsule:true, fat:true }, skinOp:1 };
 function applyVisibility(){
   for (const m of meshes) {
-    const inMode = state.mode === 'cut' ? m.userData.cut : !m.userData.cut;
+    const inMode = !m.userData.cut && !(state.hidden && state.hidden.has(m.name));
     m.visible = inMode && state.layers[m.userData.layer];
     if (m.userData.layer === 'skin') { m.material.opacity = state.skinOp; m.material.depthWrite = state.skinOp > 0.95; }
   }
