@@ -50,7 +50,24 @@ for ck, bk in BONE.items():
             dr = nrm * 0.0007 * random.uniform(-1, 1) * (0.4 + 0.6 * med)           # surface fibrillation
         else: dw = Vector((0, 0, 0)); dr = Vector((0, 0, 0))
         wear += [round(dw.x, 5), round(dw.y, 5), round(dw.z, 5)]; rough += [round(dr.x, 5), round(dr.y, 5), round(dr.z, 5)]
-    c["morphs"] = {"wear": wear, "rough": rough}
+    # craters: 3 (femur) / 2 (tibia) full-thickness defects on the medial compartment — outer verts drop to the bone within a soft-edged disc
+    crater = []; cw = []
+    pts_c = [V(c, i) for i in range(nverts(c))]
+    if ck == "cartilage__patella": centers = []
+    else:
+        med_pts = [p for p in pts_c if (p.x - x0) / max(1e-6, x1 - x0) > 0.62]
+        random.shuffle(med_pts); centers = [(q, 0.005 + 0.004 * random.random()) for q in med_pts[:(3 if ck == "cartilage__femur" else 2)]]
+    for i in range(nverts(c)):
+        p = pts_c[i]; loc, nrm, idx, dist = bvh.find_nearest(p); outer = dist > 0.0009
+        wgt = 0.0
+        for (q, rad) in centers:
+            dd = (p - q).length; wgt = max(wgt, smooth01(1 - dd / rad))
+        if outer and loc is not None and wgt > 0:
+            toward = (loc - p); dep = toward.length; dv = toward.normalized() * max(0.0, dep - 0.0002) * wgt
+        else: dv = Vector((0, 0, 0))
+        crater += [round(dv.x, 5), round(dv.y, 5), round(dv.z, 5)]; cw.append(round(wgt, 2))
+    c["morphs"] = {"wear": wear, "rough": rough, "crater": crater}; c["cw"] = cw
+    c["medial"] = [round(smooth01((V(c, i).x - x0) / max(1e-6, x1 - x0)), 2) for i in range(nverts(c))]
     print(f"{ck}: wear/rough morphs on {sum(1 for i in range(nverts(c)) if wear[3*i:3*i+3] != [0,0,0])} outer verts")
 
 # ---------- osteophytes: bone spurs along the medial margins of the articular surfaces ----------

@@ -20,9 +20,8 @@ def get(name, cutz=True):
 built = {}
 built["bone__femur"] = get("Femur.r"); built["bone__tibia"] = get("Tibia.r"); built["bone__fibula"] = get("Fibula.r"); built["bone__patella"] = get("Patella.r", False)
 built["meniscus__medial"] = get("Medial meniscus.r", False); built["meniscus__lateral"] = get("Lateral meniscus.r", False)
-LIGS = {"lig__acl": "Anterior cruciate ligament.r", "lig__pcl": "Posterior cruciate ligament.r"}
-for k, n in LIGS.items():
-    if n in objs: built[k] = get(n, False)
+# cruciate footprints (built as live bands in the viewer so they show tension/slack with motion)
+notch_x = sum(v.x for v in epi_zone) / len(epi_zone) if False else None
 # ---- collateral ligaments built from bony landmarks (Z-Anatomy's are crude sheets) ----
 fv_ = [v.co for v in built["bone__femur"].verts]; tv_ = [v.co for v in built["bone__tibia"].verts]; fbv_ = [v.co for v in built["bone__fibula"].verts]
 epi_zone = [v for v in fv_ if JZ + 0.008 < v.z < JZ + 0.045]
@@ -70,7 +69,19 @@ def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
     bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
 built["lig__mcl"] = collateral(mcl_o, mcl_i, 0.012, 0.020, 0.0025, Vector((1, 0, 0)))     # superficial MCL: 12 mm proximally widening to 20 mm, 2.5 mm thick, ~10 cm
 built["lig__lcl"] = collateral(lcl_o, lcl_i, 0.006, 0.006, 0.004, Vector((-1, 0, 0)))     # LCL: 6 x 4 mm cord, ~6 cm
-LANDMARKS = {"medial_epicondyle": MED_EPI, "lateral_epicondyle": LAT_EPI, "mcl_origin": mcl_o, "mcl_insertion": mcl_i, "lcl_origin": lcl_o, "lcl_insertion": lcl_i}
+# ---- cruciate footprints ----
+fx_ = sum(v.x for v in fv_ if JZ - 0.005 < v.z < JZ + 0.03) / max(1, len([v for v in fv_ if JZ - 0.005 < v.z < JZ + 0.03]))
+notch = [v for v in fv_ if JZ + 0.004 < v.z < JZ + 0.028 and abs(v.x - fx_) < 0.012]                       # intercondylar notch walls
+lat_wall = [v for v in notch if v.x < fx_ - 0.003]; med_wall = [v for v in notch if v.x > fx_ + 0.003]
+ymid_n = sum(v.y for v in notch) / len(notch)
+acl_f = sum([v for v in lat_wall if v.y > ymid_n + 0.004], Vector()) / max(1, len([v for v in lat_wall if v.y > ymid_n + 0.004]))   # posteromedial aspect of the lateral condyle (in the notch)
+pcl_f = sum([v for v in med_wall if v.y < ymid_n - 0.002 and v.z < JZ + 0.018], Vector()) / max(1, len([v for v in med_wall if v.y < ymid_n - 0.002 and v.z < JZ + 0.018]))   # lateral aspect of the medial condyle, anterior-distal
+tv_top = max(v.z for v in tv_); tx_ = sum(v.x for v in tv_ if v.z > tv_top - 0.01) / max(1, len([v for v in tv_ if v.z > tv_top - 0.01])); ty_ = sum(v.y for v in tv_ if v.z > tv_top - 0.01) / max(1, len([v for v in tv_ if v.z > tv_top - 0.01]))
+acl_t = Vector((tx_ - 0.002, ty_ - 0.012, tv_top - 0.003))                                                  # anterior to the tibial spines, slightly medial
+pcl_t = Vector((tx_ + 0.001, ty_ + 0.017, tv_top - 0.010))                                                  # posterior intercondylar fossa, 1 cm below the plateau
+print("ACL %.0f mm, PCL %.0f mm" % ((acl_t - acl_f).length * 1e3, (pcl_t - pcl_f).length * 1e3))
+LANDMARKS = {"medial_epicondyle": MED_EPI, "lateral_epicondyle": LAT_EPI, "mcl_origin": mcl_o, "mcl_insertion": mcl_i, "lcl_origin": lcl_o, "lcl_insertion": lcl_i,
+             "acl_femur": acl_f, "acl_tibia": acl_t, "pcl_femur": pcl_f, "pcl_tibia": pcl_t}
 print("objects:", len(built))
 
 # ---- articular cartilage: shells offset from the bone surfaces (2.5 mm femur/tibia, 3 mm patella) over the articular regions ----
@@ -120,7 +131,7 @@ def femur_art(f):
     c = f.calc_center_median(); n = f.normal
     if c.z > JZ + 0.038 or c.z < JZ - 0.01: return False
     down = -n.z; fwd = -n.y
-    if abs(n.x) > 0.55 or abs(c.x - fx) > 0.034: return False                 # no flank faces (epicondyles / collateral areas) — cartilage covers only the articular faces
+    if abs(n.x) > 0.82 or abs(c.x - fx) > 0.040: return False                 # only true flank faces (epicondyles) are excluded
     return (down > 0.25) or (fwd > 0.5 and c.z > JZ + 0.005 and abs(c.x - fx) < 0.02) or (down > 0.05 and n.y > 0.4)   # inferior, trochlea, posterior condyles
 def tibia_art(f):
     c = f.calc_center_median(); n = f.normal; tz = max(v.co.z for v in tibia.verts)
