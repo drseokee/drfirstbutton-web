@@ -571,9 +571,10 @@ let last = performance.now();
     const pos = M.mesh.geometry.getAttribute('position'); M.mesh.updateMatrixWorld(true); const toW = M.mesh.matrixWorld, fromW = new THREE.Matrix4().copy(toW).invert();
     for (let k = 0; k < M.top.length; k++) { const i = M.top[k], j = M.bot[k];
       const rest = new THREE.Vector3(M.rest[3*i], M.rest[3*i+1], M.rest[3*i+2]); const base = new THREE.Vector3(M.rest[3*j], M.rest[3*j+1], M.rest[3*j+2]);
-      const wp = rest.clone().applyMatrix4(toW); _rayM.set(wp.clone().add(new THREE.Vector3(0, -0.02, 0)), new THREE.Vector3(0, 1, 0)); _rayM.far = 0.05;
+      const wp = rest.clone().applyMatrix4(toW); _rayM.set(wp.clone().add(new THREE.Vector3(0, 0.0003, 0)), new THREE.Vector3(0, -1, 0)); _rayM.far = 0.03;
       const hs = _rayM.intersectObjects(femurAndCart, false); let y = rest.y;
-      if (hs.length) { const lim = hs[0].point.clone().applyMatrix4(fromW).y - 0.0004; if (lim < y) y = Math.max(base.y + 0.001, lim); }   // squashed under the condyle, never below 1 mm
+      // going DOWN from the vertex: any exit through a downward-facing femur/cartilage face means the vertex sits inside or above the condyle → drop it below that face
+      for (const h of hs) { const fn = h.face.normal.clone().transformDirection(h.object.matrixWorld); if (fn.y < -0.2) { const lim = h.point.clone().applyMatrix4(fromW).y - 0.0004; if (lim < y) y = Math.max(base.y + 0.001, lim); } }
       pos.setY(i, y); }
     pos.needsUpdate = true; M.mesh.geometry.computeVertexNormals(); }
   // ---- symptoms / treatment props ----
