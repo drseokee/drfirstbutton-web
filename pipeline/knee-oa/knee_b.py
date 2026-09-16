@@ -167,7 +167,34 @@ for o in objects:
 print("curve deformers built")
 ct = objs["cartilage__tibia"]; cpts = [V(ct, i) for i in range(nverts(ct))]; xm2 = sorted(p.x for p in cpts)[len(cpts) // 2]
 med_piv = sum((p for p in cpts if p.x > xm2), Vector()) / max(1, len([p for p in cpts if p.x > xm2]))
-meta = dict(d["meta"]); meta["rig"] = {"medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
+# ---------- contact table: for each flexion angle, how far the tibia must shift along its own axis so the tibial cartilage just touches the femoral condyle (0.5 mm) ----------
+fem_bvh = BVHTree.FromBMesh(bm_of(objs["bone__femur"]))                                    # bone only; the target is the REST clearance so 0° gives offset 0
+ct_ = objs["cartilage__tibia"]; ct_pts = [V(ct_, i) for i in range(nverts(ct_))]
+probe = Vector((0, 0, -0.1)); sgn = 1 if (Matrix.Rotation(0.5, 3, axis_d) @ probe).y > 0 else -1     # flexion sends the distal tibia posterior
+def min_signed(deg, off):
+    Rm = Matrix.Rotation(math.radians(deg) * sgn, 3, axis_d); up_local = Rm @ Vector((0, 0, 1)); m = 1.0
+    for p in ct_pts:
+        q = Rm @ (p - axis_p) + axis_p + up_local * off
+        loc, nrm, idx, dist = fem_bvh.find_nearest(q)
+        if loc is None: continue
+        s = dist if (q - loc).dot(nrm) >= 0 else -dist
+        if s < m: m = s
+    return m
+REST = min_signed(0, 0.0); print("rest clearance tibial cartilage -> femur bone: %.1f mm" % (REST * 1e3))
+CONTACT = []
+for deg in range(0, 121, 5):
+    lo, hi = -0.015, 0.015                                          # negative = tibia moves distally (opens), positive = rides up; keep the rest clearance
+    for _ in range(20):
+        mid = (lo + hi) / 2
+        if min_signed(deg, mid) > REST: lo = mid
+        else: hi = mid
+    CONTACT.append(round(lo, 5))
+# smooth the table (the mesh is polygonal)
+CONTACT = CONTACT[:19] + [CONTACT[18]] * (len(CONTACT) - 19)        # beyond 90° the fit gets noisy: hold the 90° value
+CONTACT = [round(sum(CONTACT[max(0, i - 2):i + 3]) / len(CONTACT[max(0, i - 2):i + 3]), 5) for i in range(len(CONTACT))]
+print("contact (smoothed, mm):", [round(c*1e3, 1) for c in CONTACT])
+print("contact offsets (mm) by 5°:", [round(c*1e3, 1) for c in CONTACT])
+meta = dict(d["meta"]); meta["rig"] = {"contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
 json.dump(d, open(f"{OUTK}/knee_b.json", "w"), separators=(",", ":"))
