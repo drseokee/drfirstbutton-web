@@ -39,11 +39,30 @@ def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
     """band from a to b hugging the bone: at each station the centre is pushed to (bone surface + clearance) along `out`; width tapers w0 -> w1, elliptical section"""
     d = b - a; t = d.normalized(); side = t.cross(out).normalized(); nrm = side.cross(t).normalized()
     bm = bmesh.new(); rings = []
+    offs = []
     for i in range(n + 1):
-        u = i / n; c = a + d * u
-        hit = BONE_BVH.ray_cast(c + nrm * 0.02, -nrm, 0.04)
-        off = ((hit[0] - c).dot(nrm) + clearance) if hit[0] is not None else 0.0
-        off = max(-0.006, min(0.014, off)); c = c + nrm * off              # wraps over the bulging condyle/plateau
+        u = i / n; c = a + d * u; best = None
+        for sw in (-0.4, 0, 0.4):                                              # probe across the band's width, keep the highest bone
+            cc = c + side * (sw * (w0 * (1 - u) + w1 * u) / 2)
+            hit = BONE_BVH.ray_cast(cc + nrm * 0.03, -nrm, 0.06)
+            if hit[0] is not None:
+                o_ = (hit[0] - cc).dot(nrm) + clearance
+                if best is None or o_ > best: best = o_
+        offs.append(max(-0.006, min(0.016, best if best is not None else 0.0)))
+    offs[0] = offs[-1] = clearance
+    # taut band: upper convex hull of the profile (a ligament under tension bridges concavities, it does not follow them)
+    hull = []
+    for i, o_ in enumerate(offs):
+        while len(hull) >= 2:
+            (i1, o1), (i2, o2) = hull[-2], hull[-1]
+            if (o_ - o1) * (i2 - i1) - (o2 - o1) * (i - i1) >= 0: hull.pop()      # upper hull: drop the middle point when the new one lies above the line
+            else: break
+        hull.append((i, o_))
+    taut = [0.0] * (n + 1)
+    for (i1, o1), (i2, o2) in zip(hull, hull[1:]):
+        for i in range(i1, i2 + 1): taut[i] = o1 + (o2 - o1) * (i - i1) / max(1, i2 - i1)
+    for i in range(n + 1):
+        u = i / n; c = a + d * u + nrm * taut[i]
         w = w0 * (1 - u) + w1 * u
         rings.append([bm.verts.new(c + side * (w / 2 * math.cos(2 * math.pi * k / segs)) + nrm * (thick / 2 * math.sin(2 * math.pi * k / segs))) for k in range(segs)])
     for r0, r1 in zip(rings, rings[1:]):
@@ -75,7 +94,13 @@ def shell(bm_src, keep_face, thick, name, smooth=2):
         comps.append(comp)
     comps.sort(key=len, reverse=True)
     for comp in comps[1:]: bmesh.ops.delete(bm, geom=comp, context="FACES")
+    src_bvh = BVHTree.FromBMesh(bm_src)
     for _ in range(smooth): bmesh.ops.smooth_vert(bm, verts=bm.verts[:], factor=0.5, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+    for v in bm.verts:                                              # smoothing shrinks the patch inward: lift every vertex back to the bone surface + 0.3 mm
+        loc, nrm, idx, dist = src_bvh.find_nearest(v.co)
+        if loc is not None:
+            dd = (v.co - loc).dot(nrm)
+            if dd < 0.0003: v.co = loc + nrm * 0.0003
     bm.normal_update()
     # solidify outward: an offset copy of every vertex, mirrored faces, side walls along the boundary
     outer = {v: bm.verts.new(v.co + v.normal * thick) for v in list(bm.verts)}
