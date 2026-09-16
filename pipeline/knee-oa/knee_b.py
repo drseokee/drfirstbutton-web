@@ -56,7 +56,10 @@ for ck, bk in BONE.items():
     if ck == "cartilage__patella": centers = []
     else:
         med_pts = [p for p in pts_c if (p.x - x0) / max(1e-6, x1 - x0) > 0.55]
-        random.shuffle(med_pts); centers = [(q, 0.006 + 0.007 * random.random(), [random.uniform(0.55, 1.0) for _ in range(12)]) for q in med_pts[:(5 if ck == "cartilage__femur" else 3)]]
+        random.shuffle(med_pts)
+        n_big, n_small = (3, 14) if ck == "cartilage__femur" else (2, 9)
+        centers = [(q, 0.007 + 0.006 * random.random(), [random.uniform(0.55, 1.0) for _ in range(12)]) for q in med_pts[:n_big]]
+        centers += [(q, 0.0015 + 0.002 * random.random(), [random.uniform(0.7, 1.0) for _ in range(12)]) for q in med_pts[n_big:n_big + n_small]]   # pits: the "moth-eaten" look
     for i in range(nverts(c)):
         p = pts_c[i]; loc, nrm, idx, dist = bvh.find_nearest(p); outer = dist > 0.0009
         wgt = 0.0

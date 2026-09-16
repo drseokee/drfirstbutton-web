@@ -165,14 +165,18 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
     bm = bmesh.new(); rows = []; half_gap = math.radians(gap_deg / 2)
     ths = [open_c + half_gap + (2 * math.pi - 2 * half_gap) * k / n_th for k in range(n_th + 1)]
     ex, ey = compartment_extent(side); f_ = 0.62 if side == 'medial' else 0.50; rx = min(rx, ex * f_); ry = min(ry, ey * (f_ + 0.05))   # medial may overhang the rim slightly (it does), lateral stays inside
-    for th in ths:
-        ring = []
-        # the rim stops where the plateau ends: shrink the radius until the downward ray lands on the tibia
+    rmax = []
+    for th in ths:                                                                          # the rim stops where the plateau ends (ray must land on the plateau top, facing up)
         r_max = 1.0
-        for _ in range(12):
+        for _ in range(16):
             hx = c.x + rx * r_max * math.cos(th); hy = c.y + ry * r_max * math.sin(th)
-            if tib_bvh.ray_cast(Vector((hx, hy, c.z + 0.03)), Vector((0, 0, -1)), 0.045)[0] is not None: break
-            r_max -= 0.04
+            hh = tib_bvh.ray_cast(Vector((hx, hy, c.z + 0.03)), Vector((0, 0, -1)), 0.045)
+            if hh[0] is not None and hh[0].z > tpl_top - 0.009 and hh[1].z > 0.55: break
+            r_max -= 0.03
+        rmax.append(max(0.6, r_max))
+    rmax = [sum(rmax[max(0, i - 2):i + 3]) / len(rmax[max(0, i - 2):i + 3]) for i in range(len(rmax))]   # smooth outline
+    for th, r_max in zip(ths, rmax):
+        ring = []
         for j in range(n_r + 1):
             r = (0.52 + 0.48 * j / n_r) * r_max                                                 # 0.52 = free inner edge, r_max = outer rim (on the plateau)
             px = c.x + rx * r * math.cos(th); py = c.y + ry * r * math.sin(th)
@@ -195,12 +199,14 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
     for _ in range(2): bmesh.ops.smooth_vert(bm, verts=bm.verts[:], factor=0.35, use_axis_x=False, use_axis_y=False, use_axis_z=True)   # even out steps from the polygonal plateau
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces)
     # final clean-up: any vertex still inside the femur (bone or cartilage) is pushed straight down out of it, any inside the tibia straight up
+    pairs = [(rows[i][j][0], rows[i][j][1]) for i in range(len(rows)) for j in range(n_r + 1)]
     for _ in range(3):
-        for v in bm.verts:
-            loc, nrm, idx, dist = fem_bvh.find_nearest(v.co)
-            if loc is not None and (v.co - loc).dot(nrm) < 0.0006: v.co.z -= (0.0006 - (v.co - loc).dot(nrm))
-            loc2, nrm2, idx2, dist2 = tib_bvh.find_nearest(v.co)
-            if loc2 is not None and (v.co - loc2).dot(nrm2) < 0.0003: v.co.z += (0.0003 - (v.co - loc2).dot(nrm2))
+        for vb, vt in pairs:
+            loc, nrm, idx, dist = fem_bvh.find_nearest(vt.co)
+            if loc is not None and (vt.co - loc).dot(nrm) < 0.0006: vt.co.z -= (0.0006 - (vt.co - loc).dot(nrm))
+            loc2, nrm2, idx2, dist2 = tib_bvh.find_nearest(vb.co)
+            if loc2 is not None and (vb.co - loc2).dot(nrm2) < 0.0003: vb.co.z += (0.0003 - (vb.co - loc2).dot(nrm2))
+            if vt.co.z < vb.co.z + 0.001: vt.co.z = vb.co.z + 0.001                             # the wedge never inverts (no holes)
     return bm
 built["meniscus__medial"] = meniscus("medial", 0.019, 0.026, 0.0055, 95)                   # up to 38 x 52 mm C (clipped to the compartment), 5.5 mm rim
 built["meniscus__lateral"] = meniscus("lateral", 0.016, 0.018, 0.005, 55)                   # up to 32 x 36 mm, rounder, 5 mm rim
