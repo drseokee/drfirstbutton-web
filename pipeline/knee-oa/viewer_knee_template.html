@@ -320,7 +320,7 @@ function makeBand(name, ko, aPt, bPt, width, thick, col){
   const mesh = new THREE.Mesh(g, mat); mesh.name = name; mesh.frustumCulled = false; mesh.userData = { layer: 'lig', base: name, live: true }; KO[name] = ko; meshes.push(mesh);
   return { mesh, aLocal: aPt.clone().sub(axP), bLocal: bPt.clone().sub(axP), width, thick, SEG, RING, rest: aPt.distanceTo(bPt), strain: 0, cut: 0 };
 }
- (tibia, fibula, menisci, tibial cartilage) flexes about the transepicondylar axis; the patella glides with half the angle ----
+// ---- rig: femur + tibia groups (tibia, fibula, menisci, tibial cartilage) flex about the transepicondylar axis; the patella glides with half the angle ----
 const A2S = a => [a[0], a[2], -a[1]];
 const RIG = DATA.meta.rig; const axP = new THREE.Vector3(...A2S(RIG.flex_axis.point)), axD = new THREE.Vector3(...A2S(RIG.flex_axis.dir)).normalize();
 const jointG = new THREE.Group(); root.add(jointG);                              // both bones move: the assembly tilts back by 45 % of the flexion, the tibia does the rest
