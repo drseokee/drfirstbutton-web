@@ -55,13 +55,14 @@ for ck, bk in BONE.items():
     pts_c = [V(c, i) for i in range(nverts(c))]
     if ck == "cartilage__patella": centers = []
     else:
-        med_pts = [p for p in pts_c if (p.x - x0) / max(1e-6, x1 - x0) > 0.62]
-        random.shuffle(med_pts); centers = [(q, 0.005 + 0.004 * random.random()) for q in med_pts[:(3 if ck == "cartilage__femur" else 2)]]
+        med_pts = [p for p in pts_c if (p.x - x0) / max(1e-6, x1 - x0) > 0.55]
+        random.shuffle(med_pts); centers = [(q, 0.006 + 0.007 * random.random(), [random.uniform(0.55, 1.0) for _ in range(12)]) for q in med_pts[:(5 if ck == "cartilage__femur" else 3)]]
     for i in range(nverts(c)):
         p = pts_c[i]; loc, nrm, idx, dist = bvh.find_nearest(p); outer = dist > 0.0009
         wgt = 0.0
-        for (q, rad) in centers:
-            dd = (p - q).length; wgt = max(wgt, smooth01(1 - dd / rad))
+        for (q, rad, lobes) in centers:                                                # jagged outline: the radius varies with the angle around the centre
+            dv_ = p - q; dd = dv_.length; ang = math.atan2(dv_.y, dv_.x); k = int(((ang + math.pi) / (2 * math.pi)) * 12) % 12; k2 = (k + 1) % 12; fr = ((ang + math.pi) / (2 * math.pi)) * 12 - k
+            r_eff = rad * (lobes[k] * (1 - fr) + lobes[k2] * fr); wgt = max(wgt, smooth01(1 - dd / r_eff) ** 0.6)
         if loc is not None and wgt > 0:
             toward = (loc - p); dep = toward.length; dv = (toward.normalized() if dep > 1e-6 else -Vector(nrm)) * (dep + 0.0012) * wgt     # sinks 1.2 mm under the bone surface: the patch vanishes into the bone = exposed bone
         else: dv = Vector((0, 0, 0))

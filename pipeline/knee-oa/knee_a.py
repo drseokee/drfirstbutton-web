@@ -20,6 +20,10 @@ def get(name, cutz=True):
 built = {}
 built["bone__femur"] = get("Femur.r"); built["bone__tibia"] = get("Tibia.r"); built["bone__fibula"] = get("Fibula.r"); built["bone__patella"] = get("Patella.r", False)
 built["meniscus__medial"] = get("Medial meniscus.r", False); built["meniscus__lateral"] = get("Lateral meniscus.r", False)
+for k in ("meniscus__medial", "meniscus__lateral"):                       # Z-Anatomy's menisci are thin slivers: thicken (x1.9) and widen (x1.15) about their own centre so the cushions read
+    bm = built[k]; c = sum((v.co for v in bm.verts), Vector()) / len(bm.verts); zc = c.z
+    for v in bm.verts: v.co = Vector((c.x + (v.co.x - c.x) * 1.15, c.y + (v.co.y - c.y) * 1.15, zc + (v.co.z - zc) * 1.9 + 0.0015))
+    bmesh.ops.smooth_vert(bm, verts=bm.verts[:], factor=0.4, use_axis_x=True, use_axis_y=True, use_axis_z=True)
 # cruciate footprints (built as live bands in the viewer so they show tension/slack with motion)
 notch_x = sum(v.x for v in epi_zone) / len(epi_zone) if False else None
 # ---- collateral ligaments built from bony landmarks (Z-Anatomy's are crude sheets) ----
