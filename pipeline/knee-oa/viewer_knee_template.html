@@ -338,7 +338,8 @@ function updateCruciates(){
     const d = b.clone().sub(a), len = d.length(), tdir = d.clone().normalize(); C.strain = len / C.rest - 1;
     // frame: the band's side vector is the epicondylar axis (never parallel to a cruciate), so the section frame cannot flip
     const side = axD.clone().sub(tdir.clone().multiplyScalar(tdir.dot(axD))).normalize(); let nrm = new THREE.Vector3().crossVectors(side, tdir).normalize();
-    if (nrm.dot(new THREE.Vector3(0, 0, C.mesh.name === 'lig__acl' ? 1 : -1)) < 0) { nrm.negate(); side.negate(); }              // ACL bows anteriorly, PCL posteriorly
+    const ref = C.lastNrm || new THREE.Vector3(0, 0, C.mesh.name === 'lig__acl' ? 1 : -1);                                          // first frame: ACL bows anteriorly, PCL posteriorly; afterwards stay continuous with the last frame
+    if (nrm.dot(ref) < 0) { nrm.negate(); side.negate(); } C.lastNrm = nrm.clone();
     const slack = Math.max(0, -C.strain); const pos = C.mesh.geometry.getAttribute('position'); let vi = 0;
     const gap = C.cut ? 0.12 : 0;
     // bone-hugging: keep the band clear of the tibial spine / plateau and the notch (probe along nrm at three points across the width)
