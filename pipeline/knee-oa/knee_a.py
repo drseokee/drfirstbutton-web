@@ -19,8 +19,8 @@ def get(name, cutz=True):
 
 built = {}
 built["bone__femur"] = get("Femur.r"); built["bone__tibia"] = get("Tibia.r"); built["bone__fibula"] = get("Fibula.r"); built["bone__patella"] = get("Patella.r", False)
-for k in ("bone__tibia", "bone__fibula"):                                                 # Z-Anatomy's bones nearly touch: open the joint 1.5 mm so cartilage + menisci fit
-    for v in built[k].verts: v.co.z -= 0.0015
+for k in ("bone__tibia", "bone__fibula"):                                                 # Z-Anatomy's bones nearly touch: open the joint 3 mm so cartilage + menisci fit
+    for v in built[k].verts: v.co.z -= 0.003
 # ---- menisci are built procedurally after the tibial cartilage (see MENISCI) ----
 # cruciate footprints (built as live bands in the viewer so they show tension/slack with motion)
 notch_x = sum(v.x for v in epi_zone) / len(epi_zone) if False else None
