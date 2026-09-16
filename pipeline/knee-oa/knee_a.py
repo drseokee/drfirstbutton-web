@@ -177,6 +177,13 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
         try: bm.faces.new([ring[j][0] for j in range(n_r + 1)] + [ring[j][1] for j in range(n_r, -1, -1)])
         except ValueError: pass
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces)
+    # final clean-up: any vertex still inside the femur (bone or cartilage) is pushed straight down out of it, any inside the tibia straight up
+    for _ in range(3):
+        for v in bm.verts:
+            loc, nrm, idx, dist = fem_bvh.find_nearest(v.co)
+            if loc is not None and (v.co - loc).dot(nrm) < 0.0006: v.co.z -= (0.0006 - (v.co - loc).dot(nrm))
+            loc2, nrm2, idx2, dist2 = tib_bvh.find_nearest(v.co)
+            if loc2 is not None and (v.co - loc2).dot(nrm2) < 0.0003: v.co.z += (0.0003 - (v.co - loc2).dot(nrm2))
     return bm
 built["meniscus__medial"] = meniscus("medial", 0.017, 0.0235, 0.0055, 95)                  # 34 x 47 mm C, 5.5 mm rim
 built["meniscus__lateral"] = meniscus("lateral", 0.0165, 0.018, 0.005, 55)                  # 33 x 36 mm, rounder, 5 mm rim
