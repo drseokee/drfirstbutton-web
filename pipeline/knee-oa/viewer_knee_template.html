@@ -326,6 +326,11 @@ function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / 
   document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
 // ---- cruciate ligaments: live bands between their footprints (ACL: lateral condyle notch wall → anterior tibia; PCL: medial condyle → posterior fossa) ----
 const LM = DATA.meta.landmarks; const L3 = k => new THREE.Vector3(...A2S(LM[k]));
+const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur');
+for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
+  // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
+  for (let i = 0; i + 1 < p.count; i += 2) { if (p.getY(i + 1) >= p.getY(i)) { bot.push(i); top.push(i + 1); } else { bot.push(i + 1); top.push(i); } }
+  menisci.push({ mesh: m, rest, top, bot, basePos: m.position.clone() }); }
 const cruciates = [];
 function makeBand(name, ko, aPt, bPt, width, thick, col){
   const SEG = 14, RING = 10; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((SEG + 1) * RING * 3), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array((SEG + 1) * RING * 3), 3));
@@ -560,6 +565,17 @@ let last = performance.now();
       col.array[3*i] = base[3*i] * (1 - 0.1 * k) + 0.25 * red + 0.12 * pink; col.array[3*i+1] = base[3*i+1] * (1 - 0.75 * k); col.array[3*i+2] = base[3*i+2] * (1 - 0.8 * k); } col.needsUpdate = true; }
   const qJ = new THREE.Quaternion().setFromAxisAngle(axD, -rad(deg) * 0.45 * FLEX_SIGN); jointG.quaternion.copy(qJ); jointG.position.copy(axP).sub(axP.clone().applyQuaternion(qJ));   // femur tilts back with the thigh
   deformCurves();
+  // ---- menisci: glide back with flexion (medial ~3 mm, lateral ~8 mm at 110°) and their rim is pressed flat wherever the femoral condyle rolls onto it ----
+  for (const M of menisci) { const back = (M.mesh.name === 'meniscus__medial' ? 0.003 : 0.008) * (deg / 110);
+    M.mesh.position.copy(M.basePos).add(new THREE.Vector3(0, 0, -back));                                     // posterior = screen -Z (tibia-local)
+    const pos = M.mesh.geometry.getAttribute('position'); M.mesh.updateMatrixWorld(true); const toW = M.mesh.matrixWorld, fromW = new THREE.Matrix4().copy(toW).invert();
+    for (let k = 0; k < M.top.length; k++) { const i = M.top[k], j = M.bot[k];
+      const rest = new THREE.Vector3(M.rest[3*i], M.rest[3*i+1], M.rest[3*i+2]); const base = new THREE.Vector3(M.rest[3*j], M.rest[3*j+1], M.rest[3*j+2]);
+      const wp = rest.clone().applyMatrix4(toW); _rayM.set(wp.clone().add(new THREE.Vector3(0, -0.02, 0)), new THREE.Vector3(0, 1, 0)); _rayM.far = 0.05;
+      const hs = _rayM.intersectObject(femurMesh, false); let y = rest.y;
+      if (hs.length) { const lim = hs[0].point.clone().applyMatrix4(fromW).y - 0.0004; if (lim < y) y = Math.max(base.y + 0.001, lim); }   // squashed under the condyle, never below 1 mm
+      pos.setY(i, y); }
+    pos.needsUpdate = true; M.mesh.geometry.computeVertexNormals(); }
   // ---- symptoms / treatment props ----
   anim.effusion += (state.effusion - anim.effusion) * Math.min(1, dt * 2); anim.pain += (state.pain - anim.pain) * Math.min(1, dt * 3); anim.hto += (state.hto - anim.hto) * Math.min(1, dt * 2.5); anim.tka += (state.tka - anim.tka) * Math.min(1, dt * 2.5);
   effusion.visible = anim.effusion > 0.02; effusion.material.opacity = 0.42 * anim.effusion; effusion.scale.set(1.1, 0.85, 1.0).multiplyScalar(0.75 + 0.25 * anim.effusion);
