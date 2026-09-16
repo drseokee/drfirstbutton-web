@@ -141,7 +141,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure
 
 // anatomical -> screen axes: radial(-x)->+X, distal(-z)->+Y, palmar(-y)->+Z
 const meshes = [];
-const RIM = { value: 1.9 }, OUTW = { value: 0.00012 }, UCRT = { value: 0.0 };
+const RIM = { value: 1.9 }, OUTW = { value: 0.00012 }, UCRT = { value: 0.0 }, UAGE = { value: 0.0 };
 function hash(s){ let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1000003; return h; }
 for (const o of DATA.objects) {
   const v = o.verts, pos = new Float32Array(v.length);
@@ -169,11 +169,16 @@ for (const o of DATA.objects) {
   };
   if (o.layer === 'capsule' || o.layer === 'fat') { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; }
   if (o.layer === 'cartilage') { m.roughness = 0.22; }
+  if (o.layer === 'bone') {   // ageing bone: dull yellow-grey tint, porous speckling, subchondral sclerosis (whiter band under the joint), all scaled by uAge
+    const jd = new Float32Array(pos.length / 3); for (let i = 0; i < jd.length; i++) jd[i] = Math.max(0, 1 - Math.abs(pos[3*i+1]) / 0.014); g.setAttribute('jd', new THREE.BufferAttribute(jd, 1));
+    m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uAge = UAGE;
+      sh.vertexShader = 'attribute float jd; varying float vJd; varying vec3 vWp3;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vJd = jd; vWp3 = position;');
+      sh.fragmentShader = 'uniform float uAge; varying float vJd; varying vec3 vWp3;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n { vec3 q = vWp3 * 1300.0; float n1 = sin(q.x * 1.3 + sin(q.y * 0.9)) * sin(q.y * 1.7 + q.z * 0.6) * sin(q.z * 1.1 + q.x * 0.5);\n float pores = smoothstep(0.35, 0.75, n1) * uAge;\n vec3 aged = vec3(0.74, 0.67, 0.50);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, aged * (0.9 + 0.1 * sin(q.x * 0.31) * sin(q.z * 0.27)), uAge * 0.55);\n gl_FragColor.rgb *= 1.0 - 0.35 * pores;\n gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.95, 0.94, 0.90), vJd * uAge * 0.6); }'); })(m.onBeforeCompile); }
   if (o.fx) { m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uCrt = UCRT;
       sh.vertexShader = 'attribute float fxa; varying float vFx; varying vec3 vWp2;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFx = fxa; vWp2 = position;');
       sh.fragmentShader = 'uniform float uCrt; varying float vFx; varying vec3 vWp2;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n float ex = clamp(vFx * uCrt * 1.6, 0.0, 1.0);\n if (ex > 0.02) { vec3 p = vWp2 * 900.0; float sp = smoothstep(0.55, 0.9, sin(p.x * 1.7 + sin(p.z * 1.3)) * sin(p.y * 1.9 + p.x * 0.4));\n vec3 pink = vec3(0.86, 0.55, 0.50), red = vec3(0.62, 0.12, 0.10); gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(pink, red, sp), ex); }'); })(m.onBeforeCompile);
     g.setAttribute('fxa', new THREE.Float32BufferAttribute(o.fx, 1)); }
-  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.morphs ? '_m' : '') + (o.fx ? '_fx' : '');
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.morphs ? '_m' : '') + (o.fx ? '_fx' : '') + (o.layer === 'bone' ? '_age' : '');
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline
     const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
@@ -514,7 +519,7 @@ let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
   anim.flex += (ctl.flex - anim.flex) * Math.min(1, dt * 6); anim.oa += (ctl.oa - anim.oa) * Math.min(1, dt * 4);
   const deg = 110 * anim.flex; document.getElementById('flexLbl').textContent = Math.round(deg) + '°';
-  const oa = anim.oa; const rough = Math.min(1, oa / 0.33), wear = Math.max(0, Math.min(1, (oa - 0.25) / 0.6)), spur = Math.max(0, Math.min(1, (oa - 0.45) / 0.55)), varus = Math.max(0, (oa - 0.6) / 0.4);
+  const oa = anim.oa; const rough = Math.min(1, oa / 0.33), wear = Math.max(0, Math.min(1, (oa - 0.25) / 0.6)), spur = Math.pow(Math.max(0, Math.min(1, (oa - 0.35) / 0.65)), 0.8), varus = Math.max(0, (oa - 0.6) / 0.4);
   document.getElementById('oaLbl').textContent = oa < 0.02 ? '정상' : oa < 0.34 ? '초기' : oa < 0.67 ? '중기' : '말기';
   for (const m of meshes) { if (!m.morphTargetInfluences) continue; const names = m.userData.morphNames;
     names.forEach((nm, j) => { m.morphTargetInfluences[j] = nm === 'rough' ? rough * (1 - wear * 0.7) : nm === 'wear' ? wear : nm === 'osteophyte' ? spur : 0; }); }
@@ -541,7 +546,7 @@ let last = performance.now();
   GROUPS[1].position.copy(axP).add(offset).add(pivShift).add(new THREE.Vector3(0, 0.0025 * wear, animD.shift)); skel.bones[1].position.copy(GROUPS[1].position);
   for (const C of cruciates) C.cut = C.mesh.name === 'lig__acl' ? drawer.cutACL : drawer.cutPCL;
   updateCruciates();
-  UCRT.value = Math.max(0, Math.min(1, (oa - 0.5) / 0.4));
+  UCRT.value = Math.max(0, Math.min(1, (oa - 0.5) / 0.4)); UAGE.value = Math.min(1, oa * 1.15);
   // cartilage colouring: thinning zones turn pink, full-thickness craters red (exposed bone)
   const crater = Math.max(0, Math.min(1, (oa - 0.5) / 0.4));
   for (const m of meshes) { if (!m.userData.cw) continue; const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, cw = m.userData.cw, med = m.userData.medial;
