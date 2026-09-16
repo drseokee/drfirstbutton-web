@@ -154,24 +154,25 @@ _tt = max(v.co.z for v in built["bone__tibia"].verts); _sp = [v.co for v in buil
 cx_mid = sum(p.x for p in _sp) / len(_sp); print("eminence x %.1f mm" % ((cx_mid) * 1e3))
 def compartment_centre(side):
     sel = [p for p in cpts if (p.x > cx_mid) == (side == "medial")]; return sum(sel, Vector()) / len(sel)
-tpl_top = max(v.co.z for v in built["bone__tibia"].verts); tpl = [v.co for v in built["bone__tibia"].verts if v.co.z > tpl_top - 0.009]   # the plateau itself (bone), not just the cartilage patch
+tpl_top = max(v.co.z for v in built["bone__tibia"].verts)
+ct_bvh = BVHTree.FromBMesh(built["cartilage__tibia"].copy())                                     # the plateau = the cartilage patch (covers the whole articular surface)
 def compartment_extent(side):
-    sel = [p for p in tpl if (p.x > cx_mid) == (side == "medial")]; return (max(p.x for p in sel) - min(p.x for p in sel)), (max(p.y for p in sel) - min(p.y for p in sel))
+    sel = [p for p in cpts if (p.x > cx_mid) == (side == "medial") and abs(p.x - cx_mid) > 0.004]; return (max(p.x for p in sel) - min(p.x for p in sel)), (max(p.y for p in sel) - min(p.y for p in sel))
 def compartment_centre(side):
-    sel = [p for p in tpl if (p.x > cx_mid) == (side == "medial")]; return sum(sel, Vector()) / len(sel)
+    sel = [p for p in cpts if (p.x > cx_mid) == (side == "medial") and abs(p.x - cx_mid) > 0.004]; return sum(sel, Vector()) / len(sel)
 def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
     c = compartment_centre(side)
     open_c = 0.0 if side == "lateral" else math.pi                                          # the C opens toward the notch: lateral compartment (-x) opens to +x (angle 0), medial (+x) opens to -x (pi)
     bm = bmesh.new(); rows = []; half_gap = math.radians(gap_deg / 2)
     ths = [open_c + half_gap + (2 * math.pi - 2 * half_gap) * k / n_th for k in range(n_th + 1)]
-    ex, ey = compartment_extent(side); rx = min(rx, ex * 0.60); ry = min(ry, ey * 0.62)      # generous: the rim is found by the plateau-edge search below
+    ex, ey = compartment_extent(side); rx = min(rx, ex * 0.58); ry = min(ry, ey * 0.58)      # the rim is found by the plateau-edge search below
     rmax = []
     for th in ths:                                                                          # the rim stops where the plateau ends (ray must land on the plateau top, facing up)
         r_max = 1.0
         for _ in range(16):
             hx = c.x + rx * r_max * math.cos(th); hy = c.y + ry * r_max * math.sin(th)
-            hh = tib_bvh.ray_cast(Vector((hx, hy, c.z + 0.03)), Vector((0, 0, -1)), 0.045)
-            if hh[0] is not None and hh[0].z > tpl_top - 0.009 and hh[1].z > 0.55: break
+            hh = ct_bvh.ray_cast(Vector((hx, hy, c.z + 0.03)), Vector((0, 0, -1)), 0.045)
+            if hh[0] is not None: break                                                          # lands on the plateau cartilage → that is the rim
             r_max -= 0.03
         rmax.append(max(0.6, r_max))
     rmax = [sum(rmax[max(0, i - 2):i + 3]) / len(rmax[max(0, i - 2):i + 3]) for i in range(len(rmax))]   # smooth outline
@@ -208,8 +209,8 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
             if loc2 is not None and (vb.co - loc2).dot(nrm2) < 0.0003: vb.co.z += (0.0003 - (vb.co - loc2).dot(nrm2))
             if vt.co.z < vb.co.z + 0.001: vt.co.z = vb.co.z + 0.001                             # the wedge never inverts (no holes)
     return bm
-built["meniscus__medial"] = meniscus("medial", 0.026, 0.030, 0.0065, 70)                    # wide C to the plateau edge, 6.5 mm rim, opens only at the intercondylar area
-built["meniscus__lateral"] = meniscus("lateral", 0.0185, 0.021, 0.006, 40)                   # nearly closed ring (smaller than the medial), 6 mm rim
+built["meniscus__medial"] = meniscus("medial", 0.026, 0.0245, 0.0065, 70)                   # medial: ~37 x 49 mm C, rim 6.5 mm
+built["meniscus__lateral"] = meniscus("lateral", 0.021, 0.022, 0.006, 40)                    # lateral: ~34 x 38 mm ring, rim 6 mm
 print("menisci: medial", len(built["meniscus__medial"].verts), "v, lateral", len(built["meniscus__lateral"].verts), "v")
 objects = []
 for k, bm in built.items():
