@@ -91,10 +91,10 @@ def osteophyte(bk, ck, zband, side_sign=1):
         p = V(b, i)
         if (p.x - axis_p.x) * side_sign < 0.010 or not (zband[0] < p.z < zband[1]): dl += [0, 0, 0]; continue
         loc, nrm, idx, dist = cbvh.find_nearest(p)
-        w = smooth01(1 - abs(dist - 0.004) / 0.004) if dist is not None else 0
+        w = smooth01(1 - abs(dist - 0.005) / 0.006) if dist is not None else 0
         if w <= 0: dl += [0, 0, 0]; continue
         out = Vector((side_sign, 0, 0)); lip = Vector((0, 0, -1 if bk == "bone__femur" else 1)) * 0.3
-        dd = (out + lip).normalized() * 0.0040 * w * (0.7 + 0.3 * random.random()); n_hit += 1
+        dd = (out + lip).normalized() * 0.0065 * w * (0.75 + 0.25 * random.random()); n_hit += 1
         dl += [round(dd.x, 5), round(dd.y, 5), round(dd.z, 5)]
     b.setdefault("morphs", {})["osteophyte"] = dl
     print(f"{bk}: osteophyte on {n_hit} verts (medial rim)")
