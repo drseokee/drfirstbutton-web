@@ -21,6 +21,17 @@ medC = sum((p for p in cond if p.x > xm), Vector()) / max(1, len([p for p in con
 latC = sum((p for p in cond if p.x <= xm), Vector()) / max(1, len([p for p in cond if p.x <= xm]))
 axis_p = (medC + latC) / 2; axis_d = (medC - latC).normalized()
 print("flexion axis point", [round(c*1e3, 1) for c in axis_p], "dir", [round(c, 3) for c in axis_d])
+# two-centre model: circle fits (sagittal y-z) to the DISTAL condyle profile (used near extension) and the POSTERIOR condyle profile (used in flexion)
+def fit_circle(pts2):
+    import numpy as np
+    P = np.array(pts2); A = np.c_[2 * P[:, 0], 2 * P[:, 1], np.ones(len(P))]; bb = (P ** 2).sum(axis=1); sol = np.linalg.lstsq(A, bb, rcond=None)[0]
+    cy, cz = sol[0], sol[1]; r = math.sqrt(max(1e-9, sol[2] + cy * cy + cz * cz)); return cy, cz, r
+slab = [p for p in cond if abs(p.x - medC.x) < 0.008 or abs(p.x - latC.x) < 0.008]                 # both condyles' sagittal profiles
+ymid = sum(p.y for p in slab) / len(slab)
+dist_pts = [(p.y, p.z) for p in slab if p.z < -0.001 + 0.014 and abs(p.y - ymid) < 0.018]            # bottom of the condyles
+post_pts = [(p.y, p.z) for p in slab if p.y > ymid + 0.006 and p.z < 0.026]                          # posterior curve
+cyd, czd, rd = fit_circle(dist_pts); cyp, czp, rp = fit_circle(post_pts)
+print(f"condyle circles: distal centre y {cyd*1e3:+.1f} z {czd*1e3:+.1f} r {rd*1e3:.1f} mm | posterior centre y {cyp*1e3:+.1f} z {czp*1e3:+.1f} r {rp*1e3:.1f} mm")
 
 # ---------- cartilage: wear (thinning, medial first) and rough (fibrillation) morphs ----------
 BONE = {"cartilage__femur": "bone__femur", "cartilage__tibia": "bone__tibia", "cartilage__patella": "bone__patella"}
@@ -156,7 +167,7 @@ for o in objects:
 print("curve deformers built")
 ct = objs["cartilage__tibia"]; cpts = [V(ct, i) for i in range(nverts(ct))]; xm2 = sorted(p.x for p in cpts)[len(cpts) // 2]
 med_piv = sum((p for p in cpts if p.x > xm2), Vector()) / max(1, len([p for p in cpts if p.x > xm2]))
-meta = dict(d["meta"]); meta["rig"] = {"medial_pivot": [round(c, 5) for c in med_piv], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
+meta = dict(d["meta"]); meta["rig"] = {"medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
 json.dump(d, open(f"{OUTK}/knee_b.json", "w"), separators=(",", ":"))

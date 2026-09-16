@@ -120,6 +120,7 @@ def femur_art(f):
     c = f.calc_center_median(); n = f.normal
     if c.z > JZ + 0.038 or c.z < JZ - 0.01: return False
     down = -n.z; fwd = -n.y
+    if abs(n.x) > 0.55 or abs(c.x - fx) > 0.034: return False                 # no flank faces (epicondyles / collateral areas) — cartilage covers only the articular faces
     return (down > 0.25) or (fwd > 0.5 and c.z > JZ + 0.005 and abs(c.x - fx) < 0.02) or (down > 0.05 and n.y > 0.4)   # inferior, trochlea, posterior condyles
 def tibia_art(f):
     c = f.calc_center_median(); n = f.normal; tz = max(v.co.z for v in tibia.verts)

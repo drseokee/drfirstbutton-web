@@ -313,8 +313,9 @@ function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / 
 // ---- rig: femur fixed; tibia group (tibia, fibula, menisci, tibial cartilage) flexes about the transepicondylar axis; the patella glides with half the angle ----
 const A2S = a => [a[0], a[2], -a[1]];
 const RIG = DATA.meta.rig; const axP = new THREE.Vector3(...A2S(RIG.flex_axis.point)), axD = new THREE.Vector3(...A2S(RIG.flex_axis.dir)).normalize();
+const jointG = new THREE.Group(); root.add(jointG);                              // both bones move: the assembly tilts back by 45 % of the flexion, the tibia does the rest
 const GROUPS = [new THREE.Group(), new THREE.Group(), new THREE.Group()];   // femur, tibia, patella
-for (const g of GROUPS) { g.position.copy(axP); root.add(g); }
+for (const g of GROUPS) { g.position.copy(axP); jointG.add(g); }
 const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.Bone()]); skel.bones.forEach(b => { b.position.copy(axP); root.add(b); }); root.updateMatrixWorld(true); skel.calculateInverses();
 for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
 for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w || m.userData.curve) continue;
@@ -336,7 +337,7 @@ for (const m of meshes) { const cv = m.userData.curve; if (!cv) continue;
   const S0 = [0]; for (let i = 1; i < pts.length; i++) S0.push(S0[i - 1] + pts[i].distanceTo(pts[i - 1]));
   const mode = /biceps|semiten|semimem|gracilis|sartorius/.test(m.name) ? 'belly_femur' : /gastroc|plantaris/.test(m.name) ? 'belly_tibia' : 'blend';
   const ft = 0.28; let kBelly = 0; if (mode === 'belly_femur') { for (let i = 0; i < pts.length; i++) if (S0[i] <= S0[pts.length - 1] * (1 - ft)) kBelly = i; } else if (mode === 'belly_tibia') { kBelly = pts.length - 1; for (let i = pts.length - 1; i >= 0; i--) if (S0[i] >= S0[pts.length - 1] * ft) kBelly = i; }
-  deformers.push({ mesh: m, pts, rest: pts.map(p => p.clone()), S0, kBelly, mode, local, w, tv, L0: cv.L0, framesOf }); m.userData.deformer = true; }
+  deformers.push({ mesh: m, pts, rest: pts.map(p => p.clone()), S0, kBelly, mode, local, w, tv, L0: cv.L0, framesOf }); m.userData.deformer = true; root.remove(m); jointG.add(m); }
 function deformCurves(){
   root.updateMatrixWorld(true);
   for (const D of deformers) { const n = D.pts.length; const cur = [];
@@ -381,7 +382,7 @@ function deformCurves(){
     pos.needsUpdate = true; D.mesh.geometry.computeVertexNormals(); } }
 // sign: flexion moves the distal tibia backward (screen -Z)
 let FLEX_SIGN = 1; { const probe = new THREE.Vector3(0, -0.1, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(axD, 0.5)); if (r.z > 0) FLEX_SIGN = -1; }
-const medPiv = new THREE.Vector3(...A2S(RIG.medial_pivot));
+const medPiv = new THREE.Vector3(...A2S(RIG.medial_pivot)); const cExt = new THREE.Vector3(...A2S(RIG.flex_axis.point)), cFlex = new THREE.Vector3(...A2S(RIG.centre_flex));
 // internal rotation sign: the anterior tibia (tuberosity, +Z) must swing toward the midline (+X medial)
 let INT_SIGN = 1; { const probe = new THREE.Vector3(0, 0, 0.05); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.3)); if (r.x < 0) INT_SIGN = -1; }
 const varusAxis = new THREE.Vector3(0, 0, 1);   // anterior-posterior axis: varus tips the tibia so the medial joint space closes
@@ -393,12 +394,12 @@ const anim = { flex: 0, oa: 0, effusion: 0, pain: 0, inject: 0, hto: 0, tka: 0 }
 Object.assign(state, { effusion: 0, pain: 0, inject: 0, hto: 0, tka: 0, showFlex: true, showOA: false });
 // ---------- props ----------
 // effusion: translucent fluid around the joint (the capsule filling up)
-const effusion = new THREE.Mesh(new THREE.SphereGeometry(0.05, 28, 20), new THREE.MeshStandardMaterial({ color: 0xbfd7ee, transparent: true, opacity: 0, roughness: 0.25, depthWrite: false })); effusion.scale.set(1.1, 0.85, 1.0); effusion.position.set(0, 0.005, 0.01); effusion.renderOrder = 8; root.add(effusion);
+const effusion = new THREE.Mesh(new THREE.SphereGeometry(0.05, 28, 20), new THREE.MeshStandardMaterial({ color: 0xbfd7ee, transparent: true, opacity: 0, roughness: 0.25, depthWrite: false })); effusion.scale.set(1.1, 0.85, 1.0); effusion.position.set(0, 0.005, 0.01); effusion.renderOrder = 8; jointG.add(effusion);
 // pain zone: medial joint line highlight (red glow ring segment)
 const painMat = new THREE.MeshStandardMaterial({ color: 0xff5a4a, emissive: 0xa02010, emissiveIntensity: 0.8, transparent: true, opacity: 0, depthWrite: false });
-const pain = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.006, 10, 40, Math.PI * 0.9), painMat); pain.rotation.x = Math.PI / 2; pain.rotation.z = Math.PI * 0.55; pain.position.set(0, 0, 0.005); pain.renderOrder = 8; root.add(pain);
+const pain = new THREE.Mesh(new THREE.TorusGeometry(0.046, 0.006, 10, 40, Math.PI * 0.9), painMat); pain.rotation.x = Math.PI / 2; pain.rotation.z = Math.PI * 0.55; pain.position.set(0, 0, 0.005); pain.renderOrder = 8; jointG.add(pain);
 // injection: syringe from the superolateral side of the patella into the suprapatellar pouch
-const inj = new THREE.Group(); root.add(inj); inj.visible = false;
+const inj = new THREE.Group(); jointG.add(inj); inj.visible = false;
 const injNeedle = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.05, 8), new THREE.MeshStandardMaterial({ color: 0xd5dbe3, metalness: 0.8, roughness: 0.25 })); inj.add(injNeedle);
 const injBarrel = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.06, 16), new THREE.MeshStandardMaterial({ color: 0xeaf0f6, transparent: true, opacity: 0.6, roughness: 0.2 })); inj.add(injBarrel);
 const injPlunger = new THREE.Mesh(new THREE.CylinderGeometry(0.0045, 0.0045, 0.045, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.4 })); inj.add(injPlunger);
@@ -428,7 +429,7 @@ const STAGES = [
   { name:'구조', cap:'대퇴골·경골·슬개골, 뼈 끝을 덮은 미끄러운 관절연골(하늘색), 사이의 반월판(쿠션), 안팎의 측부인대와 십자인대입니다. 슬라이더로 굽혔다 펴 보세요.',
     set:{ flex:0, oa:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:false }, view:'anterior' },
   { name:'관절염 진행', cap:'연골이 거칠어지고(초기) 얇아져 관절 틈이 좁아지며(중기) 가장자리에 뼈가 자라나고(골극), 끝내 뼈끼리 닿아 다리가 안쪽으로 휩니다(말기, O다리). 슬라이더를 천천히 밀어 보세요.',
-    set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior' },
+    set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior', hide:['bone__patella','cartilage__patella','lig__mcl','lig__lcl'] },
   { name:'증상', cap:'관절 안에 물이 차 무릎이 붓고, 안쪽 관절선을 따라 아픕니다. 계단을 내려갈 때, 오래 앉았다 일어날 때 뻣뻣하고 아프며, 다리가 O자로 휘어 보입니다.',
     set:{ flex:0.15, oa:0.75, effusion:1, pain:1, inject:0, hto:0, tka:0, showFlex:false, showOA:false }, view:'anterior' },
   { name:'치료', cap:'대부분 수술 없이 관리합니다. 아래 버튼으로 단계를 보세요.', set:{ flex:0, oa:0.6, effusion:0.4, pain:0, inject:0, hto:0, tka:0, showFlex:false, showOA:false }, view:'anterior',
@@ -456,6 +457,7 @@ function goStage(i, subIdx){
   else sb.style.display = 'none';
   document.getElementById('caption').textContent = S.subs ? S.subs[sub].cap : S.cap;
   document.getElementById('caption').style.bottom = (state.showFlex || state.showOA) ? '178px' : '112px';
+  state.hidden = new Set(S.hide || []); applyVisibility();
 }
 let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
@@ -473,14 +475,17 @@ let last = performance.now();
   const f30 = Math.min(1, deg / 30), intDeg = 12 * (f30 * f30 * (3 - 2 * f30)) + 4 * Math.max(0, (deg - 30) / 80);
   const qI = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rad(intDeg) * INT_SIGN);         // about the tibia's long axis (pre-flexion vertical)
   const qT = qV.clone().multiply(qF).multiply(qI);
-  // rollback: the femoral condyles roll/glide backward on the plateau — in the fixed-femur frame the tibia slides forward, ~7 mm at 110° (lateral side more via the rotation)
-  const roll = 0.007 * (1 - Math.cos(rad(deg))) / 2;
+  // two-centre model: near extension the tibia turns about the epicondylar axis; in flexion about the smaller posterior-condyle circle (posterior-superior) — this IS the rollback
+  const tt = Math.min(1, Math.max(0, (deg - 15) / 35)), sm = tt * tt * (3 - 2 * tt); const piv = cExt.clone().lerp(cFlex, sm);
+  const roll = 0;
   // the rotation pivots on the medial plateau: translate so that the medial pivot point stays put under the rotation qI (before flexion)
   const pivLocal = medPiv.clone().sub(axP); const pivAfter = pivLocal.clone().applyQuaternion(qI); const keep = pivLocal.clone().sub(pivAfter);
   const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.55) * FLEX_SIGN);
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT); GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP);
-  const offset = keep.clone().add(new THREE.Vector3(0, 0, roll)).applyQuaternion(qV.clone().multiply(qF));                        // carry the pre-flexion offsets through the flexion
-  GROUPS[1].position.copy(axP).add(offset).add(new THREE.Vector3(0, 0.0025 * wear, 0)); skel.bones[1].position.copy(GROUPS[1].position);
+  const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
+  const pivShift = piv.clone().sub(axP).sub(piv.clone().sub(axP).applyQuaternion(qF));                                               // rotating about `piv` instead of axP
+  GROUPS[1].position.copy(axP).add(offset).add(pivShift).add(new THREE.Vector3(0, 0.0025 * wear, 0)); skel.bones[1].position.copy(GROUPS[1].position);
+  const qJ = new THREE.Quaternion().setFromAxisAngle(axD, -rad(deg) * 0.45 * FLEX_SIGN); jointG.quaternion.copy(qJ); jointG.position.copy(axP).sub(axP.clone().applyQuaternion(qJ));   // femur tilts back with the thigh
   deformCurves();
   // ---- symptoms / treatment props ----
   anim.effusion += (state.effusion - anim.effusion) * Math.min(1, dt * 2); anim.pain += (state.pain - anim.pain) * Math.min(1, dt * 3); anim.hto += (state.hto - anim.hto) * Math.min(1, dt * 2.5); anim.tka += (state.tka - anim.tka) * Math.min(1, dt * 2.5);
