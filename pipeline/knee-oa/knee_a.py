@@ -19,11 +19,7 @@ def get(name, cutz=True):
 
 built = {}
 built["bone__femur"] = get("Femur.r"); built["bone__tibia"] = get("Tibia.r"); built["bone__fibula"] = get("Fibula.r"); built["bone__patella"] = get("Patella.r", False)
-built["meniscus__medial"] = get("Medial meniscus.r", False); built["meniscus__lateral"] = get("Lateral meniscus.r", False)
-for k in ("meniscus__medial", "meniscus__lateral"):                       # Z-Anatomy's menisci are thin slivers: thicken (x1.9) and widen (x1.15) about their own centre so the cushions read
-    bm = built[k]; c = sum((v.co for v in bm.verts), Vector()) / len(bm.verts); zc = c.z
-    for v in bm.verts: v.co = Vector((c.x + (v.co.x - c.x) * 1.15, c.y + (v.co.y - c.y) * 1.15, zc + (v.co.z - zc) * 1.9 + 0.0015))
-    bmesh.ops.smooth_vert(bm, verts=bm.verts[:], factor=0.4, use_axis_x=True, use_axis_y=True, use_axis_z=True)
+# ---- menisci are built procedurally after the tibial cartilage (see MENISCI) ----
 # cruciate footprints (built as live bands in the viewer so they show tension/slack with motion)
 notch_x = sum(v.x for v in epi_zone) / len(epi_zone) if False else None
 # ---- collateral ligaments built from bony landmarks (Z-Anatomy's are crude sheets) ----
@@ -149,6 +145,42 @@ built["cartilage__patella"] = shell(patella, patella_art, 0.003, "cp")
 for k in ("cartilage__femur", "cartilage__tibia", "cartilage__patella"):
     print(k, len(built[k].verts) if built[k] else None, "verts")
 
+# ---- MENISCI: medial = larger C (open toward the centre), lateral = rounder, nearly closed; both rest on the tibial cartilage ----
+tib_bvh = BVHTree.FromBMesh(join_bms([built["bone__tibia"].copy(), built["cartilage__tibia"].copy()])); fem_bvh = BVHTree.FromBMesh(join_bms([built["bone__femur"].copy(), built["cartilage__femur"].copy()]))
+ct = built["cartilage__tibia"]; cpts = [v.co for v in ct.verts]; cx_mid = sorted(p.x for p in cpts)[len(cpts) // 2]
+def compartment_centre(side):
+    sel = [p for p in cpts if (p.x > cx_mid) == (side == "medial")]; return sum(sel, Vector()) / len(sel)
+def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
+    c = compartment_centre(side)
+    open_c = 0.0 if side == "lateral" else math.pi                                          # the C opens toward the notch: lateral compartment (-x) opens to +x (angle 0), medial (+x) opens to -x (pi)
+    bm = bmesh.new(); rows = []; half_gap = math.radians(gap_deg / 2)
+    ths = [open_c + half_gap + (2 * math.pi - 2 * half_gap) * k / n_th for k in range(n_th + 1)]
+    for th in ths:
+        ring = []
+        for j in range(n_r + 1):
+            r = 0.52 + 0.48 * j / n_r                                                       # 0.52 = free inner edge, 1.0 = outer rim
+            px = c.x + rx * r * math.cos(th); py = c.y + ry * r * math.sin(th)
+            hit = tib_bvh.ray_cast(Vector((px, py, c.z + 0.03)), Vector((0, 0, -1)), 0.06)
+            base = (hit[0].z + 0.0003) if hit[0] is not None else c.z
+            h = thick * (0.15 + 0.85 * ((r - 0.52) / 0.48) ** 1.2)                            # wedge: thin free edge, thick rim
+            up = fem_bvh.ray_cast(Vector((px, py, base + 0.0005)), Vector((0, 0, 1)), 0.03)   # never into the femoral condyle above: cap the height 0.4 mm under it
+            if up[0] is not None: h = max(0.0012, min(h, up[0].z - base - 0.0012))
+            ring.append((bm.verts.new(Vector((px, py, base))), bm.verts.new(Vector((px, py, base + h)))))
+        rows.append(ring)
+    for r0, r1 in zip(rows, rows[1:]):
+        for j in range(n_r):
+            (a0, t0), (a1, t1) = r0[j], r0[j + 1]; (b0, u0), (b1, u1) = r1[j], r1[j + 1]
+            bm.faces.new((a0, a1, b1, b0)); bm.faces.new((t0, u0, u1, t1))
+        (a0, t0) = r0[0]; (b0, u0) = r1[0]; bm.faces.new((a0, b0, u0, t0))
+        (a1, t1) = r0[-1]; (b1, u1) = r1[-1]; bm.faces.new((a1, t1, u1, b1))
+    for ring in (rows[0], rows[-1]):
+        try: bm.faces.new([ring[j][0] for j in range(n_r + 1)] + [ring[j][1] for j in range(n_r, -1, -1)])
+        except ValueError: pass
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces)
+    return bm
+built["meniscus__medial"] = meniscus("medial", 0.017, 0.0235, 0.0055, 95)                  # 34 x 47 mm C, 5.5 mm rim
+built["meniscus__lateral"] = meniscus("lateral", 0.0165, 0.018, 0.005, 55)                  # 33 x 36 mm, rounder, 5 mm rim
+print("menisci: medial", len(built["meniscus__medial"].verts), "v, lateral", len(built["meniscus__lateral"].verts), "v")
 objects = []
 for k, bm in built.items():
     if bm is None: continue
