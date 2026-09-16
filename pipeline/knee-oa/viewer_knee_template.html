@@ -574,7 +574,7 @@ let last = performance.now();
       const wp = rest.clone().applyMatrix4(toW); _rayM.set(wp.clone().add(new THREE.Vector3(0, 0.0003, 0)), new THREE.Vector3(0, -1, 0)); _rayM.far = 0.03;
       const hs = _rayM.intersectObjects(femurAndCart, false); let y = rest.y;
       // going DOWN from the vertex: any exit through a downward-facing femur/cartilage face means the vertex sits inside or above the condyle → drop it below that face
-      for (const h of hs) { const fn = h.face.normal.clone().transformDirection(h.object.matrixWorld); if (fn.y < -0.2) { const lim = h.point.clone().applyMatrix4(fromW).y - 0.0004; if (lim < y) y = Math.max(base.y + 0.001, lim); } }
+      for (const h of hs) { const fn = h.face.normal.clone().transformDirection(h.object.matrixWorld); if (fn.y < -0.2) { const lim = h.point.clone().applyMatrix4(fromW).y - 0.0004; if (lim < y) y = Math.max(base.y + 0.0005, lim); } }
       pos.setY(i, y); }
     pos.needsUpdate = true; M.mesh.geometry.computeVertexNormals(); }
   // ---- symptoms / treatment props ----

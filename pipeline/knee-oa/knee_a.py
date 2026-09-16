@@ -185,7 +185,7 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
             base = (hit[0].z + 0.0003) if hit[0] is not None else c.z
             h = thick * (0.15 + 0.85 * (j / n_r) ** 1.2)                                      # wedge: thin free edge, thick rim
             up = fem_bvh.ray_cast(Vector((px, py, base + 0.0005)), Vector((0, 0, 1)), 0.03)   # never into the femoral condyle above: cap the height 0.4 mm under it
-            if up[0] is not None: h = max(0.0012, min(h, up[0].z - base - 0.0012))
+            if up[0] is not None: h = max(0.0005, min(h, up[0].z - base - 0.0010))
             ring.append((bm.verts.new(Vector((px, py, base))), bm.verts.new(Vector((px, py, base + h)))))
         rows.append(ring)
     for r0, r1 in zip(rows, rows[1:]):
@@ -207,7 +207,7 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
             if loc is not None and (vt.co - loc).dot(nrm) < 0.0006: vt.co.z -= (0.0006 - (vt.co - loc).dot(nrm))
             loc2, nrm2, idx2, dist2 = tib_bvh.find_nearest(vb.co)
             if loc2 is not None and (vb.co - loc2).dot(nrm2) < 0.0003: vb.co.z += (0.0003 - (vb.co - loc2).dot(nrm2))
-            if vt.co.z < vb.co.z + 0.001: vt.co.z = vb.co.z + 0.001                             # the wedge never inverts (no holes)
+            if vt.co.z < vb.co.z + 0.0005: vt.co.z = vb.co.z + 0.0005                           # the wedge never inverts (no holes)
     return bm
 built["meniscus__medial"] = meniscus("medial", 0.026, 0.0245, 0.0065, 70)                   # medial: ~37 x 49 mm C, rim 6.5 mm
 built["meniscus__lateral"] = meniscus("lateral", 0.021, 0.022, 0.006, 40)                    # lateral: ~34 x 38 mm ring, rim 6 mm
