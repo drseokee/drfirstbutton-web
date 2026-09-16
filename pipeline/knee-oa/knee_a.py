@@ -137,7 +137,7 @@ def femur_art(f):
     return (down > 0.25) or (fwd > 0.5 and c.z > JZ + 0.005 and abs(c.x - fx) < 0.02) or (down > 0.05 and n.y > 0.4)   # inferior, trochlea, posterior condyles
 def tibia_art(f):
     c = f.calc_center_median(); n = f.normal; tz = max(v.co.z for v in tibia.verts)
-    return c.z > tz - 0.007 and n.z > 0.45
+    return c.z > tz - 0.016 and n.z > 0.20                                     # the whole plateau surface, including its gently sloping margins
 def patella_art(f):
     c = f.calc_center_median(); n = f.normal
     return n.y > 0.45                                                        # posterior facet
@@ -164,7 +164,7 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
     open_c = 0.0 if side == "lateral" else math.pi                                          # the C opens toward the notch: lateral compartment (-x) opens to +x (angle 0), medial (+x) opens to -x (pi)
     bm = bmesh.new(); rows = []; half_gap = math.radians(gap_deg / 2)
     ths = [open_c + half_gap + (2 * math.pi - 2 * half_gap) * k / n_th for k in range(n_th + 1)]
-    ex, ey = compartment_extent(side); f_ = 0.62 if side == 'medial' else 0.50; rx = min(rx, ex * f_); ry = min(ry, ey * (f_ + 0.05))   # medial may overhang the rim slightly (it does), lateral stays inside
+    ex, ey = compartment_extent(side); rx = min(rx, ex * 0.60); ry = min(ry, ey * 0.62)      # generous: the rim is found by the plateau-edge search below
     rmax = []
     for th in ths:                                                                          # the rim stops where the plateau ends (ray must land on the plateau top, facing up)
         r_max = 1.0
@@ -178,7 +178,7 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
     for th, r_max in zip(ths, rmax):
         ring = []
         for j in range(n_r + 1):
-            r = (0.52 + 0.48 * j / n_r) * r_max                                                 # 0.52 = free inner edge, r_max = outer rim (on the plateau)
+            r = (0.42 + 0.58 * j / n_r) * r_max                                                 # 0.42 = free inner edge, r_max = outer rim (at the plateau edge)
             px = c.x + rx * r * math.cos(th); py = c.y + ry * r * math.sin(th)
             hit = tib_bvh.ray_cast(Vector((px, py, c.z + 0.03)), Vector((0, 0, -1)), 0.06)
             base = (hit[0].z + 0.0003) if hit[0] is not None else c.z
@@ -208,8 +208,8 @@ def meniscus(side, rx, ry, thick, gap_deg, n_th=40, n_r=6):
             if loc2 is not None and (vb.co - loc2).dot(nrm2) < 0.0003: vb.co.z += (0.0003 - (vb.co - loc2).dot(nrm2))
             if vt.co.z < vb.co.z + 0.001: vt.co.z = vb.co.z + 0.001                             # the wedge never inverts (no holes)
     return bm
-built["meniscus__medial"] = meniscus("medial", 0.019, 0.026, 0.0055, 95)                   # up to 38 x 52 mm C (clipped to the compartment), 5.5 mm rim
-built["meniscus__lateral"] = meniscus("lateral", 0.016, 0.018, 0.005, 55)                   # up to 32 x 36 mm, rounder, 5 mm rim
+built["meniscus__medial"] = meniscus("medial", 0.026, 0.030, 0.0065, 70)                    # wide C to the plateau edge, 6.5 mm rim, opens only at the intercondylar area
+built["meniscus__lateral"] = meniscus("lateral", 0.0185, 0.021, 0.006, 40)                   # nearly closed ring (smaller than the medial), 6 mm rim
 print("menisci: medial", len(built["meniscus__medial"].verts), "v, lateral", len(built["meniscus__lateral"].verts), "v")
 objects = []
 for k, bm in built.items():
