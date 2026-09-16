@@ -172,7 +172,7 @@ for o in objects:
         T = (curve[min(i + 1, len(curve) - 1)] - curve[max(i - 1, 0)]).normalized()
         src = ANT if N_prev is None else N_prev
         N = (src - T * T.dot(src)); N = N.normalized() if N.length > 1e-6 else Vector((1, 0, 0)); B = T.cross(N).normalized(); frames.append((T, N, B)); N_prev = N
-    tv = []
+    tv = []; strip = []
     for p in pts:
         # nearest point on the polyline
         best = (1e9, 0, 0.0)
@@ -182,6 +182,7 @@ for o in objects:
         dd, i, u = best; q = curve[i] + (curve[i + 1] - curve[i]) * u; t = (S[i] + (S[i + 1] - S[i]) * u) / Ltot
         T0, N0, B0 = frames[i]; T1, N1, B1 = frames[i + 1]; T = (T0 * (1 - u) + T1 * u).normalized(); N = (N0 * (1 - u) + N1 * u).normalized(); Bv = (B0 * (1 - u) + B1 * u).normalized()
         off = p - q; tv += [round(t, 4), round(off.dot(T), 5), round(off.dot(N), 5), round(off.dot(Bv), 5)]
+        strip.append(round(math.atan2(off.dot(Bv), off.dot(N)), 3))
     # curve points → bone group weights (femur / tibia / patella), blended within ±25 mm of the joint line
     cw = []
     for cpt in curve:
@@ -192,7 +193,7 @@ for o in objects:
         elif cpt.z < -0.04: ww = [0.0, 1.0, 0.0]
         else: inv = [1.0 / (dd + 0.006) ** 2 for dd in ds]; tot = sum(inv); ww = [x / tot for x in inv]
         cw += [round(x, 3) for x in ww]
-    o["curve"] = {"pts": [round(c, 5) for cpt in curve for c in cpt], "w": cw, "tv": tv, "L0": round(Ltot, 5)}
+    o["curve"] = {"pts": [round(c, 5) for cpt in curve for c in cpt], "w": cw, "tv": tv, "L0": round(Ltot, 5)}; o["strip"] = strip
     o.pop("w", None)
 print("curve deformers built")
 ct = objs["cartilage__tibia"]; cpts = [V(ct, i) for i in range(nverts(ct))]; xm2 = sorted(p.x for p in cpts)[len(cpts) // 2]

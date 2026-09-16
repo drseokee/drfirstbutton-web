@@ -50,7 +50,7 @@ def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
                 o_ = (hit[0] - cc).dot(nrm) + clearance
                 if best is None or o_ > best: best = o_
         offs.append(max(-0.006, min(0.016, best if best is not None else 0.0)))
-    offs[0] = offs[-1] = clearance + thick / 2
+    offs[0] = offs[-1] = thick * 0.15                                                        # ends sit half-embedded at the footprints
     # taut band: upper convex hull of the profile (a ligament under tension bridges concavities, it does not follow them)
     hull = []
     for i, o_ in enumerate(offs):
@@ -64,13 +64,13 @@ def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
         for i in range(i1, i2 + 1): taut[i] = o1 + (o2 - o1) * (i - i1) / max(1, i2 - i1)
     for i in range(n + 1):
         u = i / n; c = a + d * u + nrm * taut[i]
-        w = w0 * (1 - u) + w1 * u
+        w = (w0 * (1 - u) + w1 * u) * (1 + 0.12 * math.sin(math.pi * u))                          # slightly fusiform
         rings.append([bm.verts.new(c + side * (w / 2 * math.cos(2 * math.pi * k / segs)) + nrm * (thick / 2 * math.sin(2 * math.pi * k / segs))) for k in range(segs)])
     for r0, r1 in zip(rings, rings[1:]):
         for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
     bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
 built["lig__mcl"] = collateral(mcl_o, mcl_i, 0.012, 0.020, 0.0025, Vector((1, 0, 0)))     # superficial MCL: 12 mm proximally widening to 20 mm, 2.5 mm thick, ~10 cm
-built["lig__lcl"] = collateral(lcl_o, lcl_i, 0.008, 0.010, 0.0042, Vector((-1, 0, 0)))   # LCL: flattened cord 8 mm wide at the femur widening to 10 mm at the fibular head, 4 mm thick
+built["lig__lcl"] = collateral(lcl_o, lcl_i, 0.0075, 0.0095, 0.0038, Vector((-1, 0, 0)))  # LCL: flattened cord 7.5 → 9.5 mm wide, 3.8 mm thick
 # ---- cruciate footprints ----
 fx_ = sum(v.x for v in fv_ if JZ - 0.005 < v.z < JZ + 0.03) / max(1, len([v for v in fv_ if JZ - 0.005 < v.z < JZ + 0.03]))
 notch = [v for v in fv_ if JZ + 0.004 < v.z < JZ + 0.028 and abs(v.x - fx_) < 0.012]                       # intercondylar notch walls

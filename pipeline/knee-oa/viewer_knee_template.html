@@ -169,6 +169,11 @@ for (const o of DATA.objects) {
   };
   if (o.layer === 'capsule' || o.layer === 'fat') { m.transparent = true; m.opacity = 0.35; m.depthWrite = false; }
   if (o.layer === 'cartilage') { m.roughness = 0.22; }
+  if (o.layer === 'lig' && o.strip) {   // ligament: matte with faint longitudinal fibres (angle around the section drives the stripes)
+    g.setAttribute('strip', new THREE.Float32BufferAttribute(o.strip, 1)); m.roughness = 0.85;
+    m.onBeforeCompile = (orig => sh => { orig && orig(sh);
+      sh.vertexShader = 'attribute float strip; varying float vStrip;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vStrip = strip;');
+      sh.fragmentShader = 'varying float vStrip;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n gl_FragColor.rgb *= 0.90 + 0.10 * (0.5 + 0.5 * sin(vStrip * 14.0));'); })(m.onBeforeCompile); }
   if (o.layer === 'bone') {   // ageing bone: dull yellow-grey tint, porous speckling, subchondral sclerosis (whiter band under the joint), all scaled by uAge
     const jd = new Float32Array(pos.length / 3); for (let i = 0; i < jd.length; i++) jd[i] = Math.max(0, 1 - Math.abs(pos[3*i+1]) / 0.014); g.setAttribute('jd', new THREE.BufferAttribute(jd, 1));
     m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uAge = UAGE;
@@ -178,7 +183,7 @@ for (const o of DATA.objects) {
       sh.vertexShader = 'attribute float fxa; varying float vFx; varying vec3 vWp2;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFx = fxa; vWp2 = position;');
       sh.fragmentShader = 'uniform float uCrt; varying float vFx; varying vec3 vWp2;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n float ex = clamp(vFx * uCrt * 1.6, 0.0, 1.0);\n if (ex > 0.02) { vec3 p = vWp2 * 900.0; float sp = smoothstep(0.55, 0.9, sin(p.x * 1.7 + sin(p.z * 1.3)) * sin(p.y * 1.9 + p.x * 0.4));\n vec3 pink = vec3(0.86, 0.55, 0.50), red = vec3(0.62, 0.12, 0.10); gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(pink, red, sp), ex); }'); })(m.onBeforeCompile);
     g.setAttribute('fxa', new THREE.Float32BufferAttribute(o.fx, 1)); }
-  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.morphs ? '_m' : '') + (o.fx ? '_fx' : '') + (o.layer === 'bone' ? '_age' : '');
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.morphs ? '_m' : '') + (o.fx ? '_fx' : '') + (o.layer === 'bone' ? '_age' : '') + (o.strip ? '_fib' : '');
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline
     const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
