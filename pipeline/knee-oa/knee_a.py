@@ -68,7 +68,7 @@ def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
         for k in range(segs): bm.faces.new((r0[k], r0[(k + 1) % segs], r1[(k + 1) % segs], r1[k]))
     bm.faces.new(rings[0][::-1]); bm.faces.new(rings[-1]); bmesh.ops.recalc_face_normals(bm, faces=bm.faces); bmesh.ops.triangulate(bm, faces=bm.faces); return bm
 built["lig__mcl"] = collateral(mcl_o, mcl_i, 0.012, 0.020, 0.0025, Vector((1, 0, 0)))     # superficial MCL: 12 mm proximally widening to 20 mm, 2.5 mm thick, ~10 cm
-built["lig__lcl"] = collateral(lcl_o, lcl_i, 0.006, 0.006, 0.004, Vector((-1, 0, 0)))     # LCL: 6 x 4 mm cord, ~6 cm
+built["lig__lcl"] = collateral(lcl_o, lcl_i, 0.008, 0.010, 0.0042, Vector((-1, 0, 0)))   # LCL: flattened cord 8 mm wide at the femur widening to 10 mm at the fibular head, 4 mm thick
 # ---- cruciate footprints ----
 fx_ = sum(v.x for v in fv_ if JZ - 0.005 < v.z < JZ + 0.03) / max(1, len([v for v in fv_ if JZ - 0.005 < v.z < JZ + 0.03]))
 notch = [v for v in fv_ if JZ + 0.004 < v.z < JZ + 0.028 and abs(v.x - fx_) < 0.012]                       # intercondylar notch walls

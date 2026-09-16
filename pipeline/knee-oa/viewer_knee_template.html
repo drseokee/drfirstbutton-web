@@ -80,7 +80,7 @@
     <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
   <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대</label>
   <label class="row"><input type="checkbox" data-layer="cartilage" checked><span class="sw" style="background:#dbe9f3"></span>관절연골</label>
-  <label class="row"><input type="checkbox" data-layer="meniscus" checked><span class="sw" style="background:#d9c9a3"></span>반월판</label>
+  <label class="row"><input type="checkbox" data-layer="meniscus" checked><span class="sw" style="background:#d3a45c"></span>반월판</label>
   
   <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
   <h2>표현</h2>
@@ -121,7 +121,7 @@ const KO = {
   capsule__knee:"관절낭", fat__infrapatellar:"슬개하 지방체", skin__knee:"피부"
 };
 for (const [k, w] of [['rectus_femoris','대퇴직근'],['vastus_medialis','내측광근'],['vastus_lateralis','외측광근'],['vastus_intermedius','중간광근'],['biceps_long','대퇴이두근 장두'],['biceps_short','대퇴이두근 단두'],['semitendinosus','반건양근'],['semimembranosus','반막양근'],['gracilis','박근'],['sartorius','봉공근'],['gastroc_med','비복근 내측두'],['gastroc_lat','비복근 외측두'],['popliteus','슬와근'],['plantaris','족척근'],['itb','장경인대'],['adductor_magnus','대내전근']]) KO['muscle__'+k] = w;
-const COL = { bone:0xdccfb4, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, vessel:0xb03a3a, cartilage:0xdbe9f3, meniscus:0xd9c9a3, capsule:0xc9d6e0, fat:0xe8d8a8 };
+const COL = { bone:0xdccfb4, nerve:0xf2c94c, lig:0xa9bfd6, tendon:0xf4efe2, muscle:0xa04a48, skin:0xd9a58f, vessel:0xb03a3a, cartilage:0xdbe9f3, meniscus:0xd3a45c, capsule:0xc9d6e0, fat:0xe8d8a8 };
 const CAP_SHADE = { bone:0.72, nerve:0.78, lig:0.75, tendon:0.70, muscle:0.72, skin:1, vessel:0.8, cartilage:0.9, meniscus:0.8, capsule:0.8, fat:0.8 };
 const ROUGH = { bone:0.7, nerve:0.5, lig:0.6, tendon:0.45, muscle:0.65, skin:0.75, vessel:0.45, cartilage:0.25, meniscus:0.5, capsule:0.6, fat:0.7 };
 
@@ -352,7 +352,7 @@ function updateCruciates(){
       const fr = C.cut ? Math.max(0, 1 - Math.abs(u - 0.5) / 0.1) : 0; const hw = C.width / 2 * (1 - 0.35 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr), hh = C.thick / 2 * (1 - 0.5 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr);
       for (let r = 0; r < C.RING; r++) { const ang = 2 * Math.PI * r / C.RING; const p = c.clone().addScaledVector(side, hw * Math.cos(ang)).addScaledVector(nrm, hh * Math.sin(ang)); pos.setXYZ(vi++, p.x, p.y, p.z); } }
     pos.needsUpdate = true; C.mesh.geometry.computeVertexNormals();
-    const hot = Math.max(0, Math.min(1, C.strain * 2.5));                                  // taut → red, gradually
+    const hot = drawer.dir !== 0 ? Math.max(0, Math.min(1, C.strain * 2.5)) : 0;          // tension colour only in the stability demo
     C.mesh.material.color.setRGB(0.66 + 0.3 * hot, 0.75 - 0.5 * hot, 0.84 - 0.65 * hot); C.mesh.visible = state.layers.lig && !(state.hidden && state.hidden.has(C.mesh.name));
   }
 }
