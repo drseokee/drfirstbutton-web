@@ -62,11 +62,20 @@ for ck, bk in BONE.items():
         wgt = 0.0
         for (q, rad) in centers:
             dd = (p - q).length; wgt = max(wgt, smooth01(1 - dd / rad))
-        if outer and loc is not None and wgt > 0:
-            toward = (loc - p); dep = toward.length; dv = toward.normalized() * max(0.0, dep - 0.0002) * wgt
+        if loc is not None and wgt > 0:
+            toward = (loc - p); dep = toward.length; dv = (toward.normalized() if dep > 1e-6 else -Vector(nrm)) * (dep + 0.0012) * wgt     # sinks 1.2 mm under the bone surface: the patch vanishes into the bone = exposed bone
         else: dv = Vector((0, 0, 0))
         crater += [round(dv.x, 5), round(dv.y, 5), round(dv.z, 5)]; cw.append(round(wgt, 2))
     c["morphs"] = {"wear": wear, "rough": rough, "crater": crater}; c["cw"] = cw
+    # bone under the craters: per-vertex weight for the red "exposed, inflamed bone" tint
+    bo = objs[bk]; cbvh_pts = [(pts_c[i], cw[i]) for i in range(nverts(c)) if cw[i] > 0.05]
+    fxb = []
+    for i in range(nverts(bo)):
+        p = V(bo, i); wgt = 0.0
+        for (q, wq) in cbvh_pts:
+            if (p - q).length < 0.004: wgt = max(wgt, wq)
+        fxb.append(round(wgt, 2))
+    bo["fx"] = [max(x, y) for x, y in zip(bo.get("fx", [0.0] * nverts(bo)), fxb)]
     c["medial"] = [round(smooth01((V(c, i).x - x0) / max(1e-6, x1 - x0)), 2) for i in range(nverts(c))]
     print(f"{ck}: wear/rough morphs on {sum(1 for i in range(nverts(c)) if wear[3*i:3*i+3] != [0,0,0])} outer verts")
 

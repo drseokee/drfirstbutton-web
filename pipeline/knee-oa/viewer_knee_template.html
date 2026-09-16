@@ -178,7 +178,7 @@ for (const o of DATA.objects) {
     const hull = new THREE.Mesh(g, om); hull.renderOrder = -1; hull.visible = false; mesh.userData.hull = hull; mesh.add(hull);
   }
   mesh.name = o.name; mesh.userData.layer = o.layer; mesh.userData.cut = o.name.endsWith('__cut');
-  mesh.userData.base = o.name.replace(/__cut$/, ''); if (o.w) mesh.userData.w = o.w; if (o.cw) { mesh.userData.cw = o.cw; mesh.userData.medial = o.medial; mesh.userData.baseCol = g.getAttribute('color').array.slice(); } if (o.curve) mesh.userData.curve = o.curve; if (o.group !== undefined) mesh.userData.group = o.group; if (o.morphs) { mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); mesh.userData.morphNames = Object.keys(o.morphs); }
+  mesh.userData.base = o.name.replace(/__cut$/, ''); if (o.w) mesh.userData.w = o.w; if (o.cw) { mesh.userData.cw = o.cw; mesh.userData.medial = o.medial; mesh.userData.baseCol = g.getAttribute('color').array.slice(); } if (o.fx) { mesh.userData.fx = o.fx; mesh.userData.baseCol = g.getAttribute('color').array.slice(); } if (o.curve) mesh.userData.curve = o.curve; if (o.group !== undefined) mesh.userData.group = o.group; if (o.morphs) { mesh.morphTargetInfluences = Object.keys(o.morphs).map(() => 0); mesh.userData.morphNames = Object.keys(o.morphs); }
   mesh.renderOrder = o.layer === 'skin' ? 10 : 0;
   root.add(mesh); meshes.push(mesh);
 }
@@ -330,21 +330,28 @@ const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.B
 for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
 cruciates.push(makeBand('lig__acl', '전방십자인대 (ACL)', L3('acl_femur'), L3('acl_tibia'), 0.010, 0.005, 0xa9bfd6)); cruciates.push(makeBand('lig__pcl', '후방십자인대 (PCL)', L3('pcl_femur'), L3('pcl_tibia'), 0.012, 0.0065, 0xa9bfd6));
 for (const C of cruciates) jointG.add(C.mesh);
-const _inv = new THREE.Matrix4();
+const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const HUG_C = [meshes.find(m => m.name === 'bone__femur'), meshes.find(m => m.name === 'bone__tibia')].filter(Boolean);
 function updateCruciates(){
   jointG.updateMatrixWorld(true); _inv.copy(jointG.matrixWorld).invert();
   for (const C of cruciates) {
     const a = C.aLocal.clone().applyMatrix4(GROUPS[0].matrixWorld).applyMatrix4(_inv), b = C.bLocal.clone().applyMatrix4(GROUPS[1].matrixWorld).applyMatrix4(_inv);
     const d = b.clone().sub(a), len = d.length(), tdir = d.clone().normalize(); C.strain = len / C.rest - 1;
-    const out = new THREE.Vector3(0, 0, C.mesh.name === 'lig__acl' ? 1 : -1); const nrm = out.sub(tdir.clone().multiplyScalar(tdir.dot(out))).normalize(); const side = new THREE.Vector3().crossVectors(tdir, nrm).normalize();
+    // frame: the band's side vector is the epicondylar axis (never parallel to a cruciate), so the section frame cannot flip
+    const side = axD.clone().sub(tdir.clone().multiplyScalar(tdir.dot(axD))).normalize(); let nrm = new THREE.Vector3().crossVectors(side, tdir).normalize();
+    if (nrm.dot(new THREE.Vector3(0, 0, C.mesh.name === 'lig__acl' ? 1 : -1)) < 0) { nrm.negate(); side.negate(); }              // ACL bows anteriorly, PCL posteriorly
     const slack = Math.max(0, -C.strain); const pos = C.mesh.geometry.getAttribute('position'); let vi = 0;
     const gap = C.cut ? 0.12 : 0;
+    // bone-hugging: keep the band clear of the tibial spine / plateau and the notch (probe along nrm at three points across the width)
+    const hugs = []; for (let i = 0; i <= C.SEG; i += 2) { const u = i / C.SEG; const c0 = a.clone().addScaledVector(d, u); let best = 0;
+      for (const s of [-C.width / 2, 0, C.width / 2]) { const o = c0.clone().addScaledVector(side, s); _rayC.set(o.clone().addScaledVector(nrm, 0.012).applyMatrix4(jointG.matrixWorld), nrm.clone().negate().transformDirection(jointG.matrixWorld)); _rayC.far = 0.024; const hs = _rayC.intersectObjects(HUG_C, false); if (hs.length) { const off = hs[0].point.clone().applyMatrix4(_inv).sub(o).dot(nrm) + C.thick / 2 + 0.0006; if (off > best) best = off; } }
+      hugs[i] = (i === 0 || i === C.SEG) ? 0 : Math.min(0.008, best); }
+    for (let i = 1; i < C.SEG; i += 2) hugs[i] = (hugs[i - 1] + hugs[i + 1]) / 2;
     for (let i = 0; i <= C.SEG; i++) { let u = i / C.SEG; if (C.cut) u = u < 0.5 ? u * (1 - gap * 2) : 1 - (1 - u) * (1 - gap * 2);
-      const c = a.clone().addScaledVector(d, u).addScaledVector(nrm, 0.004 * Math.sin(Math.PI * u) + slack * 0.05 * Math.sin(u * 7 + 1.1));   // slack ligament sags and waves
+      const c = a.clone().addScaledVector(d, u).addScaledVector(nrm, 0.0025 * Math.sin(Math.PI * u) + hugs[Math.round(u * C.SEG)] + Math.min(0.003, slack * 0.02) * Math.sin(u * 7 + 1.1));   // slack: gentle sag only
       const fr = C.cut ? Math.max(0, 1 - Math.abs(u - 0.5) / 0.1) : 0; const hw = C.width / 2 * (1 - 0.35 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr), hh = C.thick / 2 * (1 - 0.5 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr);
       for (let r = 0; r < C.RING; r++) { const ang = 2 * Math.PI * r / C.RING; const p = c.clone().addScaledVector(side, hw * Math.cos(ang)).addScaledVector(nrm, hh * Math.sin(ang)); pos.setXYZ(vi++, p.x, p.y, p.z); } }
     pos.needsUpdate = true; C.mesh.geometry.computeVertexNormals();
-    const hot = Math.max(0, Math.min(1, C.strain * 6));                                    // taut → red
+    const hot = Math.max(0, Math.min(1, C.strain * 2.5));                                  // taut → red, gradually
     C.mesh.material.color.setRGB(0.66 + 0.3 * hot, 0.75 - 0.5 * hot, 0.84 - 0.65 * hot); C.mesh.visible = state.layers.lig && !(state.hidden && state.hidden.has(C.mesh.name));
   }
 }
@@ -529,6 +536,8 @@ let last = performance.now();
   GROUPS[1].position.copy(axP).add(offset).add(pivShift).add(new THREE.Vector3(0, 0.0025 * wear, animD.shift)); skel.bones[1].position.copy(GROUPS[1].position);
   for (const C of cruciates) C.cut = C.mesh.name === 'lig__acl' ? drawer.cutACL : drawer.cutPCL;
   updateCruciates();
+  for (const m of meshes) { if (!m.userData.fx || !m.userData.baseCol) continue; const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, fx = m.userData.fx; const crt = Math.max(0, Math.min(1, (oa - 0.5) / 0.4));
+    for (let i = 0; i < fx.length; i++) { const a = fx[i] * crt; col.array[3*i] = base[3*i] * (1 - 0.1 * a) + 0.4 * a; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * a); col.array[3*i+2] = base[3*i+2] * (1 - 0.75 * a); } col.needsUpdate = true; }
   // cartilage colouring: thinning zones turn pink, full-thickness craters red (exposed bone)
   const crater = Math.max(0, Math.min(1, (oa - 0.5) / 0.4));
   for (const m of meshes) { if (!m.userData.cw) continue; const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, cw = m.userData.cw, med = m.userData.medial;

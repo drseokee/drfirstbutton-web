@@ -48,7 +48,7 @@ def collateral(a, b, w0, w1, thick, out, n=22, segs=12, clearance=0.0010):
                 o_ = (hit[0] - cc).dot(nrm) + clearance
                 if best is None or o_ > best: best = o_
         offs.append(max(-0.006, min(0.016, best if best is not None else 0.0)))
-    offs[0] = offs[-1] = clearance
+    offs[0] = offs[-1] = clearance + thick / 2
     # taut band: upper convex hull of the profile (a ligament under tension bridges concavities, it does not follow them)
     hull = []
     for i, o_ in enumerate(offs):
