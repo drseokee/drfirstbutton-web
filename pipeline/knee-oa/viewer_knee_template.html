@@ -326,6 +326,8 @@ function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / 
   document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
 // ---- cruciate ligaments: live bands between their footprints (ACL: lateral condyle notch wall → anterior tibia; PCL: medial condyle → posterior fossa) ----
 const LM = DATA.meta.landmarks; const L3 = k => new THREE.Vector3(...A2S(LM[k]));
+const _rayP = new THREE.Raycaster(); let patShift = 0; const patSample = [];
+{ const cp = meshes.find(m => m.name === 'cartilage__patella'); if (cp) { const p = cp.geometry.getAttribute('position'); for (let i = 0; i < p.count; i += Math.max(1, Math.floor(p.count / 24))) patSample.push(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); } }
 const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur'); const femurAndCart = [femurMesh, meshes.find(m => m.name === 'cartilage__femur')].filter(Boolean);
 for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
   // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
@@ -547,8 +549,18 @@ let last = performance.now();
   const roll = 0;
   // the rotation pivots on the medial plateau: translate so that the medial pivot point stays put under the rotation qI (before flexion)
   const pivLocal = medPiv.clone().sub(axP); const pivAfter = pivLocal.clone().applyQuaternion(qI); const keep = pivLocal.clone().sub(pivAfter);
-  const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.55) * FLEX_SIGN);
+  // patella: flexes ~70 % of the knee angle about the epicondylar axis (its centre sweeps down the trochlea = the glide), then is pushed out so its cartilage rides on the femur
+  const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT); GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP);
+  GROUPS[2].position.copy(axP); if (patSample.length) { GROUPS[2].updateMatrixWorld(true); femurMesh.updateMatrixWorld(true);
+    // keep the patellar cartilage just off the trochlea: probe from sampled cartilage vertices toward the axis, find the tightest gap, slide the patella radially
+    let minGap = 1; const axW = axP.clone().applyMatrix4(jointG.matrixWorld);
+    for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); const dir = axW.clone().sub(wp); const L = dir.length(); dir.normalize(); _rayP.set(wp.clone().addScaledVector(dir, -0.004), dir); _rayP.far = L;
+      const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) minGap = Math.min(minGap, hs[0].distance - 0.004); }
+    if (minGap < 1) { const shift = minGap - 0.0006; patShift += (shift - patShift) * Math.min(1, dt * 8); } else patShift += (0 - patShift) * Math.min(1, dt * 8);
+    const radial = new THREE.Vector3(); cartP.getWorldPosition(radial); radial.sub(axW).normalize().transformDirection(new THREE.Matrix4().copy(jointG.matrixWorld).invert());
+    GROUPS[2].position.copy(axP).addScaledVector(radial, -patShift); }
+  skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
   const pivShift = new THREE.Vector3(0, 1, 0).applyQuaternion(qF).multiplyScalar(contactOff);                                         // slide along the tibia's own axis so the plateau stays on the condyle
   const targetShift = drawer.dir === 0 ? 0 : drawer.dir > 0 ? (drawer.cutACL ? 0.012 : 0.003) : -(drawer.cutPCL ? 0.011 : 0.003);   // anterior drawer 3 mm normally, 12 mm without the ACL
