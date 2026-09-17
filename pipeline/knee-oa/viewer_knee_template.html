@@ -456,8 +456,6 @@ const TR = {};
   const d = c.clone().sub(axP); TR.a0 = Math.atan2(-d.y, d.z) * 180 / Math.PI;               // rest contact angle: 0° = anterior (+Z), positive = distal (−Y)
   const S0 = trackAt(TR.a0); TR.n0 = S0.n.clone(); TR.off = axP.clone().sub(S0.p); }         // pivot offset from the contact point at rest
 function patAngleBetween(n0, n1){ const c = new THREE.Vector3().crossVectors(n0, n1); const s = c.dot(axD); return Math.atan2(s, n0.dot(n1)); }   // signed, about the epicondylar axis
-const _rayP = new THREE.Raycaster(); let patShift = 0; const patSample = [];
-{ const cp = meshes.find(m => m.name === 'cartilage__patella'); if (cp) { const p = cp.geometry.getAttribute('position'); for (let i = 0; i < p.count; i += Math.max(1, Math.floor(p.count / 24))) patSample.push(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); } }
 const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur'); const femurAndCart = [femurMesh, meshes.find(m => m.name === 'cartilage__femur')].filter(Boolean);
 for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
   // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
