@@ -233,7 +233,19 @@ CONTACT = CONTACT[:19] + [CONTACT[18]] * (len(CONTACT) - 19)
 CONTACT = [round(sum(CONTACT[max(0, i - 1):i + 2]) / len(CONTACT[max(0, i - 1):i + 2]), 5) for i in range(len(CONTACT))]
 print("contact (smoothed, mm):", [round(c*1e3, 1) for c in CONTACT])
 print("contact offsets (mm) by 5°:", [round(c*1e3, 1) for c in CONTACT])
-meta = dict(d["meta"]); meta["rig"] = {"contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
+# ---------- patellar track: the femoral (cartilage) surface the patella rides on, sampled by rays from the epicondylar axis point in the sagittal plane ----------
+troch_bvh = BVHTree.FromBMesh(join_bms([bm_of(objs["bone__femur"]), bm_of(objs["cartilage__femur"])]))
+TROCH = []
+ant = Vector((0, -1, 0)); dn = Vector((0, 0, -1))
+for a_deg in range(-50, 150, 5):                                                            # -50° = anterior-superior (suprapatellar), 0° = straight anterior, 90° = straight distal, 140° = posterior condyles
+    a = math.radians(a_deg); dirv = (ant * math.cos(a) + dn * math.sin(a)).normalized()
+    best = None
+    for dx in (-0.006, 0.0, 0.006):                                                          # a few sagittal slices around the groove; keep the deepest (groove) hit
+        o_ = Vector((axis_p.x + dx, axis_p.y, axis_p.z)); hit = troch_bvh.ray_cast(o_ + dirv * 0.012, dirv, 0.08)
+        if hit[0] is not None and (best is None or (hit[0] - o_).length < best[0]): best = ((hit[0] - o_).length, hit[0], hit[1])
+    if best: TROCH.append({"a": a_deg, "p": [round(c, 5) for c in best[1]], "n": [round(c, 4) for c in best[2]]})
+print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min((Vector(t_["p"]) - axis_p).length for t_ in TROCH) * 1e3, max((Vector(t_["p"]) - axis_p).length for t_ in TROCH) * 1e3))
+meta = dict(d["meta"]); meta["rig"] = {"troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
 json.dump(d, open(f"{OUTK}/knee_b.json", "w"), separators=(",", ":"))
