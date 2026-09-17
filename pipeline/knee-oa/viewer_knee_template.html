@@ -554,13 +554,15 @@ let last = performance.now();
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT); GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP);
   GROUPS[2].position.copy(axP); if (patSample.length) { GROUPS[2].updateMatrixWorld(true); femurMesh.updateMatrixWorld(true);
     // keep the patellar cartilage just off the trochlea: probe from sampled cartilage vertices toward the axis, find the tightest gap, slide the patella radially
-    let minGap = 1; const axW = axP.clone().applyMatrix4(jointG.matrixWorld);
-    for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); const dir = axW.clone().sub(wp); const L = dir.length(); dir.normalize(); _rayP.set(wp.clone().addScaledVector(dir, -0.004), dir); _rayP.far = L;
-      const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) minGap = Math.min(minGap, hs[0].distance - 0.004); }
-    let shift = 0; if (minGap < 0.012) shift = Math.max(-0.006, Math.min(0.003, minGap - 0.0006));   // only correct small gaps / penetration; the arc does the gliding
-    patShift += (shift - patShift) * Math.min(1, dt * 8);
+    let minGap = 1, hits = 0; const axW = axP.clone().applyMatrix4(jointG.matrixWorld);
+    for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); const dir = axW.clone().sub(wp); const L = dir.length(); dir.normalize(); _rayP.set(wp.clone().addScaledVector(dir, -0.006), dir); _rayP.far = L + 0.006;
+      const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) { hits++; minGap = Math.min(minGap, hs[0].distance - 0.006); } }
+    // the patella rides on the trochlea/condyles: pull it in (or push it out) so the tightest cartilage gap is ~0.6 mm; rays that fall into the notch are ignored
+    let shift = patShift; if (hits >= 4) shift = Math.max(-0.010, Math.min(0.035, patShift + (minGap - 0.0006)));
+    patShift += (shift - patShift) * Math.min(1, dt * 10);
     const radial = new THREE.Vector3(); cartP.getWorldPosition(radial); radial.sub(axW).normalize().transformDirection(new THREE.Matrix4().copy(jointG.matrixWorld).invert());
-    GROUPS[2].position.copy(axP).addScaledVector(radial, -patShift); }
+    const patUp = 0.011 * Math.max(0, 1 - deg / 35);                                                 // in extension the patella sits high above the trochlea (suprapatellar), engaging by ~35°
+    GROUPS[2].position.copy(axP).addScaledVector(radial, -patShift).add(new THREE.Vector3(0, patUp, 0)); }
   skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
   const pivShift = new THREE.Vector3(0, 1, 0).applyQuaternion(qF).multiplyScalar(contactOff);                                         // slide along the tibia's own axis so the plateau stays on the condyle
