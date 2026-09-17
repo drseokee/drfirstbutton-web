@@ -456,133 +456,6 @@ const TR = {};
   const d = c.clone().sub(axP); TR.a0 = Math.atan2(-d.y, d.z) * 180 / Math.PI;               // rest contact angle: 0° = anterior (+Z), positive = distal (−Y)
   const S0 = trackAt(TR.a0); TR.n0 = S0.n.clone(); TR.off = axP.clone().sub(S0.p); }         // pivot offset from the contact point at rest
 function patAngleBetween(n0, n1){ const c = new THREE.Vector3().crossVectors(n0, n1); const s = c.dot(axD); return Math.atan2(s, n0.dot(n1)); }   // signed, about the epicondylar axis
-const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur'); const femurAndCart = [femurMesh, meshes.find(m => m.name === 'cartilage__femur')].filter(Boolean);
-for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
-  // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
-  for (let i = 0; i + 1 < p.count; i += 2) { if (p.getY(i + 1) >= p.getY(i)) { bot.push(i); top.push(i + 1); } else { bot.push(i + 1); top.push(i); } }
-  menisci.push({ mesh: m, rest, top, bot, basePos: null }); }   // basePos is taken on the first frame, after the mesh has been parented into the tibia group
-const cruciates = [];
-function makeBand(name, ko, aPt, bPt, width, thick, col){
-  const SEG = 14, RING = 10; const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(new Float32Array((SEG + 1) * RING * 3), 3)); g.setAttribute('normal', new THREE.BufferAttribute(new Float32Array((SEG + 1) * RING * 3), 3));
-  const idx = []; for (let i = 0; i < SEG; i++) for (let r = 0; r < RING; r++) { const a = i * RING + r, b = i * RING + (r + 1) % RING, c = (i + 1) * RING + (r + 1) % RING, d = (i + 1) * RING + r; idx.push(a, b, c, a, c, d); } g.setIndex(idx);
-  const mat = new THREE.MeshStandardMaterial({ color: col, roughness: 0.55, side: THREE.DoubleSide }); mat.customProgramCacheKey = () => 'cruciate';
-  const mesh = new THREE.Mesh(g, mat); mesh.name = name; mesh.frustumCulled = false; mesh.userData = { layer: 'lig', base: name, live: true }; KO[name] = ko; meshes.push(mesh);
-  return { mesh, aLocal: aPt.clone().sub(axP), bLocal: bPt.clone().sub(axP), width, thick, SEG, RING, rest: aPt.distanceTo(bPt), strain: 0, cut: 0 };
-}
-// ---- rig: femur + tibia groups (tibia, fibula, menisci, tibial cartilage) flex about the transepicondylar axis; the patella glides with half the angle ----
-const A2S = a => [a[0], a[2], -a[1]];
-const RIG = DATA.meta.rig; const axP = new THREE.Vector3(...A2S(RIG.flex_axis.point)), axD = new THREE.Vector3(...A2S(RIG.flex_axis.dir)).normalize();
-const jointG = new THREE.Group(); root.add(jointG);                              // both bones move: the assembly tilts back by 45 % of the flexion, the tibia does the rest
-const GROUPS = [new THREE.Group(), new THREE.Group(), new THREE.Group()];   // femur, tibia, patella
-for (const g of GROUPS) { g.position.copy(axP); jointG.add(g); }
-const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.Bone()]); skel.bones.forEach(b => { b.position.copy(axP); root.add(b); }); root.updateMatrixWorld(true); skel.calculateInverses();
-for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
-cruciates.push(makeBand('lig__acl', '전방십자인대 (ACL)', L3('acl_femur'), L3('acl_tibia'), 0.010, 0.005, 0xa9bfd6)); cruciates.push(makeBand('lig__pcl', '후방십자인대 (PCL)', L3('pcl_femur'), L3('pcl_tibia'), 0.012, 0.0065, 0xa9bfd6));
-for (const C of cruciates) jointG.add(C.mesh);
-const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const HUG_C = [meshes.find(m => m.name === 'bone__femur'), meshes.find(m => m.name === 'bone__tibia')].filter(Boolean);
-function updateCruciates(){
-  jointG.updateMatrixWorld(true); _inv.copy(jointG.matrixWorld).invert();
-  for (const C of cruciates) {
-    const a = C.aLocal.clone().applyMatrix4(GROUPS[0].matrixWorld).applyMatrix4(_inv), b = C.bLocal.clone().applyMatrix4(GROUPS[1].matrixWorld).applyMatrix4(_inv);
-    const d = b.clone().sub(a), len = d.length(), tdir = d.clone().normalize(); C.strain = len / C.rest - 1;
-    // frame: the band's side vector is the epicondylar axis (never parallel to a cruciate), so the section frame cannot flip
-    const side = axD.clone().sub(tdir.clone().multiplyScalar(tdir.dot(axD))).normalize(); let nrm = new THREE.Vector3().crossVectors(side, tdir).normalize();
-    const ref = C.lastNrm || new THREE.Vector3(0, 0, C.mesh.name === 'lig__acl' ? 1 : -1);                                          // first frame: ACL bows anteriorly, PCL posteriorly; afterwards stay continuous with the last frame
-    if (nrm.dot(ref) < 0) { nrm.negate(); side.negate(); } C.lastNrm = nrm.clone();
-    const slack = Math.max(0, -C.strain); const pos = C.mesh.geometry.getAttribute('position'); let vi = 0;
-    const gap = C.cut ? 0.12 : 0;
-    // bone-hugging: keep the band clear of the tibial spine / plateau and the notch (probe along nrm at three points across the width)
-    const hugs = []; for (let i = 0; i <= C.SEG; i += 2) { const u = i / C.SEG; const c0 = a.clone().addScaledVector(d, u); let best = 0;
-      for (const s of [-C.width / 2, 0, C.width / 2]) { const o = c0.clone().addScaledVector(side, s); _rayC.set(o.clone().addScaledVector(nrm, 0.012).applyMatrix4(jointG.matrixWorld), nrm.clone().negate().transformDirection(jointG.matrixWorld)); _rayC.far = 0.024; const hs = _rayC.intersectObjects(HUG_C, false); if (hs.length) { const off = hs[0].point.clone().applyMatrix4(_inv).sub(o).dot(nrm) + C.thick / 2 + 0.0006; if (off > best) best = off; } }
-      hugs[i] = (i === 0 || i === C.SEG) ? 0 : Math.min(0.008, best); }
-    for (let i = 1; i < C.SEG; i += 2) hugs[i] = (hugs[i - 1] + hugs[i + 1]) / 2;
-    for (let i = 0; i <= C.SEG; i++) { let u = i / C.SEG; if (C.cut) u = u < 0.5 ? u * (1 - gap * 2) : 1 - (1 - u) * (1 - gap * 2);
-      const c = a.clone().addScaledVector(d, u).addScaledVector(nrm, 0.0025 * Math.sin(Math.PI * u) + hugs[Math.round(u * C.SEG)] + Math.min(0.003, slack * 0.02) * Math.sin(u * 7 + 1.1));   // slack: gentle sag only
-      const fr = C.cut ? Math.max(0, 1 - Math.abs(u - 0.5) / 0.1) : 0; const hw = C.width / 2 * (1 - 0.35 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr), hh = C.thick / 2 * (1 - 0.5 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr);
-      for (let r = 0; r < C.RING; r++) { const ang = 2 * Math.PI * r / C.RING; const p = c.clone().addScaledVector(side, hw * Math.cos(ang)).addScaledVector(nrm, hh * Math.sin(ang)); pos.setXYZ(vi++, p.x, p.y, p.z); } }
-    pos.needsUpdate = true; C.mesh.geometry.computeVertexNormals();
-    const hot = drawer.dir !== 0 ? Math.max(0, Math.min(1, C.strain * 2.5)) : 0;          // tension colour only in the stability demo
-    C.mesh.material.color.setRGB(0.66 + 0.3 * hot, 0.75 - 0.5 * hot, 0.84 - 0.65 * hot); C.mesh.visible = state.layers.lig && !(state.hidden && state.hidden.has(C.mesh.name));
-  }
-}
-// drawer test (stability demo): a hand pushes the tibia forward / backward; with the ligament cut it slides much further
-const drawer = { dir: 0, cutACL: 0, cutPCL: 0 }; const animD = { shift: 0 };
-
-for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w || m.userData.curve) continue;
-  const g = m.geometry, n = g.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), W = m.userData.w;
-  for (let k = 0; k < n; k++) { si.set([0, 1, 2, 0], 4 * k); sw.set([W[3*k], W[3*k+1], W[3*k+2], 0], 4 * k); }
-  g.setAttribute('skinIndex', new THREE.BufferAttribute(si, 4)); g.setAttribute('skinWeight', new THREE.BufferAttribute(sw, 4));
-  const sm = new THREE.SkinnedMesh(g, m.material); sm.material.skinning = true; sm.material.needsUpdate = true; sm.name = m.name; sm.userData = m.userData; sm.renderOrder = m.renderOrder;
-  if (m.userData.hull) { const hm = m.userData.hull.material; hm.skinning = true; hm.needsUpdate = true; const hull = new THREE.SkinnedMesh(g, hm); hull.renderOrder = -1; hull.visible = false; sm.userData.hull = hull; sm.add(hull); hull.bind(skel, new THREE.Matrix4()); }
-  root.remove(m); root.add(sm); sm.bind(skel, new THREE.Matrix4()); meshes[i] = sm; }
-// ---- curve deformers: the muscle/ligament belly follows a centreline whose points ride on the bones (blended near the joint) ----
-const deformers = [];
-for (const m of meshes) { const cv = m.userData.curve; if (!cv) continue;
-  const pts = []; for (let i = 0; i < cv.pts.length; i += 3) pts.push(new THREE.Vector3(...A2S([cv.pts[i], cv.pts[i+1], cv.pts[i+2]])));
-  const w = cv.w, tv = cv.tv; const rest = m.geometry.getAttribute('position').array.slice();
-  // rest frames along the curve
-  const framesOf = P => { const out = []; let Nprev = null; for (let i = 0; i < P.length; i++) { const T = P[Math.min(i + 1, P.length - 1)].clone().sub(P[Math.max(i - 1, 0)]).normalize(); const src = Nprev || new THREE.Vector3(0, 0, 1); let N = src.clone().sub(T.clone().multiplyScalar(T.dot(src))); if (N.lengthSq() < 1e-9) N.set(1, 0, 0); N.normalize(); const B = new THREE.Vector3().crossVectors(T, N).normalize(); out.push({ T, N, B }); Nprev = N; } return out; };   // parallel transport: no frame flips as segments swing
-  // local point offsets relative to the bone group pivots (axP) in screen space
-  const local = pts.map(p => p.clone().sub(axP));
-  const S0 = [0]; for (let i = 1; i < pts.length; i++) S0.push(S0[i - 1] + pts[i].distanceTo(pts[i - 1]));
-  const mode = /biceps|semiten|semimem|gracilis|sartorius/.test(m.name) ? 'belly_femur' : /gastroc|plantaris/.test(m.name) ? 'belly_tibia' : 'blend';
-  const ft = 0.28; let kBelly = 0; if (mode === 'belly_femur') { for (let i = 0; i < pts.length; i++) if (S0[i] <= S0[pts.length - 1] * (1 - ft)) kBelly = i; } else if (mode === 'belly_tibia') { kBelly = pts.length - 1; for (let i = pts.length - 1; i >= 0; i--) if (S0[i] >= S0[pts.length - 1] * ft) kBelly = i; }
-  deformers.push({ mesh: m, pts, rest: pts.map(p => p.clone()), S0, kBelly, mode, local, w, tv, L0: cv.L0, framesOf }); m.userData.deformer = true; root.remove(m); jointG.add(m); }
-function deformCurves(){
-  root.updateMatrixWorld(true);
-  for (const D of deformers) { const n = D.pts.length; const cur = [];
-    const tibiaXf = v => v.clone().sub(axP).applyQuaternion(GROUPS[1].quaternion).add(GROUPS[1].position);
-    if (D.mode === 'belly_femur' || D.mode === 'belly_tibia') {
-      // a muscle that crosses the knee: the BELLY stays straight along its own bone and simply shortens; only the short tendon crosses the joint to the moving insertion
-      const R = D.rest, S0 = D.S0, Ltot = S0[n - 1];
-      if (D.mode === 'belly_femur') {                                          // hamstrings / pes: belly on the femur side (fixed), tendon runs down to the tibia
-        const kb = D.kBelly, P0 = R[0], dir = R[kb].clone().sub(P0).normalize(), Lb0 = S0[kb], Lt0 = Ltot - Lb0, I = tibiaXf(R[n - 1]);
-        // belly end F on the line P0 + dir*u with |F - I| = Lt0 (closest root to the rest length)
-        const w0 = P0.clone().sub(I); const b = 2 * dir.dot(w0), c = w0.lengthSq() - Lt0 * Lt0; const disc = b * b - 4 * c; let u = Lb0;
-        if (disc >= 0) { const r1 = (-b + Math.sqrt(disc)) / 2, r2 = (-b - Math.sqrt(disc)) / 2; u = Math.abs(r1 - Lb0) < Math.abs(r2 - Lb0) ? r1 : r2; } else u = -b / 2;
-        u = Math.max(0.35 * Lb0, Math.min(1.05 * Lb0, u)); const F = P0.clone().addScaledVector(dir, u);
-        const bulgeDir = new THREE.Vector3(0, 0, -1);                          // the tendon bows slightly behind the condyle
-        for (let i = 0; i < n; i++) { if (i <= kb) cur.push(P0.clone().addScaledVector(dir, u * S0[i] / Lb0)); else { const s = (S0[i] - Lb0) / Lt0; cur.push(F.clone().lerp(I, s).addScaledVector(bulgeDir, 0.006 * Math.sin(Math.PI * s) * anim.flex)); } }
-      } else {                                                                 // gastrocnemius: belly on the calf (rides with the tibia), short tendinous origin up to the femoral condyle
-        const kb = D.kBelly, Pend = tibiaXf(R[n - 1]), Pk = tibiaXf(R[kb]), dir = Pk.clone().sub(Pend).normalize(), Lb0 = Ltot - S0[kb], Lt0 = S0[kb], O = R[0];
-        const w0 = Pend.clone().sub(O); const b = 2 * dir.dot(w0), c = w0.lengthSq() - Lt0 * Lt0; const disc = b * b - 4 * c; let u = Lb0;
-        if (disc >= 0) { const r1 = (-b + Math.sqrt(disc)) / 2, r2 = (-b - Math.sqrt(disc)) / 2; u = Math.abs(r1 - Lb0) < Math.abs(r2 - Lb0) ? r1 : r2; } else u = -b / 2;
-        u = Math.max(0.35 * Lb0, Math.min(1.05 * Lb0, u)); const F = Pend.clone().addScaledVector(dir, u);
-        const bulgeDir = new THREE.Vector3(0, 0, -1);
-        for (let i = 0; i < n; i++) { if (i >= kb) cur.push(Pend.clone().addScaledVector(dir, u * (Ltot - S0[i]) / Lb0)); else { const s = S0[i] / Lt0; cur.push(O.clone().lerp(F, s).addScaledVector(bulgeDir, 0.005 * Math.sin(Math.PI * s) * anim.flex)); } }
-      }
-    } else
-    for (let i = 0; i < n; i++) { const wt = D.w[3 * i + 1], wp = D.w[3 * i + 2];        // rotational blend about the axis (chords would fold the curve into a hairpin at high flexion)
-      const qt = new THREE.Quaternion().slerp(GROUPS[1].quaternion, wt), qp = new THREE.Quaternion().slerp(GROUPS[2].quaternion, wp);
-      const p = D.local[i].clone().applyQuaternion(qp).applyQuaternion(qt).add(axP).addScaledVector(GROUPS[1].position.clone().sub(axP), wt); cur.push(p); }
-    // smooth (2 passes) and arc lengths
-    for (let k = 0; k < 2; k++) for (let i = 1; i < n - 1; i++) cur[i] = cur[i - 1].clone().add(cur[i].clone().multiplyScalar(2)).add(cur[i + 1]).multiplyScalar(0.25);
-    const S = [0]; for (let i = 1; i < n; i++) S.push(S[i - 1] + cur[i].distanceTo(cur[i - 1])); const L = Math.max(1e-6, S[n - 1]);
-    // passive: stretched → thinner, slack → thicker; active: the knee flexors contract (bulge) as the knee bends, the quadriceps relaxes
-    const flexor = /gastroc|biceps|semiten|semimem|gracilis|sartorius|popliteus|plantaris/.test(D.mesh.name), extensor = /rectus|vastus/.test(D.mesh.name);
-    const bulge = Math.pow(D.L0 / L, 0.35) * (flexor ? 1 + 0.22 * anim.flex : extensor ? 1 - 0.08 * anim.flex : 1);
-    const F = D.framesOf(cur); D.lastF = F; D.lastCur = cur;
-    const pos = D.mesh.geometry.getAttribute('position'), tv = D.tv;
-    for (let v = 0; v < pos.count; v++) { const t = tv[4 * v], ot = tv[4 * v + 1], on = tv[4 * v + 2], ob = tv[4 * v + 3];
-      const s = t * L; let i = 1; while (i < n - 1 && S[i] < s) i++; const u = (s - S[i - 1]) / Math.max(1e-6, S[i] - S[i - 1]);
-      const c = cur[i - 1].clone().lerp(cur[i], u); const T = F[i - 1].T.clone().lerp(F[i].T, u).normalize(), N = F[i - 1].N.clone().lerp(F[i].N, u).normalize(), B = F[i - 1].B.clone().lerp(F[i].B, u).normalize();
-      // anatomical offsets (ot along the curve, on anterior-ish, ob sideways) mapped to screen frame components
-      const p = c.addScaledVector(T, ot).addScaledVector(N, -on * bulge).addScaledVector(B, ob * bulge);   // N is screen-anterior (+Z) = anatomical -y, so 'on' (measured along anatomical anterior) enters with the same sign
-      pos.setXYZ(v, p.x, p.y, p.z); }
-    pos.needsUpdate = true; D.mesh.geometry.computeVertexNormals(); } }
-// sign: flexion moves the distal tibia backward (screen -Z)
-let FLEX_SIGN = 1; { const probe = new THREE.Vector3(0, -0.1, 0); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(axD, 0.5)); if (r.z > 0) FLEX_SIGN = -1; }
-const medPiv = new THREE.Vector3(...A2S(RIG.medial_pivot)); const cExt = new THREE.Vector3(...A2S(RIG.flex_axis.point)), cFlex = new THREE.Vector3(...A2S(RIG.centre_flex));
-// ---- patellar track helpers: surface points p(a)/normals n(a) from the pipeline (sagittal, angle a about the epicondylar axis point) ----
-const TROCH = RIG.troch.map(s => ({ a: s.a, p: new THREE.Vector3(...A2S(s.p)), n: new THREE.Vector3(...A2S(s.n)).normalize() }));
-function trackAt(a){ a = Math.max(TROCH[0].a, Math.min(TROCH[TROCH.length - 1].a, a)); let i = 0; while (i < TROCH.length - 2 && TROCH[i + 1].a <= a) i++; const u = (a - TROCH[i].a) / (TROCH[i + 1].a - TROCH[i].a);
-  return { p: TROCH[i].p.clone().lerp(TROCH[i + 1].p, u), n: TROCH[i].n.clone().lerp(TROCH[i + 1].n, u).normalize() }; }
-const TR = {};
-{ // rest: where does the patella's cartilage touch the femur? use the cartilage centroid's angle about the axis point as the rest contact angle
-  const cp = meshes.find(m => m.name === 'cartilage__patella'); const p = cp.geometry.getAttribute('position'); const c = new THREE.Vector3(); for (let i = 0; i < p.count; i++) c.add(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); c.divideScalar(p.count);
-  const d = c.clone().sub(axP); TR.a0 = Math.atan2(-d.y, d.z) * 180 / Math.PI;               // 0° = anterior (+Z), positive = distal (−Y)
-  const S0 = trackAt(TR.a0); TR.n0 = S0.n.clone(); TR.off = axP.clone().sub(S0.p);              // pivot (axP, where the patella group sits at rest) relative to the contact point
-}
 // internal rotation sign: the anterior tibia (tuberosity, +Z) must swing toward the midline (+X medial)
 let INT_SIGN = 1; { const probe = new THREE.Vector3(0, 0, 0.05); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.3)); if (r.x < 0) INT_SIGN = -1; }
 const varusAxis = new THREE.Vector3(0, 0, 1);   // anterior-posterior axis: varus tips the tibia so the medial joint space closes
@@ -694,6 +567,12 @@ let last = performance.now();
   const centre = S.p.clone().add(TR.off.clone().applyQuaternion(qP));                          // rest offset (surface contact → patella pivot) carried along
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT);                                                                  // tibia flexion (restored)
   GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP); GROUPS[2].position.copy(centre);
+  // push-out: where the trochlea curves more than the patella's facet, lift the patella along the surface normal until no cartilage vertex is under the femoral surface
+  if (patSample.length) { GROUPS[2].updateMatrixWorld(true); femurMesh.updateMatrixWorld(true); const nW = S.n.clone().transformDirection(jointG.matrixWorld); let depth = 0;
+    for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); _rayP.set(wp.clone().addScaledVector(nW, 0.03), nW.clone().negate()); _rayP.far = 0.03;
+      const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) depth = Math.max(depth, 0.03 - hs[0].distance); }
+    const want = depth > 0 ? depth + 0.0004 : 0; patShift += (want - patShift) * Math.min(1, dt * 12);
+    GROUPS[2].position.addScaledVector(S.n, patShift); }
   skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
   const pivShift = new THREE.Vector3(0, 1, 0).applyQuaternion(qF).multiplyScalar(contactOff);                                         // slide along the tibia's own axis so the plateau stays on the condyle
