@@ -451,10 +451,15 @@ for (let i = 0; i < TROCH.length; i++) { const P0 = TROCH[Math.max(0, i - 1)].p,
   let n = new THREE.Vector3().crossVectors(axD, tg).normalize(); if (n.dot(TROCH[i].p.clone().sub(axP)) < 0) n.negate(); TROCH[i].n = n; }   // outward (away from the axis)
 function trackAt(a){ a = Math.max(TROCH[0].a, Math.min(TROCH[TROCH.length - 1].a, a)); let i = 0; while (i < TROCH.length - 2 && TROCH[i + 1].a <= a) i++; const u = (a - TROCH[i].a) / (TROCH[i + 1].a - TROCH[i].a);
   return { p: TROCH[i].p.clone().lerp(TROCH[i + 1].p, u), n: TROCH[i].n.clone().lerp(TROCH[i + 1].n, u).normalize() }; }
+// arc length along the track (mm of surface), so the patella descends at a steady rate whatever the local radius
+TROCH[0].s = 0; for (let i = 1; i < TROCH.length; i++) TROCH[i].s = TROCH[i - 1].s + TROCH[i].p.distanceTo(TROCH[i - 1].p);
+function trackAtS(s){ s = Math.max(0, Math.min(TROCH[TROCH.length - 1].s, s)); let i = 0; while (i < TROCH.length - 2 && TROCH[i + 1].s <= s) i++; const u = (s - TROCH[i].s) / Math.max(1e-9, TROCH[i + 1].s - TROCH[i].s);
+  return { p: TROCH[i].p.clone().lerp(TROCH[i + 1].p, u), n: TROCH[i].n.clone().lerp(TROCH[i + 1].n, u).normalize(), a: TROCH[i].a + (TROCH[i + 1].a - TROCH[i].a) * u }; }
+function sOfAngle(a){ let i = 0; while (i < TROCH.length - 2 && TROCH[i + 1].a <= a) i++; const u = (a - TROCH[i].a) / (TROCH[i + 1].a - TROCH[i].a); return TROCH[i].s + (TROCH[i + 1].s - TROCH[i].s) * u; }
 const TR = {};
 { const cp = meshes.find(m => m.name === 'cartilage__patella'); const p = cp.geometry.getAttribute('position'); const c = new THREE.Vector3(); for (let i = 0; i < p.count; i++) c.add(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); c.divideScalar(p.count);
   const d = c.clone().sub(axP); TR.a0 = Math.atan2(-d.y, d.z) * 180 / Math.PI;               // rest contact angle: 0° = anterior (+Z), positive = distal (−Y)
-  const S0 = trackAt(TR.a0); TR.n0 = S0.n.clone(); TR.off = axP.clone().sub(S0.p); TR.cRel = c.clone().sub(axP); }   // cartilage centre relative to the group pivot
+  const S0 = trackAt(TR.a0); TR.n0 = S0.n.clone(); TR.off = axP.clone().sub(S0.p); TR.cRel = c.clone().sub(axP); TR.s0 = sOfAngle(TR.a0); }   // rest contact arc position
 function patAngleBetween(n0, n1){ const c = new THREE.Vector3().crossVectors(n0, n1); const s = c.dot(axD); return Math.atan2(s, n0.dot(n1)); }   // signed, about the epicondylar axis
 // internal rotation sign: the anterior tibia (tuberosity, +Z) must swing toward the midline (+X medial)
 let INT_SIGN = 1; { const probe = new THREE.Vector3(0, 0, 0.05); const r = probe.clone().applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), 0.3)); if (r.x < 0) INT_SIGN = -1; }
@@ -563,9 +568,10 @@ let last = performance.now();
   // patella: rides on the femoral surface track (sampled in the pipeline). Its contact point slides distally along the trochlea/condyles
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
   // contact point slides slowly down the trochlea (0.45°/°, to the distal condyles at ≈55°); the patella itself flexes 0.65× the knee angle about the epicondylar axis
-  const aDeg = Math.min(92, TR.a0 + deg * 0.8) - 5 * Math.max(0, 1 - deg / 20);            // contact travels 0.8°/° down the trochlea onto the distal condyles (≈90° at 110° flexion)
-  const S = trackAt(aDeg); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
-  const centre = S.p.clone().addScaledVector(S.n, 0.0005).sub(TR.cRel.clone().applyQuaternion(qP));   // put the patellar cartilage centre on the surface point
+  // the contact point descends the femoral surface at a steady 0.5 mm per degree (≈55 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
+  const sC = TR.s0 + 0.0005 * deg - 0.003 * Math.max(0, 1 - deg / 15);
+  const S = trackAtS(sC); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
+  const centre = S.p.clone().add(TR.off.clone().applyQuaternion(qP));                          // the rest contact point rides the track; the patella turns about it
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT);                                                                  // tibia flexion (restored)
   GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP); GROUPS[2].position.copy(centre);
   // push-out: where the trochlea curves more than the patella's facet, lift the patella along the surface normal until no cartilage vertex is under the femoral surface
