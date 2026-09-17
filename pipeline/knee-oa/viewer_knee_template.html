@@ -579,7 +579,7 @@ let last = performance.now();
     let minOut = 1;                                                                                 // smallest positive clearance (vertex outside the femur)
     for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); _rayP.set(wp.clone().addScaledVector(nW, 0.03), nW.clone().negate()); _rayP.far = 0.07;
       const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) { const sg = hs[0].distance - 0.03; if (sg < 0) depth = Math.max(depth, -sg); else minOut = Math.min(minOut, sg); } }
-    const want = depth > 0 ? patShift + depth + 0.0004 : (minOut < 1 ? patShift - Math.max(0, minOut - 0.0005) : patShift);   // push out of the bone, or settle onto it
+    const want = depth > 0 ? patShift + depth + 0.0006 : (minOut < 1 && minOut > 0.0015 ? patShift - (minOut - 0.0010) * 0.5 : patShift);   // push out of the bone first; settle gently onto it only when clearly floating
     patShift += (Math.max(-0.02, Math.min(0.02, want)) - patShift) * Math.min(1, dt * 12);
     GROUPS[2].position.addScaledVector(S.n, patShift); }
   skel.bones[2].position.copy(GROUPS[2].position);
