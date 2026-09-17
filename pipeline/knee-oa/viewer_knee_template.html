@@ -557,7 +557,8 @@ let last = performance.now();
     let minGap = 1; const axW = axP.clone().applyMatrix4(jointG.matrixWorld);
     for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); const dir = axW.clone().sub(wp); const L = dir.length(); dir.normalize(); _rayP.set(wp.clone().addScaledVector(dir, -0.004), dir); _rayP.far = L;
       const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) minGap = Math.min(minGap, hs[0].distance - 0.004); }
-    if (minGap < 1) { const shift = minGap - 0.0006; patShift += (shift - patShift) * Math.min(1, dt * 8); } else patShift += (0 - patShift) * Math.min(1, dt * 8);
+    let shift = 0; if (minGap < 0.012) shift = Math.max(-0.006, Math.min(0.003, minGap - 0.0006));   // only correct small gaps / penetration; the arc does the gliding
+    patShift += (shift - patShift) * Math.min(1, dt * 8);
     const radial = new THREE.Vector3(); cartP.getWorldPosition(radial); radial.sub(axW).normalize().transformDirection(new THREE.Matrix4().copy(jointG.matrixWorld).invert());
     GROUPS[2].position.copy(axP).addScaledVector(radial, -patShift); }
   skel.bones[2].position.copy(GROUPS[2].position);
