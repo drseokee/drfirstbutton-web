@@ -233,18 +233,26 @@ CONTACT = CONTACT[:19] + [CONTACT[18]] * (len(CONTACT) - 19)
 CONTACT = [round(sum(CONTACT[max(0, i - 1):i + 2]) / len(CONTACT[max(0, i - 1):i + 2]), 5) for i in range(len(CONTACT))]
 print("contact (smoothed, mm):", [round(c*1e3, 1) for c in CONTACT])
 print("contact offsets (mm) by 5°:", [round(c*1e3, 1) for c in CONTACT])
-# ---------- patellar track: the femoral (cartilage) surface the patella rides on, sampled by rays from the epicondylar axis point in the sagittal plane ----------
+# ---------- patellar track: the femoral (cartilage) surface profile in the sagittal plane of the trochlear groove, sampled by rays from the axis point ----------
 troch_bvh = BVHTree.FromBMesh(join_bms([bm_of(objs["bone__femur"]), bm_of(objs["cartilage__femur"])]))
+ant = Vector((0, -1, 0)); dn = Vector((0, 0, -1)); raw = []
+for k in range(0, 81):                                                                       # -50° .. +150° in 2.5° steps
+    a_deg = -50 + 2.5 * k; a = math.radians(a_deg); dirv = (ant * math.cos(a) + dn * math.sin(a)).normalized()
+    hits = []
+    for dx in (-0.004, 0.0, 0.004):
+        o_ = Vector((axis_p.x + dx, axis_p.y, axis_p.z)); hit = troch_bvh.ray_cast(o_ + dirv * 0.010, dirv, 0.09)
+        if hit[0] is not None: hits.append((hit[0] - o_).length)
+    raw.append((a_deg, (sum(hits) / len(hits)) if hits else None))
+# fill gaps and smooth the radius profile r(a) (5-tap, 3 passes) — a smooth profile means a smooth patellar path with no jumps
+rs = [r for a_, r in raw]
+for i in range(len(rs)):
+    if rs[i] is None: rs[i] = next((rs[j] for j in list(range(i - 1, -1, -1)) + list(range(i + 1, len(rs))) if rs[j] is not None), 0.04)
+for _ in range(3): rs = [sum(rs[max(0, i - 2):i + 3]) / len(rs[max(0, i - 2):i + 3]) for i in range(len(rs))]
 TROCH = []
-ant = Vector((0, -1, 0)); dn = Vector((0, 0, -1))
-for a_deg in range(-50, 150, 5):                                                            # -50° = anterior-superior (suprapatellar), 0° = straight anterior, 90° = straight distal, 140° = posterior condyles
-    a = math.radians(a_deg); dirv = (ant * math.cos(a) + dn * math.sin(a)).normalized()
-    best = None
-    for dx in (-0.006, 0.0, 0.006):                                                          # a few sagittal slices around the groove; keep the deepest (groove) hit
-        o_ = Vector((axis_p.x + dx, axis_p.y, axis_p.z)); hit = troch_bvh.ray_cast(o_ + dirv * 0.012, dirv, 0.08)
-        if hit[0] is not None and (best is None or (hit[0] - o_).length < best[0]): best = ((hit[0] - o_).length, hit[0], hit[1])
-    if best: TROCH.append({"a": a_deg, "p": [round(c, 5) for c in best[1]], "n": [round(c, 4) for c in best[2]]})
-print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min((Vector(t_["p"]) - axis_p).length for t_ in TROCH) * 1e3, max((Vector(t_["p"]) - axis_p).length for t_ in TROCH) * 1e3))
+for (a_deg, _), r in zip(raw, rs):
+    a = math.radians(a_deg); dirv = (ant * math.cos(a) + dn * math.sin(a)).normalized(); p = axis_p + dirv * r
+    TROCH.append({"a": a_deg, "p": [round(c, 5) for c in p]})
+print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min(rs) * 1e3, max(rs) * 1e3))
 meta = dict(d["meta"]); meta["rig"] = {"troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
