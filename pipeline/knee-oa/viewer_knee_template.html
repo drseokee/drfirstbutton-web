@@ -569,16 +569,18 @@ let last = performance.now();
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
   // contact point slides slowly down the trochlea (0.45°/°, to the distal condyles at ≈55°); the patella itself flexes 0.65× the knee angle about the epicondylar axis
   // the contact point descends the femoral surface at a steady 0.42 mm per degree (≈46 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
-  const sC = TR.s0 + 0.00042 * deg - 0.003 * Math.max(0, 1 - deg / 15);
+  const sC = TR.s0 - 0.019 + 0.00022 * deg;                                                    // rest: upper third of the patella above the trochlea; descends ~24 mm of surface by full flexion
   const S = trackAtS(sC); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
   const centre = S.p.clone().add(TR.off.clone().applyQuaternion(qP));                          // the rest contact point rides the track; the patella turns about it
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT);                                                                  // tibia flexion (restored)
   GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP); GROUPS[2].position.copy(centre);
   // push-out: where the trochlea curves more than the patella's facet, lift the patella along the surface normal until no cartilage vertex is under the femoral surface
   if (patSample.length) { GROUPS[2].updateMatrixWorld(true); femurMesh.updateMatrixWorld(true); const nW = S.n.clone().transformDirection(jointG.matrixWorld); let depth = 0;
-    for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); _rayP.set(wp.clone().addScaledVector(nW, 0.03), nW.clone().negate()); _rayP.far = 0.03;
-      const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) depth = Math.max(depth, 0.03 - hs[0].distance); }
-    const want = depth > 0 ? depth + 0.0004 : 0; patShift += (want - patShift) * Math.min(1, dt * 12);
+    let minOut = 1;                                                                                 // smallest positive clearance (vertex outside the femur)
+    for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); _rayP.set(wp.clone().addScaledVector(nW, 0.03), nW.clone().negate()); _rayP.far = 0.07;
+      const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) { const sg = hs[0].distance - 0.03; if (sg < 0) depth = Math.max(depth, -sg); else minOut = Math.min(minOut, sg); } }
+    const want = depth > 0 ? patShift + depth + 0.0004 : (minOut < 1 ? patShift - Math.max(0, minOut - 0.0005) : patShift);   // push out of the bone, or settle onto it
+    patShift += (Math.max(-0.02, Math.min(0.02, want)) - patShift) * Math.min(1, dt * 12);
     GROUPS[2].position.addScaledVector(S.n, patShift); }
   skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
