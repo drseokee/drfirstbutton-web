@@ -568,8 +568,8 @@ let last = performance.now();
   // patella: rides on the femoral surface track (sampled in the pipeline). Its contact point slides distally along the trochlea/condyles
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
   // contact point slides slowly down the trochlea (0.45°/°, to the distal condyles at ≈55°); the patella itself flexes 0.65× the knee angle about the epicondylar axis
-  // the contact point descends the femoral surface at a steady 0.5 mm per degree (≈55 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
-  const sC = TR.s0 + 0.0005 * deg - 0.003 * Math.max(0, 1 - deg / 15);
+  // the contact point descends the femoral surface at a steady 0.42 mm per degree (≈46 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
+  const sC = TR.s0 + 0.00042 * deg - 0.003 * Math.max(0, 1 - deg / 15);
   const S = trackAtS(sC); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
   const centre = S.p.clone().add(TR.off.clone().applyQuaternion(qP));                          // the rest contact point rides the track; the patella turns about it
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT);                                                                  // tibia flexion (restored)
