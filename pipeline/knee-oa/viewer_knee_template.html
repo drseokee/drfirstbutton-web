@@ -561,7 +561,7 @@ let last = performance.now();
   const pivLocal = medPiv.clone().sub(axP); const pivAfter = pivLocal.clone().applyQuaternion(qI); const keep = pivLocal.clone().sub(pivAfter);
   // patella: rides on the femoral surface track (sampled in the pipeline). Its contact point slides distally along the trochlea/condyles
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
-  const aDeg = TR.a0 + deg * 0.75 - 6 * Math.max(0, 1 - deg / 20);                        // in extension it sits a little higher (suprapatellar)
+  const aDeg = Math.min(58, TR.a0 + deg * 0.5) - 6 * Math.max(0, 1 - deg / 20);            // contact moves ~0.5°/° down the trochlea; at deep flexion it rests on the distal condyles (≈58°), never under them into the tibia; in extension a little higher (suprapatellar)
   const S = trackAt(aDeg); const qP = new THREE.Quaternion().setFromUnitVectors(TR.n0, S.n);
   const centre = S.p.clone().add(TR.off.clone().applyQuaternion(qP));                          // rest offset (surface contact → patella pivot) carried along
   GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP); GROUPS[2].position.copy(centre);
