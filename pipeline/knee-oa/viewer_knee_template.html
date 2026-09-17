@@ -326,9 +326,9 @@ function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / 
   document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
 // ---- cruciate ligaments: live bands between their footprints (ACL: lateral condyle notch wall → anterior tibia; PCL: medial condyle → posterior fossa) ----
 const LM = DATA.meta.landmarks; const L3 = k => new THREE.Vector3(...A2S(LM[k]));
-const _rayP = new THREE.Raycaster(); let patShift = 0; const patSample = [];
+const _rayP = new THREE.Raycaster(); let patShift = 0; const patSample = []; let lastPatKey = -1;
 { const cp = meshes.find(m => m.name === 'cartilage__patella'); if (cp) { const p = cp.geometry.getAttribute('position'); for (let i = 0; i < p.count; i += Math.max(1, Math.floor(p.count / 24))) patSample.push(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); } }
-const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur'); const femurAndCart = [femurMesh, meshes.find(m => m.name === 'cartilage__femur')].filter(Boolean);
+let lastPoseKey = ''; let lastDKey = ''; const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur'); const femurAndCart = [femurMesh, meshes.find(m => m.name === 'cartilage__femur')].filter(Boolean);
 for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
   // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
   for (let i = 0; i + 1 < p.count; i += 2) { if (p.getY(i + 1) >= p.getY(i)) { bot.push(i); top.push(i + 1); } else { bot.push(i + 1); top.push(i); } }
@@ -352,8 +352,10 @@ for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); 
 cruciates.push(makeBand('lig__acl', '전방십자인대 (ACL)', L3('acl_femur'), L3('acl_tibia'), 0.010, 0.005, 0xa9bfd6)); cruciates.push(makeBand('lig__pcl', '후방십자인대 (PCL)', L3('pcl_femur'), L3('pcl_tibia'), 0.012, 0.0065, 0xa9bfd6));
 for (const C of cruciates) jointG.add(C.mesh);
 const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const HUG_C = [meshes.find(m => m.name === 'bone__femur'), meshes.find(m => m.name === 'bone__tibia')].filter(Boolean);
+let lastCruKey = '';
 function updateCruciates(){
   jointG.updateMatrixWorld(true); _inv.copy(jointG.matrixWorld).invert();
+  const cruKey = Math.round(anim.flex * 440) + '|' + Math.round(animD.shift * 1e4) + '|' + drawer.cutACL + drawer.cutPCL; const poseChangedC = cruKey !== lastCruKey; lastCruKey = cruKey;
   for (const C of cruciates) {
     const a = C.aLocal.clone().applyMatrix4(GROUPS[0].matrixWorld).applyMatrix4(_inv), b = C.bLocal.clone().applyMatrix4(GROUPS[1].matrixWorld).applyMatrix4(_inv);
     const d = b.clone().sub(a), len = d.length(), tdir = d.clone().normalize(); C.strain = len / C.rest - 1;
@@ -364,10 +366,10 @@ function updateCruciates(){
     const slack = Math.max(0, -C.strain); const pos = C.mesh.geometry.getAttribute('position'); let vi = 0;
     const gap = C.cut ? 0.12 : 0;
     // bone-hugging: keep the band clear of the tibial spine / plateau and the notch (probe along nrm at three points across the width)
-    const hugs = []; for (let i = 0; i <= C.SEG; i += 2) { const u = i / C.SEG; const c0 = a.clone().addScaledVector(d, u); let best = 0;
+    const hugs = C.lastHugs && !poseChangedC ? C.lastHugs : []; if (!hugs.length) for (let i = 0; i <= C.SEG; i += 2) { const u = i / C.SEG; const c0 = a.clone().addScaledVector(d, u); let best = 0;
       for (const s of [-C.width / 2, 0, C.width / 2]) { const o = c0.clone().addScaledVector(side, s); _rayC.set(o.clone().addScaledVector(nrm, 0.012).applyMatrix4(jointG.matrixWorld), nrm.clone().negate().transformDirection(jointG.matrixWorld)); _rayC.far = 0.024; const hs = _rayC.intersectObjects(HUG_C, false); if (hs.length) { const off = hs[0].point.clone().applyMatrix4(_inv).sub(o).dot(nrm) + C.thick / 2 + 0.0006; if (off > best) best = off; } }
       hugs[i] = (i === 0 || i === C.SEG) ? 0 : Math.min(0.008, best); }
-    for (let i = 1; i < C.SEG; i += 2) hugs[i] = (hugs[i - 1] + hugs[i + 1]) / 2;
+    if (!C.lastHugs || poseChangedC) { for (let i = 1; i < C.SEG; i += 2) hugs[i] = (hugs[i - 1] + hugs[i + 1]) / 2; C.lastHugs = hugs; }
     for (let i = 0; i <= C.SEG; i++) { let u = i / C.SEG; if (C.cut) u = u < 0.5 ? u * (1 - gap * 2) : 1 - (1 - u) * (1 - gap * 2);
       const c = a.clone().addScaledVector(d, u).addScaledVector(nrm, 0.0025 * Math.sin(Math.PI * u) + hugs[Math.round(u * C.SEG)] + Math.min(0.003, slack * 0.02) * Math.sin(u * 7 + 1.1));   // slack: gentle sag only
       const fr = C.cut ? Math.max(0, 1 - Math.abs(u - 0.5) / 0.1) : 0; const hw = C.width / 2 * (1 - 0.35 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr), hh = C.thick / 2 * (1 - 0.5 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr);
@@ -547,6 +549,7 @@ let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
   anim.flex += (ctl.flex - anim.flex) * Math.min(1, dt * 6); anim.oa += (ctl.oa - anim.oa) * Math.min(1, dt * 4);
   const deg = 110 * anim.flex; document.getElementById('flexLbl').textContent = Math.round(deg) + '°';
+  const dKey = Math.round(anim.flex * 440) + '|' + Math.round(anim.oa * 200) + '|' + Math.round(animD.shift * 1e4); const poseChangedD = dKey !== lastDKey; lastDKey = dKey;
   const oa = anim.oa; const rough = Math.min(1, oa / 0.33), wear = Math.max(0, Math.min(1, (oa - 0.25) / 0.6)), spur = Math.pow(Math.max(0, Math.min(1, (oa - 0.3) / 0.6)), 0.7), varus = Math.max(0, Math.min(1, (oa - 0.5) / 0.5));
   document.getElementById('oaLbl').textContent = oa < 0.02 ? '정상' : oa < 0.34 ? '초기' : oa < 0.67 ? '중기' : '말기';
   for (const m of meshes) { if (!m.morphTargetInfluences) continue; const names = m.userData.morphNames;
@@ -569,19 +572,20 @@ let last = performance.now();
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
   // contact point slides slowly down the trochlea (0.45°/°, to the distal condyles at ≈55°); the patella itself flexes 0.65× the knee angle about the epicondylar axis
   // the contact point descends the femoral surface at a steady 0.42 mm per degree (≈46 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
+  const patKey = Math.round(deg * 4); const poseChangedP = patKey !== lastPatKey; lastPatKey = patKey;
   const sC = TR.s0 - 0.019 + 0.00022 * deg;                                                    // rest: upper third of the patella above the trochlea; descends ~24 mm of surface by full flexion
   const S = trackAtS(sC); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
   const centre = S.p.clone().add(TR.off.clone().applyQuaternion(qP));                          // the rest contact point rides the track; the patella turns about it
   GROUPS[1].quaternion.copy(qT); skel.bones[1].quaternion.copy(qT);                                                                  // tibia flexion (restored)
   GROUPS[2].quaternion.copy(qP); skel.bones[2].quaternion.copy(qP); GROUPS[2].position.copy(centre);
   // push-out: where the trochlea curves more than the patella's facet, lift the patella along the surface normal until no cartilage vertex is under the femoral surface
-  if (patSample.length) { GROUPS[2].position.addScaledVector(S.n, patShift); GROUPS[2].updateMatrixWorld(true); femurMesh.updateMatrixWorld(true); const nW = S.n.clone().transformDirection(jointG.matrixWorld); let depth = 0;   // probe the CURRENTLY shifted pose
+  if (patSample.length && (poseChangedP || patShift === 0)) { GROUPS[2].position.addScaledVector(S.n, patShift); GROUPS[2].updateMatrixWorld(true); femurMesh.updateMatrixWorld(true); const nW = S.n.clone().transformDirection(jointG.matrixWorld); let depth = 0;   // probe the CURRENTLY shifted pose
     let minOut = 1;                                                                                 // smallest positive clearance (vertex outside the femur)
     for (const v of patSample) { const wp = v.clone().applyMatrix4(cartP.matrixWorld); _rayP.set(wp.clone().addScaledVector(nW, 0.03), nW.clone().negate()); _rayP.far = 0.07;
       const hs = _rayP.intersectObjects(femurAndCart, false); if (hs.length) { const sg = hs[0].distance - 0.03; if (sg < 0) depth = Math.max(depth, -sg); else minOut = Math.min(minOut, sg); } }
     const want = depth > 0 ? patShift + depth + 0.0006 : (minOut < 1 && minOut > 0.0015 ? patShift - (minOut - 0.0010) * 0.5 : patShift);   // push out of the bone first; settle gently onto it only when clearly floating
     patShift += (Math.max(-0.02, Math.min(0.02, want)) - patShift) * Math.min(1, dt * 12);
-    GROUPS[2].position.copy(centre).addScaledVector(S.n, patShift); }
+    GROUPS[2].position.copy(centre).addScaledVector(S.n, patShift); } else GROUPS[2].position.copy(centre).addScaledVector(S.n, patShift);
   skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
   const pivShift = new THREE.Vector3(0, 1, 0).applyQuaternion(qF).multiplyScalar(contactOff);                                         // slide along the tibia's own axis so the plateau stays on the condyle
@@ -593,14 +597,16 @@ let last = performance.now();
   UCRT.value = Math.max(0, Math.min(1, (oa - 0.5) / 0.4)); UAGE.value = Math.min(1, oa * 1.15);
   // cartilage colouring: thinning zones turn pink, full-thickness craters red (exposed bone)
   const crater = Math.max(0, Math.min(1, (oa - 0.5) / 0.4));
-  for (const m of meshes) { if (!m.userData.cw) continue; const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, cw = m.userData.cw, med = m.userData.medial;
+  for (const m of meshes) { if (!m.userData.cw || !poseChangedD) continue; const col = m.geometry.getAttribute('color'), base = m.userData.baseCol, cw = m.userData.cw, med = m.userData.medial;
     if (m.morphTargetInfluences) { const j = m.userData.morphNames.indexOf('crater'); if (j >= 0) m.morphTargetInfluences[j] = crater; }
     for (let i = 0; i < cw.length; i++) { const pink = wear * (0.25 + 0.75 * med[i]) * 0.55, red = cw[i] * crater; const k = Math.min(1, pink + red);
       col.array[3*i] = base[3*i] * (1 - 0.1 * k) + 0.25 * red + 0.12 * pink; col.array[3*i+1] = base[3*i+1] * (1 - 0.75 * k); col.array[3*i+2] = base[3*i+2] * (1 - 0.8 * k); } col.needsUpdate = true; }
   const qJ = new THREE.Quaternion().setFromAxisAngle(axD, -rad(deg) * 0.45 * FLEX_SIGN); jointG.quaternion.copy(qJ); jointG.position.copy(axP).sub(axP.clone().applyQuaternion(qJ));   // femur tilts back with the thigh
-  deformCurves();
+  if (poseChangedD) deformCurves();
   // ---- menisci: glide back with flexion (medial ~3 mm, lateral ~8 mm at 110°) and their rim is pressed flat wherever the femoral condyle rolls onto it ----
-  for (const M of menisci) { if (!M.basePos) M.basePos = M.mesh.position.clone(); const back = (M.mesh.name === 'meniscus__medial' ? 0.003 : 0.008) * (deg / 110);
+  const poseKey = Math.round(deg * 4) + '|' + Math.round(oa * 200) + '|' + Math.round(animD.shift * 1e4) + '|' + Math.round(anim.hto * 100) + '|' + Math.round(anim.tka * 100);
+  const poseChanged = poseKey !== lastPoseKey; lastPoseKey = poseKey;
+  for (const M of menisci) { if (!poseChanged) break; if (!M.basePos) M.basePos = M.mesh.position.clone(); const back = (M.mesh.name === 'meniscus__medial' ? 0.003 : 0.008) * (deg / 110);
     M.mesh.position.copy(M.basePos).add(new THREE.Vector3(0, 0, -back));                                     // posterior = screen -Z (tibia-local)
     const pos = M.mesh.geometry.getAttribute('position'); M.mesh.updateMatrixWorld(true); const toW = M.mesh.matrixWorld, fromW = new THREE.Matrix4().copy(toW).invert();
     for (let k = 0; k < M.top.length; k++) { const i = M.top[k], j = M.bot[k];
