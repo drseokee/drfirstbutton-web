@@ -141,7 +141,7 @@ def femur_art(f):
     if c.z > JZ + 0.038 or c.z < JZ - 0.01: return False
     down = -n.z; fwd = -n.y
     if abs(n.x) > 0.82 or abs(c.x - fx) > 0.040: return False                 # only true flank faces (epicondyles) are excluded
-    return (down > 0.25) or (fwd > 0.5 and c.z > JZ + 0.005 and abs(c.x - fx) < 0.02) or (down > 0.05 and n.y > 0.4)   # inferior, trochlea, posterior condyles
+    return (down > 0.25) or (fwd > 0.5 and c.z > JZ + 0.005 and abs(c.x - fx) < 0.02) or (n.y > 0.45 and c.z < JZ + 0.033 and abs(c.x - fx) > 0.006)   # inferior, trochlea, and the whole posterior condyle (loaded in deep flexion)
 def tibia_art(f):
     c = f.calc_center_median(); n = f.normal; tz = max(v.co.z for v in tibia.verts)
     return c.z > tz - 0.016 and n.z > 0.20                                     # the whole plateau surface, including its gently sloping margins
