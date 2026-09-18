@@ -328,7 +328,12 @@ function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / 
 const LM = DATA.meta.landmarks; const L3 = k => new THREE.Vector3(...A2S(LM[k]));
 const _rayP = new THREE.Raycaster(); let patShift = 0; const patSample = []; let lastPatKey = -1;
 { const cp = meshes.find(m => m.name === 'cartilage__patella'); if (cp) { const p = cp.geometry.getAttribute('position'); for (let i = 0; i < p.count; i += Math.max(1, Math.floor(p.count / 24))) patSample.push(new THREE.Vector3(p.getX(i), p.getY(i), p.getZ(i))); } }
-let lastPoseKey = ''; let lastDKey = ''; const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur'); const femurAndCart = [femurMesh, meshes.find(m => m.name === 'cartilage__femur')].filter(Boolean);
+let lastPoseKey = ''; let lastDKey = ''; const menisci = []; const _rayM = new THREE.Raycaster(); const femurMesh = meshes.find(m => m.name === 'bone__femur');
+// collision proxy: only the distal femur (below +45 mm) is ever probed — trimmed hidden copies cut raycast cost by ~3×
+function trimmedCopy(src, maxY){ const g = src.geometry, p = g.getAttribute('position'), idx = g.getIndex().array; const keep = []; for (let i = 0; i < idx.length; i += 3) { if (p.getY(idx[i]) < maxY && p.getY(idx[i+1]) < maxY && p.getY(idx[i+2]) < maxY) keep.push(idx[i], idx[i+1], idx[i+2]); }
+  const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', p); g2.setIndex(keep); g2.computeVertexNormals(); const m = new THREE.Mesh(g2, new THREE.MeshBasicMaterial({ visible: false })); m.name = src.name + '__proxy'; m.position.copy(src.position); m.quaternion.copy(src.quaternion); m.matrixAutoUpdate = true; return m; }
+const femurProxy = trimmedCopy(femurMesh, 0.045); const cartFMesh = meshes.find(m => m.name === 'cartilage__femur'); const cartFProxy = cartFMesh ? trimmedCopy(cartFMesh, 0.045) : null;
+const femurAndCart = [femurProxy, cartFProxy].filter(Boolean);
 for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
   // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
   for (let i = 0; i + 1 < p.count; i += 2) { if (p.getY(i + 1) >= p.getY(i)) { bot.push(i); top.push(i + 1); } else { bot.push(i + 1); top.push(i); } }
@@ -351,7 +356,7 @@ const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.B
 for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
 cruciates.push(makeBand('lig__acl', '전방십자인대 (ACL)', L3('acl_femur'), L3('acl_tibia'), 0.010, 0.005, 0xa9bfd6)); cruciates.push(makeBand('lig__pcl', '후방십자인대 (PCL)', L3('pcl_femur'), L3('pcl_tibia'), 0.012, 0.0065, 0xa9bfd6));
 for (const C of cruciates) jointG.add(C.mesh);
-const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const HUG_C = [meshes.find(m => m.name === 'bone__femur'), meshes.find(m => m.name === 'bone__tibia')].filter(Boolean);
+const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const HUG_C = [femurProxy, meshes.find(m => m.name === 'bone__tibia')].filter(Boolean);
 let lastCruKey = '';
 function updateCruciates(){
   jointG.updateMatrixWorld(true); _inv.copy(jointG.matrixWorld).invert();
@@ -572,6 +577,7 @@ let last = performance.now();
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
   // contact point slides slowly down the trochlea (0.45°/°, to the distal condyles at ≈55°); the patella itself flexes 0.65× the knee angle about the epicondylar axis
   // the contact point descends the femoral surface at a steady 0.42 mm per degree (≈46 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
+  if (!femurProxy.parent) { femurMesh.parent.add(femurProxy); femurProxy.position.copy(femurMesh.position); if (cartFProxy) { cartFMesh.parent.add(cartFProxy); cartFProxy.position.copy(cartFMesh.position); } }
   const patKey = Math.round(deg * 4); const poseChangedP = patKey !== lastPatKey; lastPatKey = patKey;
   const sC = TR.s0 - 0.019 + 0.00022 * deg;                                                    // rest: upper third of the patella above the trochlea; descends ~24 mm of surface by full flexion
   const S = trackAtS(sC); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
