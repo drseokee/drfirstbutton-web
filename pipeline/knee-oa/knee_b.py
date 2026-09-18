@@ -255,15 +255,21 @@ for (a_deg, _), r in zip(raw, rs):
 print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min(rs) * 1e3, max(rs) * 1e3))
 # ---------- sagittal section set for the cruciate demo: femur / tibia / cartilages cut just lateral of the ACL's femoral footprint, medial part kept, cut faces capped ----------
 SAG_X = d["meta"]["landmarks"]["acl_femur"][0] - 0.003; SAG_MID = -0.004
+FEM_P = Vector((-0.016, 0, 0.0)); _top = Vector((-0.004, 0, 0.15)); _d = (_top - FEM_P).normalized(); FEM_N = Vector((-_d.z, 0, _d.x)).normalized()   # normal in the x-z plane, pointing lateral(-x)
+if FEM_N.x > 0: FEM_N = -FEM_N
 for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia"):
     src = objs[nm]; bm = bm_of(src)
-    cx_ = SAG_MID if nm.startswith("bone__femur") or nm.startswith("cartilage__femur") else SAG_X    # femur: cut at the notch centre (x = -4 mm) so the ACL's whole sagittal course is open; tibia keeps its ACL footprint
-    cut_plane(bm, (cx_, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)             # remove the lateral side, keep medial
+    if nm.startswith("bone__femur") or nm.startswith("cartilage__femur"):
+        # femur: an oblique plane — 16 mm lateral at the joint (the ACL stays whole) tilting to 4 mm lateral at the top of the block (a real shaft section, no step)
+        pco, pno = FEM_P, FEM_N
+    else: pco, pno = Vector((SAG_X, 0, 0)), Vector((-1, 0, 0))
+    cut_plane(bm, tuple(pco), tuple(pno), remove="outer", cap=True, ngon=True)              # remove the lateral side, keep medial
     if not len(bm.faces): continue
     cortex = None
     if nm.startswith("bone__"):
         # cap = cortical rim + cancellous centre: inset the cap polygon(s) by 2.2 mm; ring faces are cortex (1), inner faces marrow (0), blended by the shader
-        bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.x) - 1) < 0.01 and (abs(f.calc_center_median().x - SAG_X) < 0.0005 or abs(f.calc_center_median().x - SAG_MID) < 0.0005)]
+        bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.dot(pno)) - 1) < 0.01 and abs((f.calc_center_median() - pco).dot(pno)) < 0.0005]
+        U_ = Vector((0, 1, 0)); W_ = pno.cross(U_).normalized()                                   # in-plane basis: U = y (anterior/posterior), W = 'up' along the plane
         # the cap comes out as many triangles: merge them into one polygon per connected region first (otherwise every triangle becomes its own "outline" = solid cortex)
         res_d = bmesh.ops.dissolve_faces(bm, faces=caps, use_verts=False); caps = [f for f in res_d["region"] if f.is_valid]
         print(f"   {nm}: {len(caps)} cap polygon(s) with", [len(f.verts) for f in caps], "verts")
@@ -271,8 +277,8 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
         from mathutils import Vector as _V2
         cortex = {}
         for f in caps:
-            loop = [l.vert for l in f.loops]; n_ = len(loop); cap_x = f.calc_center_median().x
-            poly2 = [_V2((v_.co.y, v_.co.z)) for v_ in loop]
+            loop = [l.vert for l in f.loops]; n_ = len(loop); cap_o = f.calc_center_median()
+            poly2 = [_V2(((v_.co - cap_o).dot(U_), (v_.co - cap_o).dot(W_))) for v_ in loop]
             # interior grid points (2 mm) inside the outline → a dense, well-shaped triangulation; cortex = distance to the outline vs local thickness
             ys_ = [p.x for p in poly2]; zs_ = [p.y for p in poly2]; grid = []
             def inside(pt):
@@ -297,7 +303,7 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
             newv = []
             for k_, p2 in enumerate(vco):
                 if k_ < n_ and orig_v[k_] and orig_v[k_][0] < n_: newv.append(loop[orig_v[k_][0]])            # boundary vertex → reuse the existing one
-                else: newv.append(bm.verts.new(Vector((cap_x, p2.x, p2.y))))
+                else: newv.append(bm.verts.new(cap_o + U_ * p2.x + W_ * p2.y))
             for fc in vfaces:
                 try: bm.faces.new([newv[i_] for i_ in fc])
                 except ValueError: pass
@@ -308,7 +314,7 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
                     a_, b_ = poly2[i_], poly2[(i_ + 1) % n_]; ab = b_ - a_; u_ = max(0.0, min(1.0, (pt - a_).dot(ab) / max(1e-12, ab.length_squared))); best = min(best, (a_ + ab * u_ - pt).length)
                 return best
             for k_, v_ in enumerate(newv):
-                p2 = vco[k_]; th = 0.0015 + 0.0045 * smooth01((abs(p2.y) - 0.040) / 0.090)
+                p2 = vco[k_]; zz = (cap_o + U_ * p2.x + W_ * p2.y).z; th = 0.0015 + 0.0045 * smooth01((abs(zz) - 0.040) / 0.090)
                 cortex[v_] = 1.0 if k_ < n_ else max(0.0, 1.0 - dist_to_outline(p2) / th)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bmesh.ops.triangulate(bm, faces=bm.faces)
@@ -318,7 +324,7 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
         bm.verts.ensure_lookup_table(); o_["cortex"] = [round(cortex.get(vv, 1.0), 1) for vv in bm.verts]     # surface verts (not on the cap) → 1 = cortex colour anyway
     objects.append(o_)
 print("sagittal section set built at x = %.1f mm" % (SAG_X * 1e3))
-meta = dict(d["meta"]); meta["rig"] = {"sag_x": round(SAG_X, 5), "troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
+meta = dict(d["meta"]); meta["rig"] = {"sag_x": round(SAG_X, 5), "fem_plane": {"p": [round(c, 5) for c in FEM_P], "n": [round(c, 4) for c in FEM_N]}, "troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
 json.dump(d, open(f"{OUTK}/knee_b.json", "w"), separators=(",", ":"))

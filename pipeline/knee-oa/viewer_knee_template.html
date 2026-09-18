@@ -113,7 +113,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-const DATA = __DATA__;
+const DATA = __DATA__; const RIG0 = DATA.meta.rig;
 const KO = {
   bone__femur:"대퇴골 (넙다리뼈)", bone__tibia:"경골 (정강이뼈)", bone__fibula:"비골", bone__patella:"슬개골 (무릎뼈)",
   cartilage__femur:"대퇴골 관절연골", cartilage__tibia:"경골 관절연골", cartilage__patella:"슬개골 관절연골",
@@ -177,9 +177,10 @@ for (const o of DATA.objects) {
       sh.fragmentShader = 'varying float vStrip;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n gl_FragColor.rgb *= 0.90 + 0.10 * (0.5 + 0.5 * sin(vStrip * 14.0));'); })(m.onBeforeCompile); }
   if (o.cut && o.layer === 'bone') {   // section caps: cortical rim (per-vertex 'cortex' attribute) around a trabecular network — thin bright struts, darker marrow spaces
     g.setAttribute('cortex', new THREE.Float32BufferAttribute(o.cortex || new Array(pos.length / 3).fill(1), 1));
-    m.onBeforeCompile = (orig => sh => { orig && orig(sh);
+    const capN = o.name.startsWith('bone__femur') ? new THREE.Vector3(RIG0.fem_plane.n[0], RIG0.fem_plane.n[2], -RIG0.fem_plane.n[1]).normalize() : new THREE.Vector3(1, 0, 0);
+    m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uCapN = { value: capN };
       sh.vertexShader = 'attribute float cortex; varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vCx = cortex; vNc = normal; vPc = position;');
-      sh.fragmentShader = 'varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n vec3 fnrm = normalize(cross(dFdx(vPc), dFdy(vPc)));\n if (abs(fnrm.x) > 0.95) {\n  vec3 q = vPc * 2400.0;\n  float n1 = sin(q.y * 1.0 + sin(q.z * 0.9 + 1.7)) + sin(q.z * 1.1 + sin(q.y * 0.8));\n  float n2 = sin(q.y * 2.3 + q.z * 0.6) * sin(q.z * 2.1 - q.y * 0.4);\n  float cell = abs(n1 * 0.6 + n2 * 0.4);\n  float strut = 1.0 - smoothstep(0.10, 0.32, cell);\n  float strut2 = 1.0 - smoothstep(0.05, 0.22, abs(sin(q.y * 3.7 + q.z * 1.3) * sin(q.z * 3.1 - q.y * 0.9)));\n  float web = clamp(strut + 0.55 * strut2, 0.0, 1.0);\n  vec3 marrowC = vec3(0.60, 0.44, 0.31), strutC = vec3(0.93, 0.86, 0.72), cortexC = vec3(0.95, 0.91, 0.82);\n  vec3 spongy = mix(marrowC, strutC, web);\n  float cx = smoothstep(0.02, 0.22, vCx);\n  gl_FragColor.rgb = mix(spongy, cortexC, cx);\n }'); })(m.onBeforeCompile); }
+      sh.fragmentShader = 'uniform vec3 uCapN; varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n vec3 fnrm = normalize(cross(dFdx(vPc), dFdy(vPc)));\n if (abs(dot(fnrm, uCapN)) > 0.95) {\n  vec3 q = vPc * 2400.0;\n  float n1 = sin(q.y * 1.0 + sin(q.z * 0.9 + 1.7)) + sin(q.z * 1.1 + sin(q.y * 0.8));\n  float n2 = sin(q.y * 2.3 + q.z * 0.6) * sin(q.z * 2.1 - q.y * 0.4);\n  float cell = abs(n1 * 0.6 + n2 * 0.4);\n  float strut = 1.0 - smoothstep(0.10, 0.32, cell);\n  float strut2 = 1.0 - smoothstep(0.05, 0.22, abs(sin(q.y * 3.7 + q.z * 1.3) * sin(q.z * 3.1 - q.y * 0.9)));\n  float web = clamp(strut + 0.55 * strut2, 0.0, 1.0);\n  vec3 marrowC = vec3(0.60, 0.44, 0.31), strutC = vec3(0.93, 0.86, 0.72), cortexC = vec3(0.95, 0.91, 0.82);\n  vec3 spongy = mix(marrowC, strutC, web);\n  float cx = smoothstep(0.02, 0.22, vCx);\n  gl_FragColor.rgb = mix(spongy, cortexC, cx);\n }'); })(m.onBeforeCompile); }
   if (o.layer === 'bone') {   // ageing bone: dull yellow-grey tint, porous speckling, subchondral sclerosis (whiter band under the joint), all scaled by uAge
     const jd = new Float32Array(pos.length / 3); for (let i = 0; i < jd.length; i++) jd[i] = Math.max(0, 1 - Math.abs(pos[3*i+1]) / 0.014); g.setAttribute('jd', new THREE.BufferAttribute(jd, 1));
     m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uAge = UAGE;
@@ -189,7 +190,7 @@ for (const o of DATA.objects) {
       sh.vertexShader = 'attribute float fxa; varying float vFx; varying vec3 vWp2;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vFx = fxa; vWp2 = position;');
       sh.fragmentShader = 'uniform float uCrt; varying float vFx; varying vec3 vWp2;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n float ex = clamp(vFx * uCrt * 1.6, 0.0, 1.0);\n if (ex > 0.02) { vec3 p = vWp2 * 900.0; float sp = smoothstep(0.55, 0.9, sin(p.x * 1.7 + sin(p.z * 1.3)) * sin(p.y * 1.9 + p.x * 0.4));\n vec3 pink = vec3(0.86, 0.55, 0.50), red = vec3(0.62, 0.12, 0.10); gl_FragColor.rgb = mix(gl_FragColor.rgb, mix(pink, red, sp), ex); }'); })(m.onBeforeCompile);
     g.setAttribute('fxa', new THREE.Float32BufferAttribute(o.fx, 1)); }
-  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.morphs ? '_m' : '') + (o.fx ? '_fx' : '') + (o.layer === 'bone' ? '_age' : '') + (o.strip ? '_fib' : '') + (o.cut ? '_cut' : '');
+  m.customProgramCacheKey = () => 'chk_' + o.layer + (o.morphs ? '_m' : '') + (o.fx ? '_fx' : '') + (o.layer === 'bone' ? '_age' : '') + (o.strip ? '_fib' : '') + (o.cut ? '_cut_' + o.name : '');
   const mesh = new THREE.Mesh(g, m);
   if (o.layer !== 'skin') {   // inverted-hull outline
     const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
@@ -654,7 +655,7 @@ let last = performance.now();
   // HTO: wedge opens (the distal tibia swings into slight valgus, correcting the O-leg), plate appears
   // sagittal section for the cruciate demo: the lateral third of the femur/tibia (outside the ACL's femoral footprint) is clipped away so both cruciates and their insertions are seen from the side
   const demoSec = stage === 0 && sub === 0;
-  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } for (const C of cruciates) C.mesh.material.clippingPlanes = demoSec ? [sagCutF] : []; }
+  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } }
   for (const nm of ['bone__femur', 'bone__tibia', 'cartilage__femur', 'cartilage__tibia']) { const full = meshes.find(x => x.name === nm), cut = meshes.find(x => x.name === nm + '__cut'); if (!full) continue;
     if (demoSec) { full.visible = false; if (cut) cut.visible = state.layers[full.userData.layer]; } else if (cut) cut.visible = false; }
   const htoOn = anim.hto > 0.02; wedge.visible = htoOn; htoPlate.visible = anim.hto > 0.6; tibDistal.visible = htoOn; tibia.material.clippingPlanes = htoOn ? [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.0345)] : (anim.tka > 0.02 ? [tibCut] : []);
