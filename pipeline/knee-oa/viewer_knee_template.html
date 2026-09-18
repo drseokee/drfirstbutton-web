@@ -174,9 +174,11 @@ for (const o of DATA.objects) {
     m.onBeforeCompile = (orig => sh => { orig && orig(sh);
       sh.vertexShader = 'attribute float strip; varying float vStrip;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vStrip = strip;');
       sh.fragmentShader = 'varying float vStrip;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n gl_FragColor.rgb *= 0.90 + 0.10 * (0.5 + 0.5 * sin(vStrip * 14.0));'); })(m.onBeforeCompile); }
-  if (o.cut && o.layer === 'bone') { m.onBeforeCompile = (orig => sh => { orig && orig(sh);
-      sh.vertexShader = 'varying vec3 vNc; varying vec3 vPc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vNc = normal; vPc = position;');
-      sh.fragmentShader = 'varying vec3 vNc; varying vec3 vPc;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n if (abs(vNc.x) > 0.97) { vec3 q = vPc * 1600.0; float tb = sin(q.y * 1.1 + sin(q.z * 0.8)) * sin(q.z * 1.3 + q.y * 0.5) * sin((q.y + q.z) * 0.7); float sp = smoothstep(0.05, 0.45, tb); vec3 cortex = vec3(0.93, 0.90, 0.82), marrow = vec3(0.72, 0.58, 0.45); gl_FragColor.rgb = mix(marrow, cortex, sp) * (0.85 + 0.15 * sp); }'); })(m.onBeforeCompile); }
+  if (o.cut && o.layer === 'bone') {   // section caps: cortical rim (per-vertex 'cortex' attribute) around a trabecular network — thin bright struts, darker marrow spaces
+    g.setAttribute('cortex', new THREE.Float32BufferAttribute(o.cortex || new Array(pos.length / 3).fill(1), 1));
+    m.onBeforeCompile = (orig => sh => { orig && orig(sh);
+      sh.vertexShader = 'attribute float cortex; varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vCx = cortex; vNc = normal; vPc = position;');
+      sh.fragmentShader = 'varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n if (abs(vNc.x) > 0.97) {\n  vec3 q = vPc * 2400.0;\n  float n1 = sin(q.y * 1.0 + sin(q.z * 0.9 + 1.7)) + sin(q.z * 1.1 + sin(q.y * 0.8));\n  float n2 = sin(q.y * 2.3 + q.z * 0.6) * sin(q.z * 2.1 - q.y * 0.4);\n  float cell = abs(n1 * 0.6 + n2 * 0.4);\n  float strut = 1.0 - smoothstep(0.10, 0.32, cell);\n  float strut2 = 1.0 - smoothstep(0.05, 0.22, abs(sin(q.y * 3.7 + q.z * 1.3) * sin(q.z * 3.1 - q.y * 0.9)));\n  float web = clamp(strut + 0.55 * strut2, 0.0, 1.0);\n  vec3 marrowC = vec3(0.60, 0.44, 0.31), strutC = vec3(0.93, 0.86, 0.72), cortexC = vec3(0.95, 0.91, 0.82);\n  vec3 spongy = mix(marrowC, strutC, web);\n  float cx = smoothstep(0.35, 0.85, vCx);\n  gl_FragColor.rgb = mix(spongy, cortexC, cx);\n }'); })(m.onBeforeCompile); }
   if (o.layer === 'bone') {   // ageing bone: dull yellow-grey tint, porous speckling, subchondral sclerosis (whiter band under the joint), all scaled by uAge
     const jd = new Float32Array(pos.length / 3); for (let i = 0; i < jd.length; i++) jd[i] = Math.max(0, 1 - Math.abs(pos[3*i+1]) / 0.014); g.setAttribute('jd', new THREE.BufferAttribute(jd, 1));
     m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uAge = UAGE;
@@ -519,7 +521,7 @@ renderer.localClippingEnabled = true;
 const STAGES = [
   { name:'구조', cap:'대퇴골·경골·슬개골, 뼈 끝을 덮은 미끄러운 관절연골(하늘색), 사이의 반월판(쿠션), 안팎의 측부인대와 십자인대입니다. 슬라이더로 굽혔다 펴 보세요. 십자인대는 팽팽해지면 붉게 변합니다.',
     set:{ flex:0, oa:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:false }, view:'anterior',
-    subs:[ { name:'십자인대 역할', cap:'옆에서 뼈를 반쯤 잘라 보는 단면입니다. 전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl','bone__fibula','meniscus__lateral'],
+    subs:[ { name:'십자인대 역할', cap:'옆에서 뼈를 반쯤 잘라 보는 단면입니다. 전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl','bone__fibula'],
              toggles:[ { label:'앞으로 당기기', key:'ant' }, { label:'뒤로 밀기', key:'post' }, { label:'ACL 끊김', key:'cutACL' }, { label:'PCL 끊김', key:'cutPCL' } ] } ] },
   { name:'관절염 진행', cap:'연골이 거칠어지고(초기) 얇아져 관절 틈이 좁아지며(중기) 가장자리에 뼈가 자라나고(골극), 끝내 뼈끼리 닿아 다리가 안쪽으로 휩니다(말기, O다리). 슬라이더를 천천히 밀어 보세요.',
     set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior', hide:['bone__patella','cartilage__patella','lig__mcl','lig__lcl'] },
@@ -648,6 +650,7 @@ let last = performance.now();
   // HTO: wedge opens (the distal tibia swings into slight valgus, correcting the O-leg), plate appears
   // sagittal section for the cruciate demo: the lateral third of the femur/tibia (outside the ACL's femoral footprint) is clipped away so both cruciates and their insertions are seen from the side
   const demoSec = stage === 0 && sub === 0;
+  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } }
   for (const nm of ['bone__femur', 'bone__tibia', 'cartilage__femur', 'cartilage__tibia']) { const full = meshes.find(x => x.name === nm), cut = meshes.find(x => x.name === nm + '__cut'); if (!full) continue;
     if (demoSec) { full.visible = false; if (cut) cut.visible = state.layers[full.userData.layer]; } else if (cut) cut.visible = false; }
   const htoOn = anim.hto > 0.02; wedge.visible = htoOn; htoPlate.visible = anim.hto > 0.6; tibDistal.visible = htoOn; tibia.material.clippingPlanes = htoOn ? [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.0345)] : (anim.tka > 0.02 ? [tibCut] : []);

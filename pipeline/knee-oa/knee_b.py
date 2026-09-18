@@ -259,8 +259,25 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
     src = objs[nm]; bm = bm_of(src)
     cut_plane(bm, (SAG_X, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)          # remove x < SAG_X (lateral), keep medial
     if not len(bm.faces): continue
+    cortex = None
+    if nm.startswith("bone__"):
+        # cap = cortical rim + cancellous centre: inset the cap polygon(s) by 2.2 mm; ring faces are cortex (1), inner faces marrow (0), blended by the shader
+        bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.x) - 1) < 0.01 and abs(f.calc_center_median().x - SAG_X) < 0.0005]
+        res = bmesh.ops.inset_region(bm, faces=caps, thickness=0.0022, depth=0.0, use_even_offset=True)
+        ring = set(res["faces"]); inner = set(caps)
+        cortex = {}
+        for f in bm.faces:
+            if f in ring:
+                for v_ in f.verts: cortex[v_] = 1.0
+        for f in inner:
+            for v_ in f.verts:
+                if cortex.get(v_, 0) < 1: cortex[v_] = 0.0
+        bmesh.ops.triangulate(bm, faces=bm.faces)
     v, t = to_arrays(bm, center=Vector((0, 0, 0)))
-    objects.append({"name": nm + "__cut", "layer": nm.split("__")[0], "verts": v, "tris": t, "group": GI["femur" if "femur" in nm else "tibia"], "cut": True})
+    o_ = {"name": nm + "__cut", "layer": nm.split("__")[0], "verts": v, "tris": t, "group": GI["femur" if "femur" in nm else "tibia"], "cut": True}
+    if cortex is not None:
+        bm.verts.ensure_lookup_table(); o_["cortex"] = [round(cortex.get(vv, 1.0), 1) for vv in bm.verts]     # surface verts (not on the cap) → 1 = cortex colour anyway
+    objects.append(o_)
 print("sagittal section set built at x = %.1f mm" % (SAG_X * 1e3))
 meta = dict(d["meta"]); meta["rig"] = {"sag_x": round(SAG_X, 5), "troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
