@@ -66,7 +66,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="caption"></div>
-<div id="drawerbar" style="display:none;position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;background:rgba(16,26,44,.85);border:1px solid rgba(243,238,228,.12);border-radius:999px;padding:8px 16px;gap:10px;align-items:center;font-size:12.5px;color:#cfc7b8"><span>뒤로 밀기</span><input id="drawerRange" type="range" min="-100" max="100" value="0" style="width:240px"><span>앞으로 당기기</span></div>
+<div id="drawerbar" style="display:none;position:fixed;left:50%;bottom:172px;transform:translateX(-50%);z-index:12;background:rgba(16,26,44,.85);border:1px solid rgba(243,238,228,.12);border-radius:999px;padding:8px 16px;gap:10px;align-items:center;font-size:12.5px;color:#cfc7b8"><span>뒤로 밀기</span><input id="drawerRange" type="range" min="-100" max="100" value="0" style="width:240px"><span>앞으로 당기기</span></div>
 <div id="subbar"></div>
 <div id="stages"></div>
 <div id="ctl"><div class="row2"><span style="min-width:60px">굽히기</span><input id="flex" type="range" min="0" max="100" value="0"><span id="flexLbl">0°</span></div><div class="row2"><span style="min-width:60px">관절염</span><input id="oa" type="range" min="0" max="100" value="0"><span id="oaLbl" style="min-width:48px">정상</span></div></div>
@@ -523,7 +523,7 @@ renderer.localClippingEnabled = true;
 const STAGES = [
   { name:'구조', cap:'대퇴골·경골·슬개골, 뼈 끝을 덮은 미끄러운 관절연골(하늘색), 사이의 반월판(쿠션), 안팎의 측부인대와 십자인대입니다. 슬라이더로 굽혔다 펴 보세요. 십자인대는 팽팽해지면 붉게 변합니다.',
     set:{ flex:0, oa:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:false }, view:'anterior',
-    subs:[ { name:'십자인대 역할', cap:'옆에서 뼈를 반쯤 잘라 보는 단면입니다. 슬라이더를 오른쪽(앞으로 당기기)으로 밀면 전방십자인대가 팽팽해져 붉게 되고, 왼쪽(뒤로 밀기)이면 후방십자인대가 버팁니다. 인대를 끊은 뒤 다시 밀어 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl','bone__fibula'],
+    subs:[ { name:'십자인대 역할', cap:'', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl','bone__fibula'],
              toggles:[ { label:'ACL 끊김', key:'cutACL' }, { label:'PCL 끊김', key:'cutPCL' } ], drawerBar:true } ] },
   { name:'관절염 진행', cap:'연골이 거칠어지고(초기) 얇아져 관절 틈이 좁아지며(중기) 가장자리에 뼈가 자라나고(골극), 끝내 뼈끼리 닿아 다리가 안쪽으로 휩니다(말기, O다리). 슬라이더를 천천히 밀어 보세요.',
     set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior', hide:['bone__patella','cartilage__patella','lig__mcl','lig__lcl'] },
@@ -553,11 +553,11 @@ function goStage(i, subIdx){
     const act = sub >= 0 && S.subs[sub].action;
     if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = act.label; b.onclick = () => { applySet(act.set); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); }
     const tg = sub >= 0 && S.subs[sub].toggles; drawer.dir = 0; drawer.amount = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
-    { const db = document.getElementById('drawerbar'); const on = sub >= 0 && S.subs[sub].drawerBar; db.style.display = on ? 'flex' : 'none'; document.getElementById('drawerRange').value = 0; if (on) document.getElementById('caption').style.bottom = '162px'; }
+    { const db = document.getElementById('drawerbar'); const on = sub >= 0 && S.subs[sub].drawerBar; db.style.display = on ? 'flex' : 'none'; document.getElementById('drawerRange').value = 0; }
     if (tg) tg.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn'; if (k === 0) b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = x.label;
       b.onclick = () => { drawer[x.key] = drawer[x.key] ? 0 : 1; [...sb.querySelectorAll('button')].forEach(bb => { const kk = (tg.find(y => y.label === bb.textContent) || {}).key; if (kk) bb.classList.toggle('on', !!drawer[kk]); }); }; sb.appendChild(b); }); }
   else sb.style.display = 'none';
-  document.getElementById('caption').textContent = (S.subs && sub >= 0) ? S.subs[sub].cap : S.cap;
+  { const capText = (S.subs && sub >= 0) ? S.subs[sub].cap : S.cap; const capEl = document.getElementById('caption'); capEl.textContent = capText; capEl.style.display = capText ? 'block' : 'none'; }
   document.getElementById('caption').style.bottom = (state.showFlex || state.showOA) ? '178px' : '112px';
   state.hidden = new Set((sub >= 0 && S.subs[sub].hide) || S.hide || []); applyVisibility();
   const v = (sub >= 0 && S.subs[sub].view) || null; if (v) setView(v); else if (S.view && (prevStage !== i || prevSub >= 0)) setView(S.view);

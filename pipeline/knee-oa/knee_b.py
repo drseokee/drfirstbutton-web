@@ -254,20 +254,29 @@ for (a_deg, _), r in zip(raw, rs):
     TROCH.append({"a": a_deg, "p": [round(c, 5) for c in p]})
 print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min(rs) * 1e3, max(rs) * 1e3))
 # ---------- sagittal section set for the cruciate demo: femur / tibia / cartilages cut just lateral of the ACL's femoral footprint, medial part kept, cut faces capped ----------
-SAG_X = d["meta"]["landmarks"]["acl_femur"][0] - 0.003
+SAG_X = d["meta"]["landmarks"]["acl_femur"][0] - 0.003; SAG_MID = -0.004
 for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia"):
     src = objs[nm]; bm = bm_of(src)
     cut_plane(bm, (SAG_X, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)          # remove x < SAG_X (lateral), keep medial
+    if nm == "bone__femur":
+        # stepped section: at 13 mm lateral the plane only grazes the shaft cortex, so above the condyles (z > 45 mm) cut again nearer the midline (x = -4 mm) to expose a real shaft section
+        upper = bm.copy(); lower = bm
+        cut_z(upper, 0.045, keep="above", cap=True, ngon=True); cut_z(lower, 0.045, keep="below", cap=True, ngon=True)
+        cut_plane(upper, (SAG_MID, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)
+        bm = join_bms([lower, upper])
     if not len(bm.faces): continue
     cortex = None
     if nm.startswith("bone__"):
         # cap = cortical rim + cancellous centre: inset the cap polygon(s) by 2.2 mm; ring faces are cortex (1), inner faces marrow (0), blended by the shader
-        bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.x) - 1) < 0.01 and abs(f.calc_center_median().x - SAG_X) < 0.0005]
+        bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.x) - 1) < 0.01 and (abs(f.calc_center_median().x - SAG_X) < 0.0005 or abs(f.calc_center_median().x - SAG_MID) < 0.0005)]
+        # the cap comes out as many triangles: merge them into one polygon per connected region first (otherwise every triangle becomes its own "outline" = solid cortex)
+        res_d = bmesh.ops.dissolve_faces(bm, faces=caps, use_verts=False); caps = [f for f in res_d["region"] if f.is_valid]
+        print(f"   {nm}: {len(caps)} cap polygon(s) with", [len(f.verts) for f in caps], "verts")
         from mathutils.geometry import delaunay_2d_cdt
         from mathutils import Vector as _V2
         cortex = {}
         for f in caps:
-            loop = [l.vert for l in f.loops]; n_ = len(loop)
+            loop = [l.vert for l in f.loops]; n_ = len(loop); cap_x = f.calc_center_median().x
             poly2 = [_V2((v_.co.y, v_.co.z)) for v_ in loop]
             # interior grid points (2 mm) inside the outline → a dense, well-shaped triangulation; cortex = distance to the outline vs local thickness
             ys_ = [p.x for p in poly2]; zs_ = [p.y for p in poly2]; grid = []
@@ -293,7 +302,7 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
             newv = []
             for k_, p2 in enumerate(vco):
                 if k_ < n_ and orig_v[k_] and orig_v[k_][0] < n_: newv.append(loop[orig_v[k_][0]])            # boundary vertex → reuse the existing one
-                else: newv.append(bm.verts.new(Vector((SAG_X, p2.x, p2.y))))
+                else: newv.append(bm.verts.new(Vector((cap_x, p2.x, p2.y))))
             for fc in vfaces:
                 try: bm.faces.new([newv[i_] for i_ in fc])
                 except ValueError: pass
