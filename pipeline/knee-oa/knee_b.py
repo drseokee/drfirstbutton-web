@@ -274,19 +274,19 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
                 for e in (e1, e2):
                     if e.length > 1e-9: nrm += Vector((0, -e.z, e.y)).normalized()             # edge normal in the cut plane (y-z)
                 if nrm.length < 1e-9 or nrm.dot(cen - p) < 0: nrm = (cen - p)
-                nrm = nrm.normalized(); dmax = (cen - p).length * 0.4
-                inner.append(bm.verts.new(p + nrm * min(0.0022, dmax)))
+                nrm = nrm.normalized(); dmax = (cen - p).length * 0.45
+                # cortical thickness: thin at the joint (1.5 mm, epiphysis), thick toward the shaft (up to 6 mm) — real proportions
+                th = 0.0015 + 0.0045 * smooth01((abs(p.z) - 0.040) / 0.090)
+                inner.append(bm.verts.new(p + nrm * min(th, dmax)))
             bmesh.ops.delete(bm, geom=[f], context="FACES_ONLY")
             for i in range(n_):                                                                  # ring quads (cortex)
                 try: bm.faces.new((loop[i], loop[(i + 1) % n_], inner[(i + 1) % n_], inner[i]))
                 except ValueError: pass
-            c_v = bm.verts.new(cen)
-            for i in range(n_):                                                                  # inner fan (marrow)
-                try: bm.faces.new((inner[i], inner[(i + 1) % n_], c_v))
-                except ValueError: pass
+            try:                                                                                 # inner polygon: proper ear-clipping triangulation (a centre fan crosses itself on concave outlines)
+                inner_f = bm.faces.new(inner); bmesh.ops.triangulate(bm, faces=[inner_f], quad_method="BEAUTY", ngon_method="EAR_CLIP")
+            except ValueError: pass
             for v_ in loop: cortex[v_] = 1.0
             for v_ in inner: cortex[v_] = 0.0
-            cortex[c_v] = 0.0
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bmesh.ops.triangulate(bm, faces=bm.faces)
     v, t = to_arrays(bm, center=Vector((0, 0, 0)))
