@@ -662,7 +662,7 @@ let last = performance.now();
   // TKA: resect and cap
   const tkaOn = anim.tka > 0.02; femComp.visible = anim.tka > 0.5; tibComp.visible = anim.tka > 0.7; femur.material.clippingPlanes = tkaOn ? [femCut] : [];
   const hid = n => state.hidden && state.hidden.has(n);
-  if (cartF) cartF.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__femur'); if (cartT) cartT.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__tibia'); if (cartP) cartP.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__patella');
+  if (cartF) cartF.visible = !tkaOn && !demoSec && state.layers.cartilage && !hid('cartilage__femur'); if (cartT) cartT.visible = !tkaOn && !demoSec && state.layers.cartilage && !hid('cartilage__tibia'); if (cartP) cartP.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__patella');
   for (const nm of ['meniscus__medial', 'meniscus__lateral', 'lig__acl']) { const m = meshes.find(x => x.name === nm); if (m) m.visible = !(anim.tka > 0.5) && state.layers[m.userData.layer] && !(state.hidden && state.hidden.has(nm)); }
 })(performance.now());
 goStage(0);
