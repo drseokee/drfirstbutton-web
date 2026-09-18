@@ -503,6 +503,7 @@ const tibComp = new THREE.Group(); tibComp.add(tray, insert, stem); tibComp.visi
 // bone resection for the TKA: clipping planes on the femur/tibia (clip below the femoral cut / above the tibial cut)
 const femur = meshes.find(m => m.name === 'bone__femur'), tibia = meshes.find(m => m.name === 'bone__tibia');
 const femCut = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.010), tibCut = new THREE.Plane(new THREE.Vector3(0, -1, 0), -0.010);   // world-space planes (root at identity)
+const sagCut = new THREE.Plane(new THREE.Vector3(1, 0, 0), -(L3('acl_femur').x - 0.003));                                         // keeps everything medial of a plane just lateral to the ACL's femoral footprint
 // HTO: medial opening wedge in the proximal tibia — a wedge prop + the tibia below the cut renders rotated (clipped duplicate)
 const wedge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0xf1e7c2, roughness: 0.7, transparent: true, opacity: 0.9 })); wedge.visible = false; GROUPS[1].add(wedge);
 { const a = 0.0345, w = 0.05, d = 0.05, h = 0.012; const P = [ [0.036, -a, -d/2], [0.036, -a, d/2], [0.036, -a + h, d/2], [0.036, -a + h, -d/2], [-0.014, -a, -d/2], [-0.014, -a, d/2] ];   // wedge apex at the lateral cortex, open 12 mm medially
@@ -515,7 +516,7 @@ renderer.localClippingEnabled = true;
 const STAGES = [
   { name:'구조', cap:'대퇴골·경골·슬개골, 뼈 끝을 덮은 미끄러운 관절연골(하늘색), 사이의 반월판(쿠션), 안팎의 측부인대와 십자인대입니다. 슬라이더로 굽혔다 펴 보세요. 십자인대는 팽팽해지면 붉게 변합니다.',
     set:{ flex:0, oa:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:false }, view:'anterior',
-    subs:[ { name:'십자인대 역할', cap:'옆(시상면)에서 봅니다. 전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl'],
+    subs:[ { name:'십자인대 역할', cap:'옆에서 뼈를 반쯤 잘라 보는 단면입니다. 전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl'],
              toggles:[ { label:'앞으로 당기기', key:'ant' }, { label:'뒤로 밀기', key:'post' }, { label:'ACL 끊김', key:'cutACL' }, { label:'PCL 끊김', key:'cutPCL' } ] } ] },
   { name:'관절염 진행', cap:'연골이 거칠어지고(초기) 얇아져 관절 틈이 좁아지며(중기) 가장자리에 뼈가 자라나고(골극), 끝내 뼈끼리 닿아 다리가 안쪽으로 휩니다(말기, O다리). 슬라이더를 천천히 밀어 보세요.',
     set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior', hide:['bone__patella','cartilage__patella','lig__mcl','lig__lcl'] },
@@ -598,7 +599,7 @@ let last = performance.now();
   skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
   const pivShift = new THREE.Vector3(0, 1, 0).applyQuaternion(qF).multiplyScalar(contactOff);                                         // slide along the tibia's own axis so the plateau stays on the condyle
-  const targetShift = drawer.dir === 0 ? 0 : drawer.dir > 0 ? (drawer.cutACL ? 0.012 : 0.003) : -(drawer.cutPCL ? 0.011 : 0.003);   // anterior drawer 3 mm normally, 12 mm without the ACL
+  const targetShift = drawer.dir === 0 ? 0 : drawer.dir > 0 ? (drawer.cutACL ? 0.015 : 0.004) : -(drawer.cutPCL ? 0.014 : 0.004);   // anterior drawer 4 mm normally, 15 mm without the ACL
   animD.shift += (targetShift - animD.shift) * Math.min(1, dt * 4);
   GROUPS[1].position.copy(axP).add(offset).add(pivShift).add(new THREE.Vector3(0, 0.0025 * wear, animD.shift)); skel.bones[1].position.copy(GROUPS[1].position);
   for (const C of cruciates) C.cut = C.mesh.name === 'lig__acl' ? drawer.cutACL : drawer.cutPCL;
@@ -641,14 +642,17 @@ let last = performance.now();
     if (injT > 2.0) state.effusion = Math.max(0.15, 0.8 - (injT - 2.0) / 3);                                    // aspiration + drug: the swelling settles
     if (injT > 7.5) { state.inject = 0; document.getElementById('caption').textContent = '약이 관절 안에 퍼지며 붓기와 통증이 가라앉습니다. 효과는 몇 주~몇 달 지속됩니다.'; } } else inj.visible = false;
   // HTO: wedge opens (the distal tibia swings into slight valgus, correcting the O-leg), plate appears
-  const htoOn = anim.hto > 0.02; wedge.visible = htoOn; htoPlate.visible = anim.hto > 0.6; tibDistal.visible = htoOn; tibia.material.clippingPlanes = htoOn ? [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.0345)] : (anim.tka > 0.02 ? [tibCut] : []);
+  // sagittal section for the cruciate demo: the lateral third of the femur/tibia (outside the ACL's femoral footprint) is clipped away so both cruciates and their insertions are seen from the side
+  const demoSec = stage === 0 && sub === 0; const secPlanes = demoSec ? [sagCut] : [];
+  for (const nm of ['bone__femur', 'cartilage__femur', 'cartilage__tibia', 'bone__patella']) { const m = meshes.find(x => x.name === nm); if (!m) continue; if (nm !== 'bone__femur') { m.material.clippingPlanes = secPlanes; m.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } }
+  const htoOn = anim.hto > 0.02; wedge.visible = htoOn; htoPlate.visible = anim.hto > 0.6; tibDistal.visible = htoOn; tibia.material.clippingPlanes = htoOn ? [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.0345)] : (anim.tka > 0.02 ? [tibCut] : secPlanes); tibia.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide;
   wedge.scale.set(1, 0.05 + 0.95 * anim.hto, 1); wedge.position.set(0, 0, 0);
   { const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(9) * anim.hto * -VARUS_SIGN); const hingePt = new THREE.Vector3(-0.014, -0.0345, 0);   // hinge at the lateral cortex
     tibDistal.position.copy(hingePt).add(hingePt.clone().negate().applyQuaternion(q)).sub(axP); tibDistal.quaternion.copy(q); tibDistal.position.add(tibia.position.clone().add(axP)); }
   if (htoOn) { tibDistal.position.copy(tibia.position); tibDistal.quaternion.identity(); const hingeW = new THREE.Vector3(-0.014, -0.0345, 0); const q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), THREE.MathUtils.degToRad(9) * anim.hto * -VARUS_SIGN);
     tibDistal.position.sub(hingeW).applyQuaternion(q).add(hingeW); tibDistal.quaternion.copy(q); fibula.position.copy(tibDistal.position); fibula.quaternion.copy(q); } else { fibula.position.copy(tibia.position); fibula.quaternion.identity(); }
   // TKA: resect and cap
-  const tkaOn = anim.tka > 0.02; femComp.visible = anim.tka > 0.5; tibComp.visible = anim.tka > 0.7; femur.material.clippingPlanes = tkaOn ? [femCut] : [];
+  const tkaOn = anim.tka > 0.02; femComp.visible = anim.tka > 0.5; tibComp.visible = anim.tka > 0.7; femur.material.clippingPlanes = tkaOn ? [femCut] : secPlanes; femur.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide;
   const hid = n => state.hidden && state.hidden.has(n);
   if (cartF) cartF.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__femur'); if (cartT) cartT.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__tibia'); if (cartP) cartP.visible = !tkaOn && state.layers.cartilage && !hid('cartilage__patella');
   for (const nm of ['meniscus__medial', 'meniscus__lateral', 'lig__acl']) { const m = meshes.find(x => x.name === nm); if (m) m.visible = !(anim.tka > 0.5) && state.layers[m.userData.layer] && !(state.hidden && state.hidden.has(nm)); }
