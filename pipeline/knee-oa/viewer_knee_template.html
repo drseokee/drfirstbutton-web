@@ -365,8 +365,8 @@ const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.B
 for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
 cruciates.push(makeBand('lig__acl', '전방십자인대 (ACL)', L3('acl_femur'), L3('acl_tibia'), 0.010, 0.005, 0xa9bfd6)); cruciates.push(makeBand('lig__pcl', '후방십자인대 (PCL)', L3('pcl_femur'), L3('pcl_tibia'), 0.012, 0.0065, 0xa9bfd6));
 for (const C of cruciates) { jointG.add(C.mesh);
-  // ghost copy: drawn without a depth test so the parts hidden inside the notch / behind the condyle show through translucently (only in the section demo)
-  C.ghost = new THREE.Mesh(C.mesh.geometry, new THREE.MeshStandardMaterial({ color: 0xa9bfd6, transparent: true, opacity: 0.32, depthTest: false, depthWrite: false, roughness: 0.6, side: THREE.DoubleSide }));
+  // ghost copy: drawn only where the depth test says 'occluded', so the parts hidden inside the notch / behind the condyle show through translucently while the visible parts keep their normal opaque look (section demo only)
+  C.ghost = new THREE.Mesh(C.mesh.geometry, new THREE.MeshStandardMaterial({ color: 0xa9bfd6, transparent: true, opacity: 0.35, depthTest: true, depthFunc: THREE.GreaterDepth, depthWrite: false, roughness: 0.6, side: THREE.DoubleSide }));   // GreaterDepth: draws ONLY where the ligament is hidden behind something (bone); the exposed part stays fully opaque
   C.ghost.renderOrder = 20; C.ghost.frustumCulled = false; C.ghost.visible = false; C.ghost.userData = { layer: 'lig', base: C.mesh.name, ghost: true }; jointG.add(C.ghost); }
 const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const tibiaMesh = meshes.find(m => m.name === 'bone__tibia'); const tibiaProxy = trimmedCopyTop(tibiaMesh, -0.045); const HUG_C = [femurProxy, tibiaProxy];
 let lastCruKey = '';
