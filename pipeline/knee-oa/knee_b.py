@@ -263,15 +263,31 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
     if nm.startswith("bone__"):
         # cap = cortical rim + cancellous centre: inset the cap polygon(s) by 2.2 mm; ring faces are cortex (1), inner faces marrow (0), blended by the shader
         bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.x) - 1) < 0.01 and abs(f.calc_center_median().x - SAG_X) < 0.0005]
-        res = bmesh.ops.inset_region(bm, faces=caps, thickness=0.0022, depth=0.0, use_even_offset=True)
-        ring = set(res["faces"]); inner = set(caps)
         cortex = {}
-        for f in bm.faces:
-            if f in ring:
-                for v_ in f.verts: cortex[v_] = 1.0
-        for f in inner:
-            for v_ in f.verts:
-                if cortex.get(v_, 0) < 1: cortex[v_] = 0.0
+        for f in caps:
+            loop = [l.vert for l in f.loops]; n_ = len(loop); cen = f.calc_center_median()
+            # bounded inward offset ring (2.2 mm, never more than 40 % of the way to the centre) — no bisector blow-ups
+            inner = []
+            for i in range(n_):
+                p = loop[i].co; pp = loop[i - 1].co; pn = loop[(i + 1) % n_].co
+                e1 = (p - pp); e2 = (pn - p); nrm = Vector((0, 0, 0))
+                for e in (e1, e2):
+                    if e.length > 1e-9: nrm += Vector((0, -e.z, e.y)).normalized()             # edge normal in the cut plane (y-z)
+                if nrm.length < 1e-9 or nrm.dot(cen - p) < 0: nrm = (cen - p)
+                nrm = nrm.normalized(); dmax = (cen - p).length * 0.4
+                inner.append(bm.verts.new(p + nrm * min(0.0022, dmax)))
+            bmesh.ops.delete(bm, geom=[f], context="FACES_ONLY")
+            for i in range(n_):                                                                  # ring quads (cortex)
+                try: bm.faces.new((loop[i], loop[(i + 1) % n_], inner[(i + 1) % n_], inner[i]))
+                except ValueError: pass
+            c_v = bm.verts.new(cen)
+            for i in range(n_):                                                                  # inner fan (marrow)
+                try: bm.faces.new((inner[i], inner[(i + 1) % n_], c_v))
+                except ValueError: pass
+            for v_ in loop: cortex[v_] = 1.0
+            for v_ in inner: cortex[v_] = 0.0
+            cortex[c_v] = 0.0
+        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bmesh.ops.triangulate(bm, faces=bm.faces)
     v, t = to_arrays(bm, center=Vector((0, 0, 0)))
     o_ = {"name": nm + "__cut", "layer": nm.split("__")[0], "verts": v, "tris": t, "group": GI["femur" if "femur" in nm else "tibia"], "cut": True}
