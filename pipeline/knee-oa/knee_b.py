@@ -253,7 +253,16 @@ for (a_deg, _), r in zip(raw, rs):
     a = math.radians(a_deg); dirv = (ant * math.cos(a) + dn * math.sin(a)).normalized(); p = axis_p + dirv * r
     TROCH.append({"a": a_deg, "p": [round(c, 5) for c in p]})
 print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min(rs) * 1e3, max(rs) * 1e3))
-meta = dict(d["meta"]); meta["rig"] = {"troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
+# ---------- sagittal section set for the cruciate demo: femur / tibia / cartilages cut just lateral of the ACL's femoral footprint, medial part kept, cut faces capped ----------
+SAG_X = d["meta"]["landmarks"]["acl_femur"][0] - 0.003
+for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia"):
+    src = objs[nm]; bm = bm_of(src)
+    cut_plane(bm, (SAG_X, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)          # remove x < SAG_X (lateral), keep medial
+    if not len(bm.faces): continue
+    v, t = to_arrays(bm, center=Vector((0, 0, 0)))
+    objects.append({"name": nm + "__cut", "layer": nm.split("__")[0], "verts": v, "tris": t, "group": GI["femur" if "femur" in nm else "tibia"], "cut": True})
+print("sagittal section set built at x = %.1f mm" % (SAG_X * 1e3))
+meta = dict(d["meta"]); meta["rig"] = {"sag_x": round(SAG_X, 5), "troch": TROCH, "contact": CONTACT, "medial_pivot": [round(c, 5) for c in med_piv], "centre_ext": [round(axis_p.x, 5), round(cyd, 5), round(czd, 5)], "centre_flex": [round(axis_p.x, 5), round(cyp, 5), round(czp, 5)], "flex_axis": {"point": [round(c, 5) for c in axis_p], "dir": [round(c, 4) for c in axis_d]},
                                         "patella": {"centre": [round(c, 5) for c in pat_c]}, "tuberosity": [round(c, 5) for c in tub]}
 d["meta"] = meta
 json.dump(d, open(f"{OUTK}/knee_b.json", "w"), separators=(",", ":"))
