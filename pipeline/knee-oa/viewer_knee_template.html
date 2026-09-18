@@ -536,7 +536,7 @@ function applySet(s){ if (!s) return; for (const k of ['effusion','pain','inject
   injT = 0; document.querySelector('#ctl .row2:nth-child(1)').style.display = state.showFlex ? 'flex' : 'none'; document.querySelector('#ctl .row2:nth-child(2)').style.display = state.showOA ? 'flex' : 'none';
   document.getElementById('ctl').style.display = (state.showFlex || state.showOA) ? 'flex' : 'none'; }
 function goStage(i, subIdx){
-  const prevStage = stage; stage = i; sub = -1; const S = STAGES[i]; applySet(S.set); drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
+  const prevStage = stage, prevSub = sub; stage = i; sub = -1; const S = STAGES[i]; applySet(S.set); drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
   [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
   const sb = document.getElementById('subbar'); sb.innerHTML = '';
   if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = (i === 0 ? -1 : 0); sub = subIdx; if (sub >= 0) applySet(S.subs[sub].set);
@@ -551,7 +551,7 @@ function goStage(i, subIdx){
   document.getElementById('caption').textContent = (S.subs && sub >= 0) ? S.subs[sub].cap : S.cap;
   document.getElementById('caption').style.bottom = (state.showFlex || state.showOA) ? '178px' : '112px';
   state.hidden = new Set((sub >= 0 && S.subs[sub].hide) || S.hide || []); applyVisibility();
-  const v = (sub >= 0 && S.subs[sub].view) || null; if (v) setView(v); else if (S.view && (prevStage !== i)) setView(S.view);
+  const v = (sub >= 0 && S.subs[sub].view) || null; if (v) setView(v); else if (S.view && (prevStage !== i || prevSub >= 0)) setView(S.view);
 }
 let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
