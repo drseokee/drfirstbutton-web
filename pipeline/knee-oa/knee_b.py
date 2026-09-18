@@ -257,13 +257,8 @@ print("patellar track:", len(TROCH), "samples, radius %.0f..%.0f mm" % (min(rs) 
 SAG_X = d["meta"]["landmarks"]["acl_femur"][0] - 0.003; SAG_MID = -0.004
 for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia"):
     src = objs[nm]; bm = bm_of(src)
-    cut_plane(bm, (SAG_X, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)          # remove x < SAG_X (lateral), keep medial
-    if nm == "bone__femur":
-        # stepped section: at 13 mm lateral the plane only grazes the shaft cortex, so above the condyles (z > 45 mm) cut again nearer the midline (x = -4 mm) to expose a real shaft section
-        upper = bm.copy(); lower = bm
-        cut_z(upper, 0.045, keep="above", cap=True, ngon=True); cut_z(lower, 0.045, keep="below", cap=True, ngon=True)
-        cut_plane(upper, (SAG_MID, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)
-        bm = join_bms([lower, upper])
+    cx_ = SAG_MID if nm.startswith("bone__femur") or nm.startswith("cartilage__femur") else SAG_X    # femur: cut at the notch centre (x = -4 mm) so the ACL's whole sagittal course is open; tibia keeps its ACL footprint
+    cut_plane(bm, (cx_, 0, 0), (-1, 0, 0), remove="outer", cap=True, ngon=True)             # remove the lateral side, keep medial
     if not len(bm.faces): continue
     cortex = None
     if nm.startswith("bone__"):

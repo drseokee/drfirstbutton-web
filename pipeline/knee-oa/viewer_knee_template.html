@@ -510,7 +510,8 @@ const tibComp = new THREE.Group(); tibComp.add(tray, insert, stem); tibComp.visi
 // bone resection for the TKA: clipping planes on the femur/tibia (clip below the femoral cut / above the tibial cut)
 const femur = meshes.find(m => m.name === 'bone__femur'), tibia = meshes.find(m => m.name === 'bone__tibia');
 const femCut = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.010), tibCut = new THREE.Plane(new THREE.Vector3(0, -1, 0), -0.010);   // world-space planes (root at identity)
-const sagCut = new THREE.Plane(new THREE.Vector3(1, 0, 0), -(L3('acl_femur').x - 0.003));                                         // keeps everything medial of a plane just lateral to the ACL's femoral footprint
+const sagCut = new THREE.Plane(new THREE.Vector3(1, 0, 0), -(L3('acl_femur').x - 0.003));                                         // tibial-side clip (lateral meniscus)
+const sagCutF = new THREE.Plane(new THREE.Vector3(1, 0, 0), 0.004);                                                                 // femoral-side clip at the notch centre (x = -4 mm): cruciates end at the femur's cut face
 // HTO: medial opening wedge in the proximal tibia — a wedge prop + the tibia below the cut renders rotated (clipped duplicate)
 const wedge = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshStandardMaterial({ color: 0xf1e7c2, roughness: 0.7, transparent: true, opacity: 0.9 })); wedge.visible = false; GROUPS[1].add(wedge);
 { const a = 0.0345, w = 0.05, d = 0.05, h = 0.012; const P = [ [0.036, -a, -d/2], [0.036, -a, d/2], [0.036, -a + h, d/2], [0.036, -a + h, -d/2], [-0.014, -a, -d/2], [-0.014, -a, d/2] ];   // wedge apex at the lateral cortex, open 12 mm medially
@@ -653,7 +654,7 @@ let last = performance.now();
   // HTO: wedge opens (the distal tibia swings into slight valgus, correcting the O-leg), plate appears
   // sagittal section for the cruciate demo: the lateral third of the femur/tibia (outside the ACL's femoral footprint) is clipped away so both cruciates and their insertions are seen from the side
   const demoSec = stage === 0 && sub === 0;
-  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } for (const C of cruciates) C.mesh.material.clippingPlanes = demoSec ? [sagCut] : []; }
+  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } for (const C of cruciates) C.mesh.material.clippingPlanes = demoSec ? [sagCutF] : []; }
   for (const nm of ['bone__femur', 'bone__tibia', 'cartilage__femur', 'cartilage__tibia']) { const full = meshes.find(x => x.name === nm), cut = meshes.find(x => x.name === nm + '__cut'); if (!full) continue;
     if (demoSec) { full.visible = false; if (cut) cut.visible = state.layers[full.userData.layer]; } else if (cut) cut.visible = false; }
   const htoOn = anim.hto > 0.02; wedge.visible = htoOn; htoPlate.visible = anim.hto > 0.6; tibDistal.visible = htoOn; tibia.material.clippingPlanes = htoOn ? [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.0345)] : (anim.tka > 0.02 ? [tibCut] : []);
