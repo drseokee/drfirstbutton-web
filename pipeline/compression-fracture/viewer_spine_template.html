@@ -347,11 +347,12 @@ function applyChain(k){
     if (i === fi + 1) share = 1.0; else if (i > fi + 1) share = 0.12; else if (!topLevel && i > 0 && i <= fi) share = BELOW_SHARE[Math.min(BELOW_SHARE.length - 1, fi - i)] || 0;
     const q = new THREE.Quaternion().setFromAxisAngle(axis, full * share); groups[i].quaternion.copy(q); bones[i].quaternion.copy(q); });
   // the level above the fracture hinges at the fractured body's posterior-superior corner, not at its disc centre
+  // Instead of MOVING the pivot (which breaks the skin binding of the sac / roots and shifts them sideways into a Z-kink), keep every bone at its
+  // rest pivot and express the hinge rotation as rotation + the translation that keeps the hinge point fixed: T = h - R·h (relative to the pivot).
   const above = groups[fi + 1], bn = bones[fi + 1];
-  if (above) { const h = new THREE.Vector3(...A2S(F.hinge)); const parentPiv = groups[fi].userData.piv;
-    above.position.copy(h).sub(parentPiv); bn.position.copy(h).sub(parentPiv); above.userData.piv.copy(h);
-    above.children.forEach(m => { if (m.isMesh) m.position.copy(h).negate(); });   // meshes of the level above follow the moved pivot
-    if (groups[fi + 2]) { const nx = groups[fi + 2]; nx.position.copy(nx.userData.piv0).sub(h); bones[fi + 2].position.copy(nx.userData.piv0).sub(h); } }
+  if (above) { const h = new THREE.Vector3(...A2S(F.hinge)); const piv0 = above.userData.piv0, parentPiv0 = groups[fi].userData.piv0;
+    const hRel = h.clone().sub(piv0); const shift = hRel.clone().sub(hRel.clone().applyQuaternion(above.quaternion));   // in the parent's frame (parent rotation is applied by the hierarchy)
+    above.position.copy(piv0).sub(parentPiv0).add(shift); bn.position.copy(above.position); }
 }
 function resetChainPivots(){ for (let i = 1; i < LV.length; i++) { const g = groups[i], p0 = g.userData.piv0, pp = groups[i - 1].userData.piv0; g.userData.piv.copy(p0); g.position.copy(p0).sub(pp); bones[i].position.copy(p0).sub(pp); g.children.forEach(m => { if (m.isMesh) m.position.copy(p0).negate(); }); } }
 const DISC_ABOVE = { T12: null, L1: 'disc__t12_l1', L2: 'disc__l1_l2', L3: 'disc__l2_l3', L4: 'disc__l3_l4', L5: 'disc__l4_l5' };
