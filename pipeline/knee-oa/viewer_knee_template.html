@@ -515,7 +515,7 @@ renderer.localClippingEnabled = true;
 const STAGES = [
   { name:'구조', cap:'대퇴골·경골·슬개골, 뼈 끝을 덮은 미끄러운 관절연골(하늘색), 사이의 반월판(쿠션), 안팎의 측부인대와 십자인대입니다. 슬라이더로 굽혔다 펴 보세요. 십자인대는 팽팽해지면 붉게 변합니다.',
     set:{ flex:0, oa:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:false }, view:'anterior',
-    subs:[ { name:'십자인대 역할', cap:'전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 },
+    subs:[ { name:'십자인대 역할', cap:'옆(시상면)에서 봅니다. 전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl'],
              toggles:[ { label:'앞으로 당기기', key:'ant' }, { label:'뒤로 밀기', key:'post' }, { label:'ACL 끊김', key:'cutACL' }, { label:'PCL 끊김', key:'cutPCL' } ] } ] },
   { name:'관절염 진행', cap:'연골이 거칠어지고(초기) 얇아져 관절 틈이 좁아지며(중기) 가장자리에 뼈가 자라나고(골극), 끝내 뼈끼리 닿아 다리가 안쪽으로 휩니다(말기, O다리). 슬라이더를 천천히 밀어 보세요.',
     set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior', hide:['bone__patella','cartilage__patella','lig__mcl','lig__lcl'] },
@@ -536,7 +536,7 @@ function applySet(s){ if (!s) return; for (const k of ['effusion','pain','inject
   injT = 0; document.querySelector('#ctl .row2:nth-child(1)').style.display = state.showFlex ? 'flex' : 'none'; document.querySelector('#ctl .row2:nth-child(2)').style.display = state.showOA ? 'flex' : 'none';
   document.getElementById('ctl').style.display = (state.showFlex || state.showOA) ? 'flex' : 'none'; }
 function goStage(i, subIdx){
-  stage = i; sub = -1; const S = STAGES[i]; applySet(S.set); drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
+  const prevStage = stage; stage = i; sub = -1; const S = STAGES[i]; applySet(S.set); drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
   [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
   const sb = document.getElementById('subbar'); sb.innerHTML = '';
   if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = (i === 0 ? -1 : 0); sub = subIdx; if (sub >= 0) applySet(S.subs[sub].set);
@@ -550,7 +550,8 @@ function goStage(i, subIdx){
   else sb.style.display = 'none';
   document.getElementById('caption').textContent = (S.subs && sub >= 0) ? S.subs[sub].cap : S.cap;
   document.getElementById('caption').style.bottom = (state.showFlex || state.showOA) ? '178px' : '112px';
-  state.hidden = new Set(S.hide || []); applyVisibility();
+  state.hidden = new Set((sub >= 0 && S.subs[sub].hide) || S.hide || []); applyVisibility();
+  const v = (sub >= 0 && S.subs[sub].view) || null; if (v) setView(v); else if (S.view && (prevStage !== i)) setView(S.view);
 }
 let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
