@@ -334,6 +334,8 @@ function trimmedCopy(src, maxY){ const g = src.geometry, p = g.getAttribute('pos
   const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', p); g2.setIndex(keep); g2.computeVertexNormals(); const m = new THREE.Mesh(g2, new THREE.MeshBasicMaterial({ visible: false })); m.name = src.name + '__proxy'; m.position.copy(src.position); m.quaternion.copy(src.quaternion); m.matrixAutoUpdate = true; return m; }
 const femurProxy = trimmedCopy(femurMesh, 0.045); const cartFMesh = meshes.find(m => m.name === 'cartilage__femur'); const cartFProxy = cartFMesh ? trimmedCopy(cartFMesh, 0.045) : null;
 const femurAndCart = [femurProxy, cartFProxy].filter(Boolean);
+function trimmedCopyTop(src, minY){ const g = src.geometry, p = g.getAttribute('position'), idx = g.getIndex().array; const keep = []; for (let i = 0; i < idx.length; i += 3) { if (p.getY(idx[i]) > minY && p.getY(idx[i+1]) > minY && p.getY(idx[i+2]) > minY) keep.push(idx[i], idx[i+1], idx[i+2]); }
+  const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', p); g2.setIndex(keep); g2.computeVertexNormals(); const m = new THREE.Mesh(g2, new THREE.MeshBasicMaterial({ visible: false })); m.name = src.name + '__proxy'; return m; }
 for (const m of meshes) { if (m.userData.layer !== 'meniscus') continue; const p = m.geometry.getAttribute('position'); const rest = p.array.slice(); const top = [], bot = [];
   // the pipeline creates rings of (bottom, top) vertex pairs in order: bottom index even, top odd (pairs are consecutive)
   for (let i = 0; i + 1 < p.count; i += 2) { if (p.getY(i + 1) >= p.getY(i)) { bot.push(i); top.push(i + 1); } else { bot.push(i + 1); top.push(i); } }
@@ -356,7 +358,7 @@ const skel = new THREE.Skeleton([new THREE.Bone(), new THREE.Bone(), new THREE.B
 for (const m of meshes) { if (m.userData.group !== undefined) { root.remove(m); GROUPS[m.userData.group].add(m); m.position.copy(axP).negate(); } }
 cruciates.push(makeBand('lig__acl', '전방십자인대 (ACL)', L3('acl_femur'), L3('acl_tibia'), 0.010, 0.005, 0xa9bfd6)); cruciates.push(makeBand('lig__pcl', '후방십자인대 (PCL)', L3('pcl_femur'), L3('pcl_tibia'), 0.012, 0.0065, 0xa9bfd6));
 for (const C of cruciates) jointG.add(C.mesh);
-const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const HUG_C = [femurProxy, meshes.find(m => m.name === 'bone__tibia')].filter(Boolean);
+const _inv = new THREE.Matrix4(); const _rayC = new THREE.Raycaster(); const tibiaMesh = meshes.find(m => m.name === 'bone__tibia'); const tibiaProxy = trimmedCopyTop(tibiaMesh, -0.045); const HUG_C = [femurProxy, tibiaProxy];
 let lastCruKey = '';
 function updateCruciates(){
   jointG.updateMatrixWorld(true); _inv.copy(jointG.matrixWorld).invert();
@@ -577,7 +579,7 @@ let last = performance.now();
   // with flexion; the patella is placed at that surface point, offset by its own rest thickness and turned so its facet stays flat on the femur.
   // contact point slides slowly down the trochlea (0.45°/°, to the distal condyles at ≈55°); the patella itself flexes 0.65× the knee angle about the epicondylar axis
   // the contact point descends the femoral surface at a steady 0.42 mm per degree (≈46 mm by 110°, onto the distal condyles); the patella flexes 0.7× the knee angle
-  if (!femurProxy.parent) { femurMesh.parent.add(femurProxy); femurProxy.position.copy(femurMesh.position); if (cartFProxy) { cartFMesh.parent.add(cartFProxy); cartFProxy.position.copy(cartFMesh.position); } }
+  if (!femurProxy.parent) { femurMesh.parent.add(femurProxy); femurProxy.position.copy(femurMesh.position); if (cartFProxy) { cartFMesh.parent.add(cartFProxy); cartFProxy.position.copy(cartFMesh.position); } tibiaMesh.parent.add(tibiaProxy); tibiaProxy.position.copy(tibiaMesh.position); }
   const patKey = Math.round(deg * 4); const poseChangedP = patKey !== lastPatKey; lastPatKey = patKey;
   const sC = TR.s0 - 0.019 + 0.00022 * deg;                                                    // rest: upper third of the patella above the trochlea; descends ~24 mm of surface by full flexion
   const S = trackAtS(sC); const qP = new THREE.Quaternion().setFromAxisAngle(axD, rad(deg * 0.7) * FLEX_SIGN);
@@ -615,13 +617,17 @@ let last = performance.now();
   for (const M of menisci) { if (!poseChanged) break; if (!M.basePos) M.basePos = M.mesh.position.clone(); const back = (M.mesh.name === 'meniscus__medial' ? 0.003 : 0.008) * (deg / 110);
     M.mesh.position.copy(M.basePos).add(new THREE.Vector3(0, 0, -back));                                     // posterior = screen -Z (tibia-local)
     const pos = M.mesh.geometry.getAttribute('position'); M.mesh.updateMatrixWorld(true); const toW = M.mesh.matrixWorld, fromW = new THREE.Matrix4().copy(toW).invert();
-    for (let k = 0; k < M.top.length; k++) { const i = M.top[k], j = M.bot[k];
+    const NR = 7; const lims = new Array(M.top.length).fill(null);
+    for (let k = 0; k < M.top.length; k++) { const i = M.top[k], j = M.bot[k]; if (k % NR !== 0 && k % NR !== 3 && k % NR !== 6) continue;
       const rest = new THREE.Vector3(M.rest[3*i], M.rest[3*i+1], M.rest[3*i+2]); const base = new THREE.Vector3(M.rest[3*j], M.rest[3*j+1], M.rest[3*j+2]);
       const wp = rest.clone().applyMatrix4(toW); _rayM.set(wp.clone().add(new THREE.Vector3(0, 0.0003, 0)), new THREE.Vector3(0, -1, 0)); _rayM.far = 0.03;
       const hs = _rayM.intersectObjects(femurAndCart, false); let y = rest.y;
       // going DOWN from the vertex: any exit through a downward-facing femur/cartilage face means the vertex sits inside or above the condyle → drop it below that face
       for (const h of hs) { const fn = h.face.normal.clone().transformDirection(h.object.matrixWorld); if (fn.y < -0.2) { const lim = h.point.clone().applyMatrix4(fromW).y - 0.0004; if (lim < y) y = Math.max(base.y + 0.0005, lim); } }
-      pos.setY(i, y); }
+      lims[k] = y - rest.y; }
+    for (let k = 0; k < M.top.length; k++) { const i = M.top[k]; let dlt = lims[k];                                   // interpolate the pressed height between cast columns
+      if (dlt === null) { const r = k % NR, b0 = k - r; const a = r < 3 ? [b0, b0 + 3, r / 3] : [b0 + 3, b0 + 6, (r - 3) / 3]; dlt = (lims[a[0]] || 0) * (1 - a[2]) + (lims[a[1]] || 0) * a[2]; }
+      pos.setY(i, M.rest[3*i+1] + dlt); }
     pos.needsUpdate = true; M.mesh.geometry.computeVertexNormals(); }
   // ---- symptoms / treatment props ----
   anim.effusion += (state.effusion - anim.effusion) * Math.min(1, dt * 2); anim.pain += (state.pain - anim.pain) * Math.min(1, dt * 3); anim.hto += (state.hto - anim.hto) * Math.min(1, dt * 2.5); anim.tka += (state.tka - anim.tka) * Math.min(1, dt * 2.5);
