@@ -21,6 +21,7 @@ window.SITE = {
   diseases: [
     { id: "carpal-tunnel", ready: true, title: "손목터널증후군", summary: "손이 저리고 아픈 이유를 손목 안에서 직접 봅니다.", tags: ["손·손목", "신경"], thumb: "thumb.jpg" },
     { id: "ankle-sprain", ready: true, title: "발목 염좌", summary: "발을 삐었을 때 바깥쪽 인대에 무슨 일이 생기는지 직접 꺾어 봅니다.", tags: ["발·발목", "인대"], thumb: "thumb.jpg" },
+    { id: "knee-oa", ready: true, title: "무릎 골관절염", summary: "연골이 닳아 뼈끼리 닿기까지, 무릎 안에서 무슨 일이 생기는지 봅니다.", tags: ["무릎", "연골"], thumb: "thumb.jpg" },
     { id: "trigger-finger", ready: false, title: "방아쇠수지", summary: "손가락이 걸리고 튕기는 이유" },
     { id: "distal-radius-fracture", ready: false, title: "손목 골절과 뼈가 붙는 과정", summary: "골절 → 고정 → 골유합" }
   ],
