@@ -263,30 +263,49 @@ for nm in ("bone__femur", "bone__tibia", "cartilage__femur", "cartilage__tibia")
     if nm.startswith("bone__"):
         # cap = cortical rim + cancellous centre: inset the cap polygon(s) by 2.2 mm; ring faces are cortex (1), inner faces marrow (0), blended by the shader
         bm.faces.ensure_lookup_table(); caps = [f for f in bm.faces if abs(abs(f.normal.x) - 1) < 0.01 and abs(f.calc_center_median().x - SAG_X) < 0.0005]
+        from mathutils.geometry import delaunay_2d_cdt
+        from mathutils import Vector as _V2
         cortex = {}
         for f in caps:
-            loop = [l.vert for l in f.loops]; n_ = len(loop); cen = f.calc_center_median()
-            # bounded inward offset ring (2.2 mm, never more than 40 % of the way to the centre) — no bisector blow-ups
-            inner = []
-            for i in range(n_):
-                p = loop[i].co; pp = loop[i - 1].co; pn = loop[(i + 1) % n_].co
-                e1 = (p - pp); e2 = (pn - p); nrm = Vector((0, 0, 0))
-                for e in (e1, e2):
-                    if e.length > 1e-9: nrm += Vector((0, -e.z, e.y)).normalized()             # edge normal in the cut plane (y-z)
-                if nrm.length < 1e-9 or nrm.dot(cen - p) < 0: nrm = (cen - p)
-                nrm = nrm.normalized(); dmax = (cen - p).length * 0.45
-                # cortical thickness: thin at the joint (1.5 mm, epiphysis), thick toward the shaft (up to 6 mm) — real proportions
-                th = 0.0015 + 0.0045 * smooth01((abs(p.z) - 0.040) / 0.090)
-                inner.append(bm.verts.new(p + nrm * min(th, dmax)))
+            loop = [l.vert for l in f.loops]; n_ = len(loop)
+            poly2 = [_V2((v_.co.y, v_.co.z)) for v_ in loop]
+            # interior grid points (2 mm) inside the outline → a dense, well-shaped triangulation; cortex = distance to the outline vs local thickness
+            ys_ = [p.x for p in poly2]; zs_ = [p.y for p in poly2]; grid = []
+            def inside(pt):
+                c_ = False; j_ = n_ - 1
+                for i_ in range(n_):
+                    pi, pj = poly2[i_], poly2[j_]
+                    if ((pi.y > pt.y) != (pj.y > pt.y)) and (pt.x < (pj.x - pi.x) * (pt.y - pi.y) / (pj.y - pi.y + 1e-12) + pi.x): c_ = not c_
+                    j_ = i_
+                return c_
+            gy = min(ys_); 
+            while gy < max(ys_):
+                gz = min(zs_)
+                while gz < max(zs_):
+                    pt = _V2((gy + 0.0007, gz + 0.0004))
+                    if inside(pt): grid.append(pt)
+                    gz += 0.002
+                gy += 0.002
+            edges2 = [(i_, (i_ + 1) % n_) for i_ in range(n_)]
+            out = delaunay_2d_cdt(poly2 + grid, edges2, [list(range(n_))], 1, 1e-6)      # output 1 = keep only faces inside the constraint polygon
+            vco, vedges, vfaces, orig_v, orig_e, orig_f = out
             bmesh.ops.delete(bm, geom=[f], context="FACES_ONLY")
-            for i in range(n_):                                                                  # ring quads (cortex)
-                try: bm.faces.new((loop[i], loop[(i + 1) % n_], inner[(i + 1) % n_], inner[i]))
+            newv = []
+            for k_, p2 in enumerate(vco):
+                if k_ < n_ and orig_v[k_] and orig_v[k_][0] < n_: newv.append(loop[orig_v[k_][0]])            # boundary vertex → reuse the existing one
+                else: newv.append(bm.verts.new(Vector((SAG_X, p2.x, p2.y))))
+            for fc in vfaces:
+                try: bm.faces.new([newv[i_] for i_ in fc])
                 except ValueError: pass
-            try:                                                                                 # inner polygon: proper ear-clipping triangulation (a centre fan crosses itself on concave outlines)
-                inner_f = bm.faces.new(inner); bmesh.ops.triangulate(bm, faces=[inner_f], quad_method="BEAUTY", ngon_method="EAR_CLIP")
-            except ValueError: pass
-            for v_ in loop: cortex[v_] = 1.0
-            for v_ in inner: cortex[v_] = 0.0
+            # cortex attribute: distance to the outline / local cortical thickness (thin at the joint, thick toward the shaft)
+            def dist_to_outline(pt):
+                best = 1e9
+                for i_ in range(n_):
+                    a_, b_ = poly2[i_], poly2[(i_ + 1) % n_]; ab = b_ - a_; u_ = max(0.0, min(1.0, (pt - a_).dot(ab) / max(1e-12, ab.length_squared))); best = min(best, (a_ + ab * u_ - pt).length)
+                return best
+            for k_, v_ in enumerate(newv):
+                p2 = vco[k_]; th = 0.0015 + 0.0045 * smooth01((abs(p2.y) - 0.040) / 0.090)
+                cortex[v_] = 1.0 if k_ < n_ else max(0.0, 1.0 - dist_to_outline(p2) / th)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
         bmesh.ops.triangulate(bm, faces=bm.faces)
     v, t = to_arrays(bm, center=Vector((0, 0, 0)))

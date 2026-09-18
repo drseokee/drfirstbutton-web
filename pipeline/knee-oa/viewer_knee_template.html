@@ -66,6 +66,7 @@
 <body>
 <canvas id="c"></canvas>
 <div id="caption"></div>
+<div id="drawerbar" style="display:none;position:fixed;left:50%;bottom:110px;transform:translateX(-50%);z-index:12;background:rgba(16,26,44,.85);border:1px solid rgba(243,238,228,.12);border-radius:999px;padding:8px 16px;gap:10px;align-items:center;font-size:12.5px;color:#cfc7b8"><span>뒤로 밀기</span><input id="drawerRange" type="range" min="-100" max="100" value="0" style="width:240px"><span>앞으로 당기기</span></div>
 <div id="subbar"></div>
 <div id="stages"></div>
 <div id="ctl"><div class="row2"><span style="min-width:60px">굽히기</span><input id="flex" type="range" min="0" max="100" value="0"><span id="flexLbl">0°</span></div><div class="row2"><span style="min-width:60px">관절염</span><input id="oa" type="range" min="0" max="100" value="0"><span id="oaLbl" style="min-width:48px">정상</span></div></div>
@@ -178,7 +179,7 @@ for (const o of DATA.objects) {
     g.setAttribute('cortex', new THREE.Float32BufferAttribute(o.cortex || new Array(pos.length / 3).fill(1), 1));
     m.onBeforeCompile = (orig => sh => { orig && orig(sh);
       sh.vertexShader = 'attribute float cortex; varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n vCx = cortex; vNc = normal; vPc = position;');
-      sh.fragmentShader = 'varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n vec3 fnrm = normalize(cross(dFdx(vPc), dFdy(vPc)));\n if (abs(fnrm.x) > 0.95) {\n  vec3 q = vPc * 2400.0;\n  float n1 = sin(q.y * 1.0 + sin(q.z * 0.9 + 1.7)) + sin(q.z * 1.1 + sin(q.y * 0.8));\n  float n2 = sin(q.y * 2.3 + q.z * 0.6) * sin(q.z * 2.1 - q.y * 0.4);\n  float cell = abs(n1 * 0.6 + n2 * 0.4);\n  float strut = 1.0 - smoothstep(0.10, 0.32, cell);\n  float strut2 = 1.0 - smoothstep(0.05, 0.22, abs(sin(q.y * 3.7 + q.z * 1.3) * sin(q.z * 3.1 - q.y * 0.9)));\n  float web = clamp(strut + 0.55 * strut2, 0.0, 1.0);\n  vec3 marrowC = vec3(0.60, 0.44, 0.31), strutC = vec3(0.93, 0.86, 0.72), cortexC = vec3(0.95, 0.91, 0.82);\n  vec3 spongy = mix(marrowC, strutC, web);\n  float cx = smoothstep(0.25, 0.75, vCx);\n  gl_FragColor.rgb = mix(spongy, cortexC, cx);\n }'); })(m.onBeforeCompile); }
+      sh.fragmentShader = 'varying float vCx; varying vec3 vNc; varying vec3 vPc;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n vec3 fnrm = normalize(cross(dFdx(vPc), dFdy(vPc)));\n if (abs(fnrm.x) > 0.95) {\n  vec3 q = vPc * 2400.0;\n  float n1 = sin(q.y * 1.0 + sin(q.z * 0.9 + 1.7)) + sin(q.z * 1.1 + sin(q.y * 0.8));\n  float n2 = sin(q.y * 2.3 + q.z * 0.6) * sin(q.z * 2.1 - q.y * 0.4);\n  float cell = abs(n1 * 0.6 + n2 * 0.4);\n  float strut = 1.0 - smoothstep(0.10, 0.32, cell);\n  float strut2 = 1.0 - smoothstep(0.05, 0.22, abs(sin(q.y * 3.7 + q.z * 1.3) * sin(q.z * 3.1 - q.y * 0.9)));\n  float web = clamp(strut + 0.55 * strut2, 0.0, 1.0);\n  vec3 marrowC = vec3(0.60, 0.44, 0.31), strutC = vec3(0.93, 0.86, 0.72), cortexC = vec3(0.95, 0.91, 0.82);\n  vec3 spongy = mix(marrowC, strutC, web);\n  float cx = smoothstep(0.02, 0.22, vCx);\n  gl_FragColor.rgb = mix(spongy, cortexC, cx);\n }'); })(m.onBeforeCompile); }
   if (o.layer === 'bone') {   // ageing bone: dull yellow-grey tint, porous speckling, subchondral sclerosis (whiter band under the joint), all scaled by uAge
     const jd = new Float32Array(pos.length / 3); for (let i = 0; i < jd.length; i++) jd[i] = Math.max(0, 1 - Math.abs(pos[3*i+1]) / 0.014); g.setAttribute('jd', new THREE.BufferAttribute(jd, 1));
     m.onBeforeCompile = (orig => sh => { orig && orig(sh); sh.uniforms.uAge = UAGE;
@@ -387,12 +388,13 @@ function updateCruciates(){
       const fr = C.cut ? Math.max(0, 1 - Math.abs(u - 0.5) / 0.1) : 0; const hw = C.width / 2 * (1 - 0.35 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr), hh = C.thick / 2 * (1 - 0.5 * Math.max(0, Math.min(0.4, C.strain))) * (1 - 0.5 * fr);
       for (let r = 0; r < C.RING; r++) { const ang = 2 * Math.PI * r / C.RING; const p = c.clone().addScaledVector(side, hw * Math.cos(ang)).addScaledVector(nrm, hh * Math.sin(ang)); pos.setXYZ(vi++, p.x, p.y, p.z); } }
     pos.needsUpdate = true; C.mesh.geometry.computeVertexNormals();
-    const hot = drawer.dir !== 0 ? Math.max(0, Math.min(1, C.strain * 2.5)) : 0;          // tension colour only in the stability demo
+    const isACL = C.mesh.name === 'lig__acl'; const pull = isACL ? Math.max(0, drawer.amount) : Math.max(0, -drawer.amount);   // ACL takes the anterior pull, PCL the posterior push
+    const hot = C.cut ? 0 : Math.max(0, Math.min(1, pull * 0.9 + C.strain * 1.5 * (pull > 0.05 ? 1 : 0)));
     C.mesh.material.color.setRGB(0.66 + 0.3 * hot, 0.75 - 0.5 * hot, 0.84 - 0.65 * hot); C.mesh.visible = state.layers.lig && !(state.hidden && state.hidden.has(C.mesh.name));
   }
 }
 // drawer test (stability demo): a hand pushes the tibia forward / backward; with the ligament cut it slides much further
-const drawer = { dir: 0, cutACL: 0, cutPCL: 0 }; const animD = { shift: 0 };
+const drawer = { dir: 0, amount: 0, cutACL: 0, cutPCL: 0 }; const animD = { shift: 0 };
 
 for (let i = 0; i < meshes.length; i++) { const m = meshes[i]; if (!m.userData.w || m.userData.curve) continue;
   const g = m.geometry, n = g.getAttribute('position').count, si = new Uint16Array(n * 4), sw = new Float32Array(n * 4), W = m.userData.w;
@@ -521,8 +523,8 @@ renderer.localClippingEnabled = true;
 const STAGES = [
   { name:'구조', cap:'대퇴골·경골·슬개골, 뼈 끝을 덮은 미끄러운 관절연골(하늘색), 사이의 반월판(쿠션), 안팎의 측부인대와 십자인대입니다. 슬라이더로 굽혔다 펴 보세요. 십자인대는 팽팽해지면 붉게 변합니다.',
     set:{ flex:0, oa:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:false }, view:'anterior',
-    subs:[ { name:'십자인대 역할', cap:'옆에서 뼈를 반쯤 잘라 보는 단면입니다. 전방십자인대는 경골이 앞으로 빠지는 것을, 후방십자인대는 뒤로 밀리는 것을 막습니다. "앞으로 당기기"를 눌러 보고, 인대를 끊은 뒤 다시 당겨 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl','bone__fibula'],
-             toggles:[ { label:'앞으로 당기기', key:'ant' }, { label:'뒤로 밀기', key:'post' }, { label:'ACL 끊김', key:'cutACL' }, { label:'PCL 끊김', key:'cutPCL' } ] } ] },
+    subs:[ { name:'십자인대 역할', cap:'옆에서 뼈를 반쯤 잘라 보는 단면입니다. 슬라이더를 오른쪽(앞으로 당기기)으로 밀면 전방십자인대가 팽팽해져 붉게 되고, 왼쪽(뒤로 밀기)이면 후방십자인대가 버팁니다. 인대를 끊은 뒤 다시 밀어 보세요.', set:{ flex:0.2 }, view:'lateral', hide:['bone__patella','cartilage__patella','lig__lcl','bone__fibula'],
+             toggles:[ { label:'ACL 끊김', key:'cutACL' }, { label:'PCL 끊김', key:'cutPCL' } ], drawerBar:true } ] },
   { name:'관절염 진행', cap:'연골이 거칠어지고(초기) 얇아져 관절 틈이 좁아지며(중기) 가장자리에 뼈가 자라나고(골극), 끝내 뼈끼리 닿아 다리가 안쪽으로 휩니다(말기, O다리). 슬라이더를 천천히 밀어 보세요.',
     set:{ flex:0, effusion:0, pain:0, inject:0, hto:0, tka:0, showFlex:true, showOA:true }, view:'anterior', hide:['bone__patella','cartilage__patella','lig__mcl','lig__lcl'] },
   { name:'증상', cap:'관절 안에 물이 차 무릎이 붓고, 안쪽 관절선을 따라 아픕니다. 계단을 내려갈 때, 오래 앉았다 일어날 때 뻣뻣하고 아프며, 다리가 O자로 휘어 보입니다.',
@@ -541,18 +543,19 @@ function applySet(s){ if (!s) return; for (const k of ['effusion','pain','inject
   if (s.oa !== undefined) { ctl.oa = s.oa; document.getElementById('oa').value = Math.round(s.oa * 100); }
   injT = 0; document.querySelector('#ctl .row2:nth-child(1)').style.display = state.showFlex ? 'flex' : 'none'; document.querySelector('#ctl .row2:nth-child(2)').style.display = state.showOA ? 'flex' : 'none';
   document.getElementById('ctl').style.display = (state.showFlex || state.showOA) ? 'flex' : 'none'; }
+document.getElementById('drawerRange').oninput = e => { drawer.amount = +e.target.value / 100; };
 function goStage(i, subIdx){
-  const prevStage = stage, prevSub = sub; stage = i; sub = -1; const S = STAGES[i]; applySet(S.set); drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
+  const prevStage = stage, prevSub = sub; stage = i; sub = -1; document.getElementById('drawerbar').style.display = 'none'; const S = STAGES[i]; applySet(S.set); drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
   [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
   const sb = document.getElementById('subbar'); sb.innerHTML = '';
   if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = (i === 0 ? -1 : 0); sub = subIdx; if (sub >= 0) applySet(S.subs[sub].set);
     S.subs.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn' + (k === sub ? ' on' : ''); b.textContent = x.name; b.onclick = () => goStage(i, k); sb.appendChild(b); });
     const act = sub >= 0 && S.subs[sub].action;
     if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = act.label; b.onclick = () => { applySet(act.set); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); }
-    const tg = sub >= 0 && S.subs[sub].toggles; drawer.dir = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
+    const tg = sub >= 0 && S.subs[sub].toggles; drawer.dir = 0; drawer.amount = 0; drawer.cutACL = 0; drawer.cutPCL = 0;
+    { const db = document.getElementById('drawerbar'); const on = sub >= 0 && S.subs[sub].drawerBar; db.style.display = on ? 'flex' : 'none'; document.getElementById('drawerRange').value = 0; if (on) document.getElementById('caption').style.bottom = '162px'; }
     if (tg) tg.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn'; if (k === 0) b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = x.label;
-      b.onclick = () => { if (x.key === 'ant') drawer.dir = drawer.dir === 1 ? 0 : 1; else if (x.key === 'post') drawer.dir = drawer.dir === -1 ? 0 : -1; else drawer[x.key] = drawer[x.key] ? 0 : 1;
-        [...sb.querySelectorAll('button')].forEach(bb => { const kk = (tg.find(y => y.label === bb.textContent) || {}).key; if (!kk) return; bb.classList.toggle('on', kk === 'ant' ? drawer.dir === 1 : kk === 'post' ? drawer.dir === -1 : !!drawer[kk]); }); }; sb.appendChild(b); }); }
+      b.onclick = () => { drawer[x.key] = drawer[x.key] ? 0 : 1; [...sb.querySelectorAll('button')].forEach(bb => { const kk = (tg.find(y => y.label === bb.textContent) || {}).key; if (kk) bb.classList.toggle('on', !!drawer[kk]); }); }; sb.appendChild(b); }); }
   else sb.style.display = 'none';
   document.getElementById('caption').textContent = (S.subs && sub >= 0) ? S.subs[sub].cap : S.cap;
   document.getElementById('caption').style.bottom = (state.showFlex || state.showOA) ? '178px' : '112px';
@@ -604,7 +607,7 @@ let last = performance.now();
   skel.bones[2].position.copy(GROUPS[2].position);
   const offset = keep.clone().applyQuaternion(qV.clone().multiply(qF));                                                             // carry the pre-flexion offsets through the flexion
   const pivShift = new THREE.Vector3(0, 1, 0).applyQuaternion(qF).multiplyScalar(contactOff);                                         // slide along the tibia's own axis so the plateau stays on the condyle
-  const targetShift = drawer.dir === 0 ? 0 : drawer.dir > 0 ? (drawer.cutACL ? 0.016 : 0.005) : -(drawer.cutPCL ? 0.015 : 0.005);   // anterior drawer 5 mm normally, 16 mm without the ACL
+  const targetShift = drawer.amount > 0 ? drawer.amount * (drawer.cutACL ? 0.016 : 0.005) : drawer.amount * (drawer.cutPCL ? 0.015 : 0.005);   // anterior drawer up to 5 mm normally, 16 mm without the ACL; posterior likewise with the PCL
   animD.shift += (targetShift - animD.shift) * Math.min(1, dt * 4);
   const drawerVec = new THREE.Vector3(0, 0, 1).applyQuaternion(qT).multiplyScalar(animD.shift);                               // anterior drawer: along the tibia's own anterior axis (parallel to the plateau)
   GROUPS[1].position.copy(axP).add(offset).add(pivShift).add(new THREE.Vector3(0, 0.0025 * wear, 0)).add(drawerVec); skel.bones[1].position.copy(GROUPS[1].position);
@@ -650,7 +653,7 @@ let last = performance.now();
   // HTO: wedge opens (the distal tibia swings into slight valgus, correcting the O-leg), plate appears
   // sagittal section for the cruciate demo: the lateral third of the femur/tibia (outside the ACL's femoral footprint) is clipped away so both cruciates and their insertions are seen from the side
   const demoSec = stage === 0 && sub === 0;
-  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } }
+  { const lm = meshes.find(x => x.name === 'meniscus__lateral'); if (lm) { lm.material.clippingPlanes = demoSec ? [sagCut] : []; lm.material.side = demoSec ? THREE.DoubleSide : THREE.FrontSide; } for (const C of cruciates) C.mesh.material.clippingPlanes = demoSec ? [sagCut] : []; }
   for (const nm of ['bone__femur', 'bone__tibia', 'cartilage__femur', 'cartilage__tibia']) { const full = meshes.find(x => x.name === nm), cut = meshes.find(x => x.name === nm + '__cut'); if (!full) continue;
     if (demoSec) { full.visible = false; if (cut) cut.visible = state.layers[full.userData.layer]; } else if (cut) cut.visible = false; }
   const htoOn = anim.hto > 0.02; wedge.visible = htoOn; htoPlate.visible = anim.hto > 0.6; tibDistal.visible = htoOn; tibia.material.clippingPlanes = htoOn ? [new THREE.Plane(new THREE.Vector3(0, 1, 0), 0.0345)] : (anim.tka > 0.02 ? [tibCut] : []);
