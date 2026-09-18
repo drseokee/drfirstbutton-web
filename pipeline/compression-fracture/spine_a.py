@@ -31,24 +31,32 @@ for k, n in {"lig__pll": "Posterior longitudinal ligament", "lig__flava": "Ligam
 STRUCT_CUT_Z = Z_TOP
 # ---- Z-Anatomy's cauda is one trunk with branches: build an anatomical bundle instead ----
 # conus ends at L1-L2; below it the roots run as separate strands inside the sac and each leaves at its own level
-# canal centreline: Z-Anatomy's dural sac where it exists (T12 → ~L3), and its cauda-equina trunk below that (to S2)
-dura0 = world_bm("Spinal dura"); dz_min = min(v.co.z for v in dura0.verts)
+# canal centreline from the bones themselves: a ray through each body at mid-height finds the posterior wall (2nd hit) and, where present, the lamina (3rd hit);
+# the canal centre is their midpoint, or posterior wall + 9 mm (typical AP canal radius) where the lamina lies at another height
 CANAL = []
-z = Z_TOP - 0.002
-while z > dz_min + 0.004:
-    pts_ = [v.co for v in dura0.verts if abs(v.co.z - z) < 0.002]
-    if pts_: c_ = sum(pts_, Vector()) / len(pts_); CANAL.append((z, c_.y))
-    z -= 0.006
-cq = objs["Cauda equina"]; best = None
-for sp in cq.data.splines:
-    pts_ = [cq.matrix_world @ (p.co if sp.type == "BEZIER" else Vector(p.co[:3])) for p in (sp.bezier_points if sp.type == "BEZIER" else sp.points)]
-    if best is None or len(pts_) > len(best): best = pts_
-for p in sorted(best, key=lambda q: -q.z):
-    if p.z < dz_min - 0.002 and p.z > Z_BOT: CANAL.append((p.z, p.y))
-CANAL.sort(key=lambda t: -t[0])
-# light smoothing along z so the sac has no wobble
-CANAL = [(CANAL[i][0], sum(CANAL[j][1] for j in range(max(0, i - 1), min(len(CANAL), i + 2))) / len(range(max(0, i - 1), min(len(CANAL), i + 2)))) for i in range(len(CANAL))]
-print("canal samples:", len(CANAL), "y at top %.1f, at L3-ish %.1f, bottom %.1f mm" % (CANAL[0][1]*1e3, CANAL[len(CANAL)//2][1]*1e3, CANAL[-1][1]*1e3))
+for lv in ["T12", "L1", "L2", "L3", "L4", "L5"]:
+    bm_ = built[f"bone__{lv.lower()}"]; vs = [v.co for v in bm_.verts]; bvh_ = BVHTree.FromBMesh(bm_)
+    ymin = min(v.y for v in vs); ymax = max(v.y for v in vs); yp = ymin + (ymax - ymin) * 0.42
+    body_ = [v for v in vs if v.y < yp]; zmid = (min(v.z for v in body_) + max(v.z for v in body_)) / 2
+    ys_h = []
+    for x0 in (-0.003, 0.0, 0.003):
+        p = Vector((x0, ymin - 0.01, zmid)); hits = []
+        for _ in range(8):
+            loc, nrm, idx, dist = bvh_.ray_cast(p, Vector((0, 1, 0)), 0.15)
+            if loc is None: break
+            hits.append(loc.y); p = loc + Vector((0, 0.0002, 0))
+        if len(hits) >= 4: ys_h.append((hits[1] + hits[2]) / 2)
+        elif len(hits) >= 2: ys_h.append(hits[1] + 0.009)
+    if ys_h: CANAL.append((zmid, sum(ys_h) / len(ys_h)))
+vs = [v.co for v in built["bone__sacrum"].verts]; s_top = max(v.z for v in vs); s_z = s_top - 0.02
+sac_bvh = BVHTree.FromBMesh(built["bone__sacrum"]); p = Vector((0, min(v.y for v in vs) - 0.01, s_z)); hits = []
+for _ in range(8):
+    loc, nrm, idx, dist = sac_bvh.ray_cast(p, Vector((0, 1, 0)), 0.15)
+    if loc is None: break
+    hits.append(loc.y); p = loc + Vector((0, 0.0002, 0))
+CANAL.append((s_z, (hits[1] + hits[2]) / 2 if len(hits) >= 4 else (hits[1] + 0.007 if len(hits) >= 2 else CANAL[-1][1] + 0.01)))
+CANAL.append((Z_BOT, CANAL[-1][1] + 0.006)); CANAL.sort(key=lambda t: -t[0])
+print("canal centres (z, y mm):", [(round(z_*1e3), round(y_*1e3, 1)) for z_, y_ in CANAL])
 def sac_centre(z, dz=None):
     for (z0, y0), (z1, y1) in zip(CANAL, CANAL[1:]):
         if z1 <= z <= z0: u = (z0 - z) / max(1e-6, z0 - z1); return Vector((0, y0 + (y1 - y0) * u, z))
