@@ -4,59 +4,71 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>닥터첫단추 — 첫 단추를 잘 끼우면, 치료가 쉬워집니다</title>
-<meta name="description" content="정형외과 질환을 손목 안까지 열어 보는 3D 환자 교육 자료. 손목터널증후군부터.">
+<meta name="description" content="정형외과 전문의가 진료실에서 쓰는 3D 환자 교육 자료. 손목터널증후군, 무릎 골관절염, 발목 염좌를 직접 열어 봅니다.">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="common/style.css">
 </head>
-<body data-root=".">
+<body data-root="." data-page="index">
 
-<!-- ================= HERO: 스크롤이 3D 손을 연다 ================= -->
-<section class="hero" id="hero">
-  <div class="stage">
-    <canvas id="hero-canvas"></canvas>
-    <div class="copy">
-      <div data-at="0"><div class="eyebrow">Doctor First Button</div><h1 class="serif">첫 단추를 잘 끼우면,<br>치료가 쉬워집니다.</h1><p class="lead">내 몸에서 무슨 일이 일어나는지 이해하는 것부터.</p></div>
-      <div data-at="1"><h1>피부 아래,</h1><p class="lead">뼈와 힘줄, 그리고 신경이 지나는 좁은 길이 있습니다.</p></div>
-      <div data-at="2"><h1>손목터널</h1><p class="lead">이 통로가 좁아지면 정중신경이 눌립니다.</p></div>
-      <div data-at="3"><h1>눌린 신경이 손끝을 저리게 합니다.</h1><p class="lead">그래서 저리고, 아프고, 밤에 손을 털게 됩니다.</p><p style="margin-top:22px;pointer-events:auto"><a class="btn primary" href="disease.html?id=carpal-tunnel">손목터널증후군 자세히 보기</a></p></div>
-    </div>
-    <div class="hint"><span>SCROLL</span><i></i></div>
+<!-- ================= 첫 화면 ================= -->
+<section class="wrap intro">
+  <p class="kicker">정형외과 전문의가 진료실에서 쓰는 3D 설명</p>
+  <h1 class="t-display">첫 단추를 잘 끼우면,<br>치료가 쉬워집니다.</h1>
+  <div class="foot">
+    <p class="t-lead">내 몸 안에서 무슨 일이 일어나는지 직접 열어 보면, 치료가 왜 필요한지 납득이 됩니다.</p>
+    <div class="actions"><a class="btn" href="#diseases">질환 3D 둘러보기</a><a class="more" href="#hero">스크롤해서 손 안 보기</a></div>
   </div>
 </section>
 
-<!-- ================= 소개 ================= -->
-<section class="section" id="about">
-  <div class="wrap intro">
-    <div class="bio">
-      <div class="eyebrow">About</div>
-      <div class="role" id="about-role"></div>
-      <div class="name" id="about-name"></div>
-      <div id="about-bio"></div>
-      <div class="links" id="about-links"></div>
+<!-- ================= 스크롤이 3D 손을 연다 (검은 무대) ================= -->
+<section class="hero" id="hero">
+  <div class="sticky"><div class="wrap">
+    <div class="frame">
+      <canvas id="hero-canvas" aria-label="손목 안을 단계별로 보여 주는 3D 모형" role="img"></canvas>
+      <div class="cap">
+        <div class="copy" aria-live="polite">
+          <div data-at="0" class="on"><p class="n">1 / 4 · 손</p><p class="t">피부 아래에는 뼈와 힘줄,<br>신경이 지나는 좁은 길이 있습니다.</p></div>
+          <div data-at="1"><p class="n">2 / 4 · 손목터널</p><p class="t">이 통로가 좁아지면<br>정중신경이 눌립니다.</p></div>
+          <div data-at="2"><p class="n">3 / 4 · 정중신경</p><p class="t">눌린 신경이 손끝을 저리게 합니다.</p></div>
+          <div data-at="3"><p class="n">4 / 4</p><p class="t">그래서 저리고, 아프고,<br>밤에 손을 털게 됩니다.</p><a class="btn light small" href="disease.html?id=carpal-tunnel">손목터널증후군 자세히 보기</a></div>
+        </div>
+        <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
+      </div>
     </div>
-    <div class="portrait" id="about-photo">프로필 사진 자리</div>
-  </div>
+    <p class="hero-note">스크롤하면 피부가 걷히고, 뼈와 신경이 차례로 드러납니다.</p>
+  </div></div>
 </section>
 
 <!-- ================= 질환별 3D 설명 ================= -->
-<section class="section" id="diseases">
+<section class="wrap section" id="diseases">
+  <div class="sec-head">
+    <h2 class="t-1">질환별 3D 설명</h2>
+    <p>진료실에서 설명할 때 쓰는 자료 그대로입니다. 돌리고, 확대하고, 단계를 따라가 보세요.</p>
+  </div>
+  <div class="dlist" id="disease-list"></div>
+</section>
+
+<!-- ================= 소개 ================= -->
+<section class="wrap section" id="about">
+  <div class="about">
+    <div class="portrait" id="about-photo"></div>
+    <div id="about-body"></div>
+  </div>
+</section>
+
+<!-- ================= 유튜브 (data.js의 videos가 있을 때만 보임) ================= -->
+<section class="band-dark" id="youtube">
   <div class="wrap">
-    <div class="section-head"><div class="eyebrow">3D Patient Education</div><h2>질환별로 열어 보는 몸속</h2><p class="muted">진료실에서 설명할 때 쓰는 자료를 그대로 공개합니다. 회전하고, 확대하고, 단계를 따라가 보세요.</p></div>
-    <div class="cards" id="disease-cards"></div>
+    <div class="sec-head">
+      <div><p class="kicker">유튜브 닥터첫단추</p><h2 class="t-1">영상으로 더 자세히</h2></div>
+      <a class="btn ghost small" id="yt-channel" href="#" target="_blank" rel="noopener">채널 보기</a>
+    </div>
+    <div class="videos" id="videos"></div>
   </div>
 </section>
 
 <script src="common/data.js"></script>
 <script src="common/site.js"></script>
-<script>
-// ---- 소개 채우기 (data.js의 person) ----
-(function(){ const P = (window.SITE||{}).person||{};
-  document.getElementById('about-role').textContent = P.role||''; document.getElementById('about-name').textContent = P.name||'';
-  document.getElementById('about-bio').innerHTML = (P.bio||[]).map(t => `<p>${t}</p>`).join('');
-  document.getElementById('about-links').innerHTML = ((window.SITE||{}).links||[]).map(l => `<a class="btn small" href="${l.url}" target="_blank" rel="noopener">${l.label} ↗</a>`).join('');
-  if (P.photo) document.getElementById('about-photo').innerHTML = `<img src="${P.photo}" alt="${P.name}">`; })();
-</script>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="common/hero-model.js"></script>
 <script>
@@ -66,9 +78,9 @@
   const canvas = document.getElementById('hero-canvas');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.outputEncoding = THREE.sRGBEncoding;
   const scene = new THREE.Scene(); const camera = new THREE.PerspectiveCamera(30, 1, 0.01, 5);
-  scene.add(new THREE.HemisphereLight(0xffffff, 0x1d2740, 0.9));
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x26262a, 0.9));
   const key = new THREE.DirectionalLight(0xfff2dc, 0.9); key.position.set(0.4, 0.6, 1); scene.add(key);
-  const rim = new THREE.DirectionalLight(0xe5b04a, 0.35); rim.position.set(-0.6, 0.2, -1); scene.add(rim);
+  const rim = new THREE.DirectionalLight(0xffffff, 0.3); rim.position.set(-0.6, 0.2, -1); scene.add(rim);
   const COL = { skin:0xd9a58f, bone:0xe6dcc6, nerve:0xf2c94c, lig:0xa9bfd6 };
   const RIM = { value: 1.4 };
   const root = new THREE.Group(); scene.add(root);
@@ -100,10 +112,11 @@
     (by.nerve||[]).forEach(m => m.material.emissive.setRGB(0.5, 0.36, 0.05).multiplyScalar(nerve));
     (by.lig||[]).forEach(m => { m.material.opacity = lig; });
     root.rotation.y = -0.15 + 0.25 * Math.sin(p * 1.4);   // 천천히 도는 느낌
-    copies.forEach(el => el.classList.toggle('on', p >= +el.dataset.at * 0.32 - 0.05 && p < (+el.dataset.at + 1) * 0.32 - 0.05 || (+el.dataset.at === 3 && p >= 0.91)));
+    const idx = p < 0.2 ? 0 : p < 0.48 ? 1 : p < 0.8 ? 2 : 3;   // 문구·점 표시
+    if (idx !== shown) { shown = idx; copies.forEach(el => el.classList.toggle('on', +el.dataset.at === idx)); dots.forEach((d, k) => d.classList.toggle('on', k === idx)); }
   }
-  const hero = document.getElementById('hero'), copies = [...document.querySelectorAll('.hero .copy > div')];
-  function progress(){ const r = hero.getBoundingClientRect(); return Math.max(0, Math.min(1, -r.top / (r.height - innerHeight))); }
+  const hero = document.getElementById('hero'), copies = [...document.querySelectorAll('.hero .copy > div')], dots = [...document.querySelectorAll('.hero .dots i')]; let shown = -1;
+  function progress(){ const r = hero.getBoundingClientRect(), top = 56; return Math.max(0, Math.min(1, (top - r.top) / (r.height - innerHeight + top))); }
   function resize(){ const w = canvas.clientWidth, h = canvas.clientHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   addEventListener('resize', resize); resize();
   let target = 0, cur = 0;

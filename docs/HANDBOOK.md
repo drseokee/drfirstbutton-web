@@ -48,7 +48,7 @@ site/
   index.html          메인(스크롤 구동 3D 손 + 소개 + 질환 카드)
   disease.html?id=X   질환 페이지 양식
   common/style.css · site.js · data.js(이름·소개·링크·질환 목록) · hero-model.js
-  diseases/<id>/info.js · 3d.html · thumb.jpg     ← 질환 팩
+  diseases/<id>/info.js · 3d.html · thumb.jpg · stage.jpg     ← 질환 팩
 wrangler.jsonc        Cloudflare: assets.directory = ./site
 pipeline/             제작 스크립트·뷰어 템플릿·팩 데이터(JSON)
 docs/                 이 핸드북

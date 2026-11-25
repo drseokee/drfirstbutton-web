@@ -4,11 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>무릎 관절염 — 구조 확인 1</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-  :root { --bg0:#1a2130; --bg1:#0d1119; --panel:rgba(16,21,31,.84); --ink:#e8ecf3; --dim:#9aa5b8; --line:rgba(255,255,255,.12); --acc:#f2c94c; }
+  :root { --bg0:#0d0d0f; --bg1:#0d0d0f; --panel:rgba(28,28,31,.84); --ink:#f2f2f0; --dim:#a6a6ab; --line:rgba(255,255,255,.12); --acc:#f2f2f0; }
   * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; background:radial-gradient(120% 90% at 50% 40%, var(--bg0), var(--bg1)); color:var(--ink);
-    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
+  html,body { margin:0; height:100%; background:var(--bg1); color:var(--ink);
+    font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
   #c { position:fixed; inset:0; display:block; touch-action:none; }
   #panel { position:fixed; top:16px; left:16px; width:240px; background:var(--panel); border:1px solid var(--line);
     border-radius:10px; padding:14px; backdrop-filter:blur(8px); font-size:13px; line-height:1.5; }
@@ -18,7 +19,7 @@
   #panel h2 { font-size:12px; font-weight:500; color:var(--dim); margin:12px 0 6px; }
   .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   .seg button { flex:1; background:transparent; color:var(--ink); border:0; padding:7px 0; font:inherit; font-size:13px; cursor:pointer; }
-  .seg button.on { background:var(--acc); color:#1a1400; font-weight:600; }
+  .seg button.on { background:var(--acc); color:#111; font-weight:600; }
   label.row { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; user-select:none; }
   label.row input[type=checkbox] { accent-color:var(--acc); width:15px; height:15px; margin:0; }
   .sw { width:12px; height:12px; border-radius:3px; flex:none; }
