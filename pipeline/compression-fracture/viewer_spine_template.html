@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>압박골절 — 3D 환자 설명</title>
+<title>요추 압박골절 — 3D 환자 설명</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root { --bg0:#0d0d0f; --bg1:#0d0d0f; --panel:rgba(28,28,31,.84); --ink:#f2f2f0; --dim:#a6a6ab; --line:rgba(255,255,255,.12); --acc:#f2f2f0; }
@@ -41,7 +41,6 @@
   @media (max-width:520px){ #panel{ width:auto; right:16px; font-size:12px; } .views{ grid-template-columns:repeat(3,1fr); } }
 #ctl { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 12; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 8px 16px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: #a6a6ab; }
 #ctl input[type=range] { width: 260px; }
-#ctl { padding-bottom: 22px; }
 #ctl button { background: transparent; color: #a6a6ab; border: 1px solid rgba(255,255,255,.16); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
 #ctl button.on { background: rgba(255,255,255,.14); color: #f2f2f0; border-color: #f2f2f0; }
 #stages { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 12; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px; backdrop-filter: blur(8px); }
@@ -74,18 +73,16 @@
 <div id="caption"></div>
 <div id="subbar"></div>
 <div id="stages"></div>
-<div id="ctl"><span>주저앉음</span><div style="position:relative;display:inline-block"><input id="collapse" type="range" min="0" max="100" value="0"><div style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#a6a6ab;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:33%;transform:translateX(-50%)">경도 20%</span><span style="position:absolute;left:67%;transform:translateX(-50%)">중등도 40%</span><span style="position:absolute;right:0">중증 60%</span></div></div><span id="gradeLbl" style="min-width:64px;text-align:center"></span><button id="retro">불안정형(후벽 밀림)</button></div>
+<div id="ctl"><span>주저앉음</span><input id="collapse" type="range" min="0" max="100" value="0" aria-label="주저앉은 정도"><span id="gradeLbl" style="min-width:118px;text-align:left;color:#f2f2f0"></span></div>
 <div id="panel">
-  <h1>척추 압박골절</h1>
-  <p class="sub">요추 3번 골다공증성 압박골절</p>
+  <h1>요추 압박골절</h1>
+  <p class="sub">요추 3번 · 골다공증성 골절</p>
   <details>
     <summary>층 보이기 · 표현 · 보는 방향 · 조작</summary>
   
   <h2>층 보이기</h2>
-    <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
-    <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
   <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대</label>
-  <label class="row"><input type="checkbox" data-layer="nerve" checked><span class="sw" style="background:#f2c94c"></span>척수막·마미신경</label>
+  <label class="row"><input type="checkbox" data-layer="nerve" checked><span class="sw" style="background:#f2c94c"></span>경막낭·마미신경</label>
   <label class="row"><input type="checkbox" data-layer="disc" checked><span class="sw" style="background:#c9b5d9"></span>추간판</label>
   <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
   <h2>표현</h2>
@@ -98,12 +95,12 @@
       Ctrl+드래그 확대 · Alt+드래그 화면 기울이기<br>
       더블클릭: 그 지점을 중심으로 · Shift+휠: 위아래 이동<br>
       방향키 회전 · Shift+방향키 이동 · +/− 확대 · R 원래대로<br>
-      Space/PageDown 다음 · PageUp 이전 · 1~5 단계
+      Space/PageDown 다음 · PageUp 이전 · 1~4 단계
     </div>
   <h2>보는 방향</h2>
   <div class="views">
     <button data-view="posterior">뒤(등)</button>
-    <button data-view="left">옆(왼쪽)</button>
+    <button data-view="left">옆</button>
     <button data-view="anterior">앞</button>
     <button data-view="reset">원래대로</button>
   </div>
@@ -210,10 +207,10 @@ function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); 
   RIM.value = RIM_BASE * Math.min(1, Math.max(0.45, off.length() / 0.22));   // close-ups: less edge darkening
   key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
 const VIEWS = {
-  posterior:{ off:[0.15,0.2,1],  up:[0,1,0], r:0.85 },
-  left:     { off:[-1,0.15,0.25], up:[0,1,0], r:0.6 },
-  anterior: { off:[-0.15,0.2,-1], up:[0,1,0], r:0.75 },
-  section:  { off:[-1,0.1,0.15], up:[0,1,0], r:0.6 },
+  posterior:{ off:[0.25,0.15,1],  up:[0,1,0], r:0.5 },
+  left:     { off:[-1,0.12,0.25], up:[0,1,0], r:0.58 },
+  anterior: { off:[-0.15,0.15,-1], up:[0,1,0], r:0.58 },
+  section:  { off:[-1,0.1,0.15], up:[0,1,0], r:0.58 },
 };
 function setView(name, instant){
   if (name === 'reset') name = 'left';
@@ -275,7 +272,7 @@ addEventListener('keydown', e => {
   if (typeof goStage === 'function' && typeof STAGES !== 'undefined') {
     if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goStage(Math.min(STAGES.length - 1, Math.max(0, stage + 1))); }
     if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); goStage(Math.max(0, stage - 1)); }
-    if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1);
+    if (e.key >= '1' && e.key <= String(STAGES.length)) goStage(+e.key - 1);
   }
 });
 // ==== COMMON CONTROLS END ====
@@ -289,9 +286,9 @@ function hover(e){
   ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1;
   ray.setFromCamera(ptr, camera);
   const hit = ray.intersectObjects(meshes.filter(m => m.visible && !(m.userData.layer==='skin' && state.skinOp < 0.5)))[0];
-  if (hovered && hovered !== (hit && hit.object)) { hovered.material.emissive.setHex(0); hovered = null; }
+  if (hovered && hovered !== (hit && hit.object)) { hovered.material.emissive.setHex(hovered.userData.em0 !== undefined ? hovered.userData.em0 : 0); hovered = null; }
   if (hit) {
-    hovered = hit.object; hovered.material.emissive.setHex(0x3a2f00);
+    hovered = hit.object; if (hovered.userData.em0 === undefined) hovered.userData.em0 = hovered.material.emissive.getHex(); hovered.material.emissive.setHex(0x3a2f00);
     tag.style.display = 'block'; tag.style.left = e.clientX + 'px'; tag.style.top = e.clientY + 'px';
     tag.innerHTML = (KO[hovered.userData.base] || hovered.userData.base) + '<small>' + hovered.name + '</small>';
   } else tag.style.display = 'none';
@@ -307,7 +304,6 @@ document.querySelectorAll('button[data-mode]').forEach(b => b.addEventListener('
   applyVisibility(); setView('reset');
 }));
 document.querySelectorAll('input[data-layer]').forEach(cb => cb.addEventListener('change', () => { state.layers[cb.dataset.layer] = cb.checked; applyVisibility(); }));
-document.getElementById('skinop').addEventListener('input', e => { state.skinOp = +e.target.value; applyVisibility(); });
 document.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
 document.getElementById('outline').addEventListener('change', e => { meshes.forEach(m => { if (m.userData.hull) m.userData.hull.visible = e.target.checked; }); });
 document.getElementById('rimshade').addEventListener('change', e => { RIM_BASE = e.target.checked ? +document.getElementById('rimamt').value : 0.0; applyCam(); });
@@ -316,7 +312,7 @@ document.getElementById('rimamt').addEventListener('input', e => { if (document.
 // ---------- loop ----------
 function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
-function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
+function scaleBar(){ const d = camera.position.distanceTo(target), px = camera.zoom * (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
   document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
 
 const A2S = a => [-a[0], a[2], a[1]];
@@ -369,14 +365,18 @@ function setLevel(name){ LEVEL = name; resetChainPivots(); reparentDiscs(); for 
 // ---- section (midline) shown in place: no camera change ----
 const ctl = { collapse: 0, retro: 0 };
 document.getElementById('collapse').oninput = e => ctl.collapse = +e.target.value / 100;
-document.getElementById('retro').onclick = e => { ctl.retro = ctl.retro ? 0 : 1; e.target.classList.toggle('on', !!ctl.retro); state.section = ctl.retro; applySection(!!ctl.retro); };
+if (document.getElementById('retro')) document.getElementById('retro').onclick = e => { ctl.retro = ctl.retro ? 0 : 1; e.target.classList.toggle('on', !!ctl.retro); state.section = ctl.retro; applySection(!!ctl.retro); };
 function applySection(on){ for (const m of meshes) { const u = m.userData; if (!['bone','disc','nerve','lig'].includes(u.layer)) continue;
     const hasCut = !!byName[u.base + '__cut']; if (u.cut) m.visible = on && state.layers[u.layer]; else m.visible = (!on || !hasCut) && state.layers[u.layer]; }
   cement.material.clippingPlanes = on ? [new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0)] : []; hematoma.material.clippingPlanes = cement.material.clippingPlanes; }
-const _applyVis = applyVisibility; applyVisibility = function(){ _applyVis(); applySection(!!(state.section || ctl.retro)); };
+const _applyVis = applyVisibility; applyVisibility = function(){ _applyVis(); applySection(!!state.section); };
 // ---- props ----
-Object.assign(state, { por: 0, brace: 0, vp: 0, screws: 0, section: 0 });
-const anim = { collapse: 0, por: 0, brace: 0, vp: 0, screws: 0, retro: 0 };
+Object.assign(state, { por: 0, brace: 0, vp: 0, screws: 0, section: 0, pain: 0, nervep: 0 });
+const anim = { collapse: 0, por: 0, brace: 0, vp: 0, screws: 0, retro: 0, pain: 0, nervep: 0 };
+// pain: a soft red glow around the fractured body / nerve: roots below the fracture pulse red
+const painGlow = new THREE.Mesh(new THREE.SphereGeometry(0.024, 24, 16), new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0, depthWrite: false, depthTest: false }));
+painGlow.renderOrder = 6; scene.add(painGlow);
+const NERVE_RED = new THREE.Color(0xd0241a), NERVE_RED_EM = new THREE.Color(0x3a0603);   // dark emissive: a bright one washes out to cream under ACES
 const hematoma = new THREE.Mesh(new THREE.SphereGeometry(0.009, 18, 12), new THREE.MeshStandardMaterial({ color: 0x7a1f2b, roughness: 0.6, transparent: true, opacity: 0.0, depthWrite: false })); hematoma.renderOrder = 4; scene.add(hematoma);
 const vp = new THREE.Group(); scene.add(vp); vp.visible = false;
 const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.14, 12), new THREE.MeshStandardMaterial({ color: 0xcfd6df, metalness: 0.7, roughness: 0.3 })); vp.add(needle);
@@ -408,27 +408,30 @@ function placeProps(){
 if (false) { const sel = document.createElement('div'); sel.id = 'levelSel'; sel.innerHTML = '<h2>다치는 척추</h2>' + ['T12','L1','L2','L3','L4','L5'].map(l => `<button data-lv="${l}" class="${l === LEVEL ? 'on' : ''}">${l}</button>`).join('');
   const views = document.querySelector('.views'); views.parentNode.insertBefore(sel, views.previousElementSibling); sel.querySelectorAll('button').forEach(b => b.onclick = () => setLevel(b.dataset.lv)); }
 const STAGES = [
-  { name:'구조', cap:'흉추 12번부터 천골까지의 척추뼈, 사이의 추간판, 척수관 속 척수 끝(원추)과 마미신경, 뒤쪽 인대입니다. 이 모형은 요추 3번 골절을 보여줍니다.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0, retro:0, por:0, brace:0, vp:0, screws:0, section:0 }, ctl:false },
-  { name:'다치는 순간', cap:'', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, retro:0, brace:0, vp:0, screws:0 }, ctl:true,
-    subs:[ { name:'ⓐ 골다공증', cap:'뼈 속 잔기둥(해면골)이 성글어져 같은 뼈라도 버티는 힘이 약해집니다. 단면에서 정상↔골다공증을 비교하세요.', set:{ retro:0, collapse:0, por:1, section:1 }, action:{ label:'정상 ↔ 골다공증', toggle:'por' } },
-           { name:'ⓑ 주저앉음', cap:'엉덩방아를 찧거나 물건을 들 때 하중이 내려오면, 약해진 체부의 앞쪽이 쐐기 모양으로 찌그러집니다. 슬라이더로 경도→중등도→중증을 보세요.', set:{ retro:0, por:1, section:0 } },
-           { name:'ⓒ 불안정형', cap:'뒤쪽 벽까지 무너져 척수관 쪽으로 밀리면(불안정형) 신경이 눌리고 혈종이 고입니다. 단면에서 후벽이 뒤로 터져 나오는 것을 보세요.', set:{ retro:1, por:1, section:1, collapse:0.8 } } ] },
-  { name:'치료', cap:'대부분 수술 없이 낫습니다. 아래 버튼으로 단계를 보세요.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0.67, retro:0, por:1, brace:0, vp:0, screws:0, section:0 }, ctl:false,
-    subs:[ { name:'① 보존 치료', cap:'침상안정 뒤 보조기로 허리를 세워 고정하고, 진통제와 골다공증 약으로 뼈를 다시 촘촘하게 만듭니다. 대개 6~12주 안에 아뭅니다.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'💊 골다공증 약', on:'복용 중…', set:{ por:0 } } },
-           { name:'② 척추성형술', cap:'통증이 심하면 뒤쪽에서 척추경 한가운데를 통해 굵은 바늘(캐뉼라)을 체부 속으로 넣고, 풍선으로 조금 세운 뒤 골시멘트를 채워 굳힙니다. "시술 시작"을 누르세요.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'💉 시술 시작', on:'시술 진행 중…', set:{ vp:1 } } },
-           { name:'③ 나사 고정술', cap:'뒤쪽 벽이 무너져 불안정하거나 신경 증상이 있으면, 위아래 척추에 척추경 나사를 넣고 막대로 연결해 고정합니다.', set:{ collapse:0.8, retro:1, section:0, vp:0, screws:1, por:1 } } ] },
+  { name:'구조', cap:'흉추 12번부터 천골까지의 척추뼈와 추간판, 척수관 속 경막낭과 마미신경입니다. 몸무게는 앞쪽의 둥근 기둥, 척추체가 받칩니다.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0, retro:0, por:0, brace:0, vp:0, screws:0, section:0 } },
+  { name:'골절', cap:'', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, retro:0, brace:0, vp:0, screws:0 },
+    subs:[ { name:'① 골다공증', cap:'척추체 속 잔기둥(해면골)이 성글어지면 같은 뼈라도 버티는 힘이 약해집니다. 단면에서 정상과 비교해 보세요.', set:{ retro:0, collapse:0, por:1, section:1 }, action:{ label:'정상과 비교', toggle:'por' } },
+           { name:'② 주저앉음', cap:'엉덩방아나 물건을 드는 정도의 힘에도 약해진 척추체 앞쪽이 쐐기 모양으로 주저앉습니다. 슬라이더를 움직여 보세요.', set:{ retro:0, collapse:0, por:1, section:0 }, ctl:true },
+           { name:'③ 방출성 골절', cap:'충격이 크면 척추체 뒤쪽 벽까지 깨져 뼛조각이 척수관 안으로 밀려 들어갑니다. 신경이 눌릴 수 있어 따로 구분합니다.', set:{ retro:1, por:1, section:1, collapse:0.8 } } ] },
+  { name:'증상', cap:'', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, por:1, brace:0, vp:0, screws:0 },
+    subs:[ { name:'① 허리 통증', cap:'다친 높이의 허리·등이 갑자기 아프고, 눕거나 일어날 때와 돌아누울 때 특히 심합니다. 여러 마디가 주저앉으면 등이 굽고 키가 줄어듭니다.', set:{ collapse:0.67, retro:0, section:0, pain:1 } },
+           { name:'② 신경 눌림', cap:'밀려 들어간 뼛조각이 신경을 누르면 다리가 저리거나 힘이 빠지고, 드물게 대소변 장애가 생깁니다. 이때는 바로 병원에 가야 합니다.', set:{ collapse:0.8, retro:1, section:1, nervep:1 } } ] },
+  { name:'치료', cap:'', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0.67, retro:0, por:1, brace:0, vp:0, screws:0, section:0 },
+    subs:[ { name:'① 보존 치료', cap:'대부분 수술 없이 낫습니다. 보조기를 차고 일찍 걷기 시작하며, 진통제와 골다공증 약을 씁니다. 대개 6~12주면 뼈가 붙습니다.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'골다공증 약', on:'복용 중', set:{ por:0 } } },
+           { name:'② 척추성형술', cap:'통증이 계속 심하면 등 뒤에서 척추경을 지나 척추체 속에 바늘을 넣고 골시멘트를 채워 굳힙니다. 풍선으로 먼저 공간을 만들기도 합니다.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'시술 보기', on:'시술 중', set:{ vp:1 } } },
+           { name:'③ 나사 고정술', cap:'방출성 골절로 불안정하거나 신경이 눌렸으면, 위아래 척추에 나사를 넣고 막대로 이어 고정합니다.', set:{ collapse:0.8, retro:1, section:0, vp:0, screws:1, por:1 }, view:'posterior' } ] },
 ];
 let stage = -1, sub = -1, vpT = 0;
 const stagesEl = document.getElementById('stages');
 STAGES.forEach((S, i) => { const b = document.createElement('button'); b.textContent = `${i+1}. ${S.name}`; b.onclick = () => goStage(i); stagesEl.appendChild(b); });
 function applySet(s){ if (!s) return; if (s.layers) { for (const k in s.layers) { state.layers[k] = !!s.layers[k]; const cb = document.querySelector(`input[data-layer="${k}"]`); if (cb) cb.checked = !!s.layers[k]; } }
-  for (const k of ['por','brace','vp','screws']) if (s[k] !== undefined) state[k] = s[k];
+  for (const k of ['por','brace','vp','screws','pain','nervep']) if (s[k] !== undefined) state[k] = s[k];
   if (s.collapse !== undefined) { ctl.collapse = s.collapse; document.getElementById('collapse').value = Math.round(s.collapse * 100); }
-  if (s.retro !== undefined) { ctl.retro = s.retro; document.getElementById('retro').classList.toggle('on', !!s.retro); }
+  if (s.retro !== undefined) ctl.retro = s.retro;
   if (s.section !== undefined) state.section = s.section;
   applyVisibility(); }
 function goStage(i, subIdx){
-  stage = i; sub = -1; const S = STAGES[i]; vpT = 0; state.vp = 0; applySet(S.set);
+  stage = i; sub = -1; const S = STAGES[i]; vpT = 0; state.vp = 0; state.pain = 0; state.nervep = 0; applySet(S.set);
   [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
   const sb = document.getElementById('subbar'); sb.innerHTML = '';
   if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = 0; sub = subIdx; applySet(S.subs[sub].set);
@@ -438,12 +441,12 @@ function goStage(i, subIdx){
       if (act.toggle) b.onclick = () => { state[act.toggle] = state[act.toggle] ? 0 : 1; b.classList.toggle('on', !state[act.toggle]); };
       else b.onclick = () => { applySet(act.set); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); } }
   else sb.style.display = 'none';
-  document.getElementById('caption').textContent = S.subs ? S.subs[sub].cap : S.cap;
-  const showCtl = S.ctl && sub === 1; document.getElementById('ctl').style.display = showCtl ? 'flex' : 'none';
-  document.getElementById('caption').style.bottom = showCtl ? '178px' : '112px';
+  const SS = S.subs ? S.subs[sub] : S; document.getElementById('caption').textContent = SS.cap;
+  document.getElementById('ctl').style.display = SS.ctl ? 'flex' : 'none';
+  if (SS.view) setView(SS.view, false);
 }
 let last = performance.now();
-(function loop(now){ requestAnimationFrame(loop); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
+(function loop(now){ requestAnimationFrame(loop); now = now || performance.now(); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
   anim.collapse += (ctl.collapse - anim.collapse) * Math.min(1, dt * 4); anim.por += (state.por - anim.por) * Math.min(1, dt * 2); anim.retro += (ctl.retro - anim.retro) * Math.min(1, dt * 3);
   anim.screws += (state.screws - anim.screws) * Math.min(1, dt * 3);
   UPOR.value = anim.por; screws.visible = anim.screws > 0.02; screws.scale.setScalar(0.4 + 0.6 * Math.min(1, anim.screws));
@@ -452,10 +455,12 @@ let last = performance.now();
     balloon.visible = bal > 0.02 && cem < 0.95; balloon.position.copy(bodyC); balloon.scale.set(1.0, 0.75, 0.9).multiplyScalar(0.2 + 0.8 * bal * (1 - cem));
     cement.visible = cem > 0.02; cement.position.copy(bodyC); cement.scale.set(1.05, 0.8, 0.95).multiplyScalar(0.2 + 0.8 * cem);
     ctl.collapse = 0.67 - 0.25 * bal;
-    const cap = document.getElementById('caption'); cap.textContent = vpT < 2 ? '① 뒤쪽에서 척추경 한가운데를 통해 캐뉼라를 체부 속으로 넣습니다.' : vpT < 4 ? '② 풍선을 부풀려 주저앉은 종판을 조금 들어 올립니다.' : vpT < 6 ? '③ 풍선을 빼고 그 공간에 골시멘트를 채웁니다 — 단면에서 체부 속이 차오르는 것이 보입니다.' : '④ 시멘트가 굳으면 체부가 안정되어 통증이 빠르게 줄어듭니다.'; }
+    const cap = document.getElementById('caption'); cap.textContent = vpT < 2 ? '등 뒤에서 척추경을 지나 척추체 속으로 바늘을 넣습니다.' : vpT < 4 ? '풍선을 부풀려 주저앉은 척추체를 조금 들어 올립니다.' : vpT < 6 ? '풍선을 빼고 그 자리에 골시멘트를 채웁니다.' : '시멘트가 굳으면 척추체가 단단해져 통증이 빠르게 줄어듭니다.'; }
   else vp.visible = false;
   const k = anim.collapse;
-  { const g = k < 0.02 ? '정상' : k < 0.34 ? '경도' : k < 0.67 ? '중등도' : '중증'; const el = document.getElementById('gradeLbl'); if (el.textContent !== g) el.textContent = g; }
+  { const loss = Math.round(60 * k), g = loss < 20 ? (loss < 1 ? '정상' : '정상 범위') : loss < 25 ? '경도' : loss < 40 ? '중등도' : '중증';   // Genant: anterior height loss 20–25 / 25–40 / >40 %
+    const t = loss < 1 ? g : g + ' · 앞 높이 −' + loss + '%'; const el = document.getElementById('gradeLbl'); if (el.textContent !== t) el.textContent = t;
+    const sl = document.getElementById('collapse'); if (document.activeElement !== sl && Math.abs(+sl.value - Math.round(ctl.collapse * 100)) > 0) sl.value = Math.round(ctl.collapse * 100); }
   const bone = 'bone__' + LEVEL.toLowerCase(), F = FXL[LEVEL], discAbove = { T12: null, L1: 'disc__t12_l1', L2: 'disc__l1_l2', L3: 'disc__l2_l3', L4: 'disc__l3_l4', L5: 'disc__l4_l5' }[LEVEL];
   for (const m of meshes) if (m.morphTargetInfluences) { if (m.userData.base === bone) { m.morphTargetInfluences[0] = k; m.morphTargetInfluences[1] = k * anim.retro; }
     else if (discAbove && m.userData.base === discAbove) { const names = Object.keys(DATA_MORPHS[m.userData.base] || {}); const j = names.indexOf('wedge_' + LEVEL.toLowerCase()); if (j >= 0) m.morphTargetInfluences[j] = k; }
@@ -464,11 +469,36 @@ let last = performance.now();
     for (const mm of [m, mc]) if (mm && mm.userData.fx) { const col = mm.geometry.getAttribute('color'), base = mm.userData.baseCol, fx = mm.userData.fx;
       for (let i = 0; i < fx.length; i++) { const a = fx[i] * k; col.array[3*i] = base[3*i] * (1 - 0.15 * a) + 0.35 * a; col.array[3*i+1] = base[3*i+1] * (1 - 0.7 * a); col.array[3*i+2] = base[3*i+2] * (1 - 0.75 * a); } col.needsUpdate = true; } }
   hematoma.visible = anim.retro * k > 0.05; hematoma.material.opacity = 0.75 * anim.retro * Math.min(1, k * 1.4); hematoma.scale.set(1.0, 1.1, 0.7).multiplyScalar(0.5 + 0.9 * anim.retro * k);
+  anim.pain += (state.pain - anim.pain) * Math.min(1, dt * 3); anim.nervep += (state.nervep - anim.nervep) * Math.min(1, dt * 3);
+  { const t = now / 1000, pulse = 0.55 + 0.45 * Math.sin(t * 3.2);
+    painGlow.visible = anim.pain > 0.01; if (painGlow.visible) { const g = groups[idxOf(LEVEL)];
+      painGlow.position.copy(g.localToWorld(new THREE.Vector3(...A2S(FXL[LEVEL].body_centre)).sub(g.userData.piv))); painGlow.material.opacity = 0.5 * anim.pain * (0.6 + 0.4 * pulse); painGlow.scale.set(1.25, 0.9, 1.1).multiplyScalar(0.9 + 0.12 * pulse); }
+    const lvNum = { T12: 0, L1: 1, L2: 2, L3: 3, L4: 4, L5: 5 }[LEVEL], ORDERN = ['l1','l2','l3','l4','l5','s1','s2','s3'];
+    if (anim.nervep > 0.001 || anim.nervepOn) { anim.nervepOn = anim.nervep > 0.001;
+      for (const m of meshes) { if (m.userData.layer !== 'nerve') continue; const u = m.userData;
+        if (u.em0 === undefined) u.em0 = m.material.emissive.getHex(); if (u.col0 === undefined) u.col0 = m.material.color.getHex();
+        const r = /root_([ls]\d)/.exec(m.name); const hit = !r || ORDERN.indexOf(r[1]) >= lvNum - 1;   // sac / conus and the roots at and below the fracture
+        const a = hit ? anim.nervep * (0.5 + 0.5 * pulse) : 0; if (m === hovered && a < 0.01) continue;
+        m.material.color.setHex(u.col0).lerp(NERVE_RED, a); m.material.emissive.setHex(u.em0).lerp(NERVE_RED_EM, Math.min(1, a * 1.4)); } } }
   applyChain(k);
 })(performance.now());
 reparentDiscs(); placeProps();
+// frame on the model's bounding-box centre (kept outside the common camera block, which common_ui.py rewrites)
+{ const bb = new THREE.Box3(); meshes.forEach(m => { if (!m.userData.cut && m.userData.layer !== 'skin') bb.expandByObject(m); }); const c = bb.getCenter(new THREE.Vector3()).toArray();
+  for (const k in VIEWS) if (!VIEWS[k].target) VIEWS[k].target = c; }
 applyVisibility(); setView('left'); goStage(0);
-(function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+// keep the model in the free space between the top panel and the bottom bars (smoothly, so caption changes don't jump the view)
+const fit = { y: 0, z: 1, t: 0 };
+function fitTick(now){
+  if (now - fit.t > 200) { fit.t = now; const H = innerHeight, small = innerWidth <= 720 || innerHeight <= 520;
+    let bot = H; for (const id of ['caption', 'ctl', 'subbar', 'stages']) { const el = document.getElementById(id); if (!el || getComputedStyle(el).display === 'none' || !el.offsetHeight) continue; bot = Math.min(bot, el.getBoundingClientRect().top); }
+    const pn = document.getElementById('panel'), top = small && pn ? pn.getBoundingClientRect().bottom : 0;
+    const free = Math.max(H * 0.35, bot - top - 12);
+    fit.goalY = (H - bot - top) / 2; fit.goalZ = Math.min(1, free / (H * 0.95)); }
+  if (fit.goalY === undefined) return;
+  fit.y += (fit.goalY - fit.y) * 0.12; fit.z += (fit.goalZ - fit.z) * 0.12;
+  camera.zoom = fit.z; camera.setViewOffset(innerWidth, innerHeight, 0, fit.y, innerWidth, innerHeight); camera.updateProjectionMatrix(); }
+(function loop(now){ requestAnimationFrame(loop); fitTick(now || performance.now()); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
 
 // mobile: start with the side panel folded and lift the caption above the control bars
 (function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
