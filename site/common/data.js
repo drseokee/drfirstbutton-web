@@ -22,7 +22,7 @@ window.SITE = {
   ],
   links: [
     { label: "블로그", url: "https://blog.naver.com/drfirstbutton" },
-    { label: "유튜브", url: "[유튜브 주소]" }
+    { label: "유튜브", url: "https://www.youtube.com/@drfirstbutton" }
   ],
   // ---- 질환 목록: 폴더 이름 = id ----
   diseases: [
