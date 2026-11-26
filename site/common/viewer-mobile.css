@@ -69,7 +69,7 @@ html, body { -webkit-tap-highlight-color: transparent; }
 #panel:not(:has(details[open])) { cursor: pointer; }
 
 /* 설명 문구: 첫 문장만, 누르면 전체 (viewer-mobile.js) */
-#caption.vm-short { cursor: pointer; }
+#caption.vm-short { cursor: pointer; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 #caption.vm-short::after { content: " +"; color: var(--dim, #a6a6ab); font-weight: 600; }
 #caption.vm-full { cursor: pointer; }
 

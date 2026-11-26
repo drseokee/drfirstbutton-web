@@ -49,7 +49,7 @@
   const cap = document.getElementById('caption');
   if (cap) {
     let full = '', shown = null, expanded = false;
-    const first = s => { const m = s.match(/^[\s\S]*?[.!?。](?=\s|$)/); return m && m[0].length < s.trim().length ? m[0].trim() : null; };
+    const first = s => { const m = s.match(/^[\s\S]*?(?:[.!?。](?=\s|$)|(?=\s—\s))/); return m && m[0].trim().length < s.trim().length ? m[0].trim() : null; };
     const render = () => {
       const short = expanded ? null : first(full); shown = short || full;
       if (cap.textContent !== shown) cap.textContent = shown;
