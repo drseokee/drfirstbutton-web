@@ -90,7 +90,7 @@ addEventListener('keydown', e => {
   if (typeof goStage === 'function' && typeof STAGES !== 'undefined') {
     if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goStage(Math.min(STAGES.length - 1, Math.max(0, stage + 1))); }
     if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); goStage(Math.max(0, stage - 1)); }
-    if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1);
+    if (e.key >= '1' && e.key <= String(STAGES.length)) goStage(+e.key - 1);
   }
 });
 // ==== COMMON CONTROLS END ====

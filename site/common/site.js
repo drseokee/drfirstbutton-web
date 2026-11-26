@@ -6,7 +6,8 @@
   const root = (document.body.dataset.root || '.').replace(/\/$/, '');   // 페이지 위치에 따른 상대 경로 접두어
   const page = document.body.dataset.page || '';                          // index | disease
   const brand = SITE.brand || '닥터첫단추';
-  const MARK = `<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.4" cy="10" r="1.3" fill="currentColor"/><circle cx="12.6" cy="10" r="1.3" fill="currentColor"/></svg>`;
+  // 로고: 기존 일러스트(금색 첫 단추를 끼우는 의사)에서 손과 단추만 잘라 원형으로. 원본은 docs/brand/.
+  const MARK = `<img class="mark" src="${root}/common/brand/mark-96.jpg" width="32" height="32" alt="">`;
   const isPh = s => typeof s === 'string' && /^\[.*\]$/.test(s.trim());   // "[이름]" 같은 자리표시자
   const txt = s => isPh(s) ? `<span class="ph">${s}</span>` : (s || '');
   const realLinks = (SITE.links || []).filter(l => l.url && !isPh(l.url));
