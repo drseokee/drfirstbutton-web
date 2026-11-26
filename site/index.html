@@ -12,12 +12,9 @@
 
 <!-- ================= 첫 화면 ================= -->
 <section class="wrap intro">
-  <p class="kicker">정형외과 전문의가 진료실에서 쓰는 3D 설명</p>
   <h1 class="t-display">첫 단추를 잘 끼우면,<br>치료가 쉬워집니다.</h1>
-  <div class="foot">
-    <p class="t-lead">내 몸 안에서 무슨 일이 일어나는지 직접 열어 보면, 치료가 왜 필요한지 납득이 됩니다.</p>
-    <div class="actions"><a class="btn" href="#diseases">질환 3D 둘러보기</a><a class="more" href="#hero">스크롤해서 손 안 보기</a></div>
-  </div>
+  <p class="t-lead">진료실의 3D 설명, 그대로.</p>
+  <a class="btn" href="#diseases">둘러보기</a>
 </section>
 
 <!-- ================= 스크롤이 3D 손을 연다 (검은 무대) ================= -->
@@ -27,25 +24,22 @@
       <canvas id="hero-canvas" aria-label="손목 안을 단계별로 보여 주는 3D 모형" role="img"></canvas>
       <div class="cap">
         <div class="copy" aria-live="polite">
-          <div data-at="0" class="on"><p class="n">1 / 4 · 손</p><p class="t">피부 아래에는 뼈와 힘줄,<br>신경이 지나는 좁은 길이 있습니다.</p></div>
-          <div data-at="1"><p class="n">2 / 4 · 손목터널</p><p class="t">이 통로가 좁아지면<br>정중신경이 눌립니다.</p></div>
-          <div data-at="2"><p class="n">3 / 4 · 정중신경</p><p class="t">눌린 신경이 손끝을 저리게 합니다.</p></div>
-          <div data-at="3"><p class="n">4 / 4</p><p class="t">그래서 저리고, 아프고,<br>밤에 손을 털게 됩니다.</p><a class="btn light small" href="disease.html?id=carpal-tunnel">손목터널증후군 자세히 보기</a></div>
+          <div data-at="0" class="on"><p class="t">피부 아래.</p></div>
+          <div data-at="1"><p class="t">손목터널.</p></div>
+          <div data-at="2"><p class="t">눌린 신경.</p></div>
+          <div data-at="3"><p class="t">그래서, 손끝이 저립니다.</p><a class="more" href="disease.html?id=carpal-tunnel">손목터널증후군</a></div>
         </div>
         <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
       </div>
     </div>
-    <p class="hero-note">스크롤하면 피부가 걷히고, 뼈와 신경이 차례로 드러납니다.</p>
   </div></div>
 </section>
 
-<!-- ================= 질환별 3D 설명 ================= -->
+<!-- ================= 질환 3D ================= -->
 <section class="wrap section" id="diseases">
-  <div class="sec-head">
-    <h2 class="t-1">질환별 3D 설명</h2>
-    <p>진료실에서 설명할 때 쓰는 자료 그대로입니다. 돌리고, 확대하고, 단계를 따라가 보세요.</p>
-  </div>
-  <div class="dlist" id="disease-list"></div>
+  <h2 class="t-1 head-c">질환 3D</h2>
+  <div class="tiles" id="disease-list"></div>
+  <p class="soon-line" id="disease-soon"></p>
 </section>
 
 <!-- ================= 소개 ================= -->
@@ -59,10 +53,7 @@
 <!-- ================= 유튜브 (data.js의 videos가 있을 때만 보임) ================= -->
 <section class="band-dark" id="youtube">
   <div class="wrap">
-    <div class="sec-head">
-      <div><p class="kicker">유튜브 닥터첫단추</p><h2 class="t-1">영상으로 더 자세히</h2></div>
-      <a class="btn ghost small" id="yt-channel" href="#" target="_blank" rel="noopener">채널 보기</a>
-    </div>
+    <div class="head-row"><h2 class="t-1">영상</h2><a class="more" id="yt-channel" href="#" target="_blank" rel="noopener">채널</a></div>
     <div class="videos" id="videos"></div>
   </div>
 </section>
