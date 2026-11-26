@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>어깨 회전근개 — 3D 환자 설명</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<style>
+  :root { --bg0:#0d0d0f; --bg1:#0d0d0f; --panel:rgba(28,28,31,.84); --ink:#f2f2f0; --dim:#a6a6ab; --line:rgba(255,255,255,.12); --acc:#f2f2f0; }
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; background:var(--bg1); color:var(--ink);
+    font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
+  #c { position:fixed; inset:0; display:block; touch-action:none; }
+  #panel { position:fixed; top:16px; left:16px; width:240px; background:var(--panel); border:1px solid var(--line);
+    border-radius:10px; padding:14px; backdrop-filter:blur(8px); font-size:13px; line-height:1.5; }
+  #panel h1 { font-size:15px; font-weight:600; margin:0 0 2px; }
+  #panel .sub { color:var(--dim); font-size:12px; margin:0 0 10px; }
+  #levelSel button { background: transparent; color: #a6a6ab; border: 1px solid rgba(255,255,255,.16); padding: 4px 8px; border-radius: 999px; font-size: 12px; margin: 0 3px 4px 0; cursor: pointer; }
+  #levelSel button.on { background: rgba(255,255,255,.14); color: #f2f2f0; border-color: #f2f2f0; }
+  details summary { cursor:pointer; color:var(--dim); font-size:12px; margin:8px 0 4px; }
+  #panel h2 { font-size:12px; font-weight:500; color:var(--dim); margin:12px 0 6px; }
+  .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+  .seg button { flex:1; background:transparent; color:var(--ink); border:0; padding:7px 0; font:inherit; font-size:13px; cursor:pointer; }
+  .seg button.on { background:var(--acc); color:#111; font-weight:600; }
+  label.row { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; user-select:none; }
+  label.row input[type=checkbox] { accent-color:var(--acc); width:15px; height:15px; margin:0; }
+  .sw { width:12px; height:12px; border-radius:3px; flex:none; }
+  input[type=range] { width:100%; accent-color:var(--acc); }
+  .views { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .views button { background:rgba(255,255,255,.06); color:var(--ink); border:1px solid var(--line); border-radius:7px;
+    padding:6px 4px; font:inherit; font-size:12px; cursor:pointer; }
+  .views button:hover { background:rgba(255,255,255,.12); }
+  button:focus-visible, label.row:focus-within { outline:2px solid var(--acc); outline-offset:2px; }
+  #hint { color:var(--dim); font-size:11.5px; margin-top:10px; border-top:1px solid var(--line); padding-top:8px; }
+  #tag { position:fixed; pointer-events:none; background:rgba(0,0,0,.72); color:#fff; padding:4px 8px; border-radius:6px;
+    font-size:12.5px; transform:translate(12px,-50%); display:none; white-space:nowrap; }
+  #tag small { color:#c8cfdb; margin-left:6px; }
+  #foot { position:fixed; right:14px; bottom:10px; color:var(--dim); font-size:11px; }
+  #scale { position:fixed; left:16px; bottom:12px; color:var(--dim); font-size:11px; }
+  #scale i { display:block; height:0; border-bottom:2px solid var(--dim); margin-bottom:3px; }
+  @media (max-width:520px){ #panel{ width:auto; right:16px; font-size:12px; } .views{ grid-template-columns:repeat(3,1fr); } }
+#ctl { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 12; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 8px 16px; display: flex; gap: 10px; align-items: center; font-size: 12.5px; color: #a6a6ab; }
+#ctl input[type=range] { width: 260px; }
+#ctl button { background: transparent; color: #a6a6ab; border: 1px solid rgba(255,255,255,.16); padding: 5px 10px; border-radius: 999px; font-size: 12px; cursor: pointer; }
+#ctl button.on { background: rgba(255,255,255,.14); color: #f2f2f0; border-color: #f2f2f0; }
+#stages { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 12; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px; backdrop-filter: blur(8px); }
+#stages button { background: transparent; color: #a6a6ab; border: none; padding: 8px 14px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+#stages button.on { background: #f2f2f0; color: #111; font-weight: 700; }
+#subbar { position: fixed; left: 50%; bottom: 66px; transform: translateX(-50%); display: none; gap: 6px; z-index: 12; }
+.sub-btn { background: rgba(28,28,31,.84); color: #a6a6ab; border: 1px solid rgba(255,255,255,.16); padding: 7px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
+.sub-btn.on { background: rgba(255,255,255,.14); color: #f2f2f0; border-color: #f2f2f0; }
+#caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f2f2f0; z-index: 12; }
+#ctl { bottom: 110px !important; border-radius: 999px; }
+
+/* ---- mobile: same page, tighter layout (no separate mobile version to maintain) ---- */
+@media (max-width: 720px), (max-height: 520px) {
+  #panel { max-width: 62vw; max-height: 46vh; overflow-y: auto; padding: 8px 10px; font-size: 12px; }
+  #panel h1 { font-size: 15px; } #panel .sub { font-size: 11px; }
+  #panel details summary { font-size: 11.5px; }
+  #caption { top: auto; max-width: 92vw; font-size: 12.5px; line-height: 1.4; padding: 8px 12px; bottom: 96px; }
+  #stages { padding: 4px; gap: 3px; max-width: 96vw; }
+  #stages button { padding: 6px 8px; font-size: 11.5px; }
+  #subbar { flex-wrap: wrap; justify-content: center; max-width: 96vw; bottom: 58px; gap: 4px; }
+  .sub-btn { padding: 5px 9px; font-size: 11.5px; }
+  #twist, #surg, #ctl { max-width: 94vw; padding: 6px 10px; font-size: 11.5px; bottom: 96px; }
+  #twist input, #surg input, #ctl input[type=range] { width: 42vw; }
+}
+</style>
+<link rel="stylesheet" href="../../common/viewer-mobile.css">
+<style>
+  #ctl .ang { min-width: 112px; text-align: left; color: #f2f2f0; font-variant-numeric: tabular-nums; }
+  #ctl .play { min-width: 40px; }
+  #drawerbar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 112px; display: none; gap: 6px; z-index: 12; flex-wrap: wrap; justify-content: center; }
+  #drawerbar button { background: rgba(28,28,31,.84); color: #a6a6ab; border: 1px solid rgba(255,255,255,.16); padding: 6px 11px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
+  #drawerbar button.on { background: rgba(255,255,255,.14); color: #f2f2f0; border-color: #f2f2f0; }
+  #arc { position: fixed; right: 18px; top: 50%; transform: translateY(-50%); width: 132px; height: 132px; display: none; pointer-events: none; z-index: 11; }
+  @media (max-height: 520px) { #hint { display: none; } #panel { max-width: 40vw !important; } }
+  @media (max-width: 720px), (max-height: 520px) { #arc { width: 92px; height: 92px; top: auto; bottom: 40%; right: 8px; } }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="caption"></div>
+<div id="drawerbar"></div>
+<div id="subbar"></div>
+<div id="stages"></div>
+<div id="ctl"><button class="play" id="play" aria-label="자동 재생">■</button><span id="ctlName">각도</span><input id="slider" type="range" min="0" max="100" value="0" aria-label="조절"><span class="ang" id="ctlVal"></span></div>
+<svg id="arc" viewBox="-60 -60 120 120" aria-hidden="true">
+  <circle r="46" fill="rgba(28,28,31,.84)" stroke="rgba(255,255,255,.12)"/>
+  <path id="arcPain" d="" fill="none" stroke="#d0453a" stroke-width="7" stroke-linecap="round" opacity=".85"/>
+  <path d="M0,-40 A40,40 0 1 0 0,40" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="2"/>
+  <line id="arcArm" x1="0" y1="0" x2="0" y2="40" stroke="#f2f2f0" stroke-width="3" stroke-linecap="round"/>
+  <circle r="3.5" fill="#f2f2f0"/>
+  <text id="arcTxt" x="0" y="-12" fill="#f2f2f0" font-size="13" text-anchor="middle" font-weight="600"></text>
+</svg>
+<div id="panel">
+  <h1>어깨 · 회전근개</h1>
+  <p class="sub">오른쪽 어깨 · 앞에서 본 모습</p>
+  <details>
+    <summary>층 보이기 · 표현 · 보는 방향 · 조작</summary>
+  <h2>층 보이기</h2>
+  <label class="row"><input type="checkbox" data-layer="delt" checked><span class="sw" style="background:#a04a48;opacity:.55"></span>삼각근</label>
+  <label class="row"><input type="checkbox" data-layer="cuff" checked><span class="sw" style="background:#b8584f"></span>회전근개</label>
+  <label class="row"><input type="checkbox" data-layer="muscle" checked><span class="sw" style="background:#8f4442"></span>이두근·기타 근육</label>
+  <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대·관절낭</label>
+  <label class="row"><input type="checkbox" data-layer="bursa" checked><span class="sw" style="background:#9fc6e6"></span>점액낭</label>
+  <label class="row"><input type="checkbox" data-layer="bone" checked><span class="sw" style="background:#e6dcc6"></span>뼈</label>
+  <label class="row"><input type="checkbox" data-layer="ctx" checked><span class="sw" style="background:#6d6d70"></span>갈비뼈·척추</label>
+  <h2>표현</h2>
+  <label class="row"><input type="checkbox" id="outline">윤곽선 (얇게)</label>
+  <label class="row"><input type="checkbox" id="rimshade" checked>가장자리 음영</label>
+  <input type="range" id="rimamt" min="0.5" max="3" step="0.1" value="1.6" title="음영 강도">
+    <h2>조작</h2>
+    <div style="color:var(--dim);font-size:11.5px;line-height:1.6">
+      드래그 회전 · 우클릭/가운데/Shift+드래그 이동 · 휠 확대<br>
+      Ctrl+드래그 확대 · Alt+드래그 화면 기울이기<br>
+      더블클릭: 그 지점을 중심으로 · Shift+휠: 위아래 이동<br>
+      방향키 회전 · Shift+방향키 이동 · +/− 확대 · R 원래대로<br>
+      Space/PageDown 다음 · PageUp 이전 · 1~5 단계
+    </div>
+  <h2>보는 방향</h2>
+  <div class="views">
+    <button data-view="anterior">앞</button>
+    <button data-view="lateral">옆</button>
+    <button data-view="posterior">뒤</button>
+    <button data-view="superior">위</button>
+    <button data-view="reset">원래대로</button>
+  </div>
+  </details>
+  <div id="hint">드래그: 회전 · 휠/두 손가락: 확대 · 우클릭 드래그: 이동<br>구조에 마우스를 올리면 이름이 보입니다</div>
+</div>
+<div id="tag"></div>
+<div id="scale"><i style="width:60px"></i>1 cm</div>
+<div id="foot">모델: Z-Anatomy (CC BY-SA 4.0) · BodyParts3D</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+const DATA = __DATA__;
+const KO = {
+  bone__humerus:"상완골 (위팔뼈)", bone__scapula:"견갑골 (날개뼈)", bone__clavicle:"쇄골", bone__ulna:"척골", bone__radius:"요골",
+  muscle__ssp:"극상근 (가시위근)", muscle__isp:"극하근 (가시아래근)", muscle__tm:"소원근 (작은원근)", muscle__ssc:"견갑하근 (어깨밑근)",
+  muscle__delt_a:"삼각근 앞부분", muscle__delt_m:"삼각근 가운데부분", muscle__delt_p:"삼각근 뒷부분",
+  muscle__lhb:"이두근 장두 (긴갈래)", muscle__shb:"이두근 단두 (짧은갈래)", muscle__cb:"오훼완근", muscle__tmaj:"대원근",
+  lig__capsule:"관절낭", lig__labrum:"관절와순", lig__chl:"오훼상완인대", lig__thl:"횡상완인대 (이두근 힘줄을 붙잡는 띠)", lig__ac:"견봉쇄골관절 관절낭",
+  lig__trapezoid:"오훼쇄골인대 (능형)", lig__conoid:"오훼쇄골인대 (원뿔)", lig__cal:"오훼견봉인대",
+  bursa__subacromial:"견봉하 점액낭", bursa__subdeltoid:"삼각근하 점액낭", prop__spur:"견봉 골극 (뼈 돌기)",
+  ctx__manubrium:"흉골 자루", ctx__sternum:"흉골"
+};
+for (let i = 1; i <= 6; i++) { KO['ctx__rib' + i] = i + '번 갈비뼈'; KO['ctx__cc' + i] = i + '번 늑연골'; KO['ctx__t' + i] = '흉추 ' + i + '번'; }
+const CUFF = ['muscle__ssp', 'muscle__isp', 'muscle__tm', 'muscle__ssc'], DELT = ['muscle__delt_a', 'muscle__delt_m', 'muscle__delt_p'];
+const groupOf = n => CUFF.includes(n) ? 'cuff' : DELT.includes(n) ? 'delt' : n.split('__')[0];
+const COL = { bone:0xdccfb4, muscle:0x94403e, cuff:0xa8443e, delt:0xa04a48, lig:0xa9bfd6, bursa:0x9fc6e6, ctx:0x6f6a66, tendon:0xf1ebdd, prop:0xc0c4cc };
+const ROUGH = { bone:0.7, muscle:0.65, cuff:0.6, delt:0.65, lig:0.6, bursa:0.35, ctx:0.8, prop:0.3 };
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, alpha:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(32, 1, 0.003, 5);
+scene.add(new THREE.HemisphereLight(0xf2ede4, 0x2a3142, 0.5));
+const key = new THREE.DirectionalLight(0xfff4e6, 0.62); scene.add(key);
+const fill = new THREE.DirectionalLight(0xbfd0ff, 0.16); fill.position.set(-0.6, -0.2, 0.4); scene.add(fill);
+const rim = new THREE.DirectionalLight(0xffffff, 0.28); rim.position.set(0, 0.4, -1); scene.add(rim);
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.95;
+
+// anatomical (right = -x, anterior = -y, up = +z) → screen: X = patient's left (so a right shoulder seen from the front sits on the left), Y = up, Z = anterior (toward the viewer)
+const A2S = a => [a[0], a[2], -a[1]];
+const V = a => new THREE.Vector3(...A2S(a));
+const meshes = []; const byName = {};
+const RIM = { value: 1.6 }, OUTW = { value: 0.00012 };
+function hash(s){ let h = 7; for (const c of s) h = (h * 31 + c.charCodeAt(0)) % 1000003; return h; }
+const TENDON = new THREE.Color(COL.tendon);
+for (const o of DATA.objects) {
+  const v = o.verts, pos = new Float32Array(v.length);
+  for (let i = 0; i < v.length; i += 3) { pos[i] = v[i]; pos[i+1] = v[i+2]; pos[i+2] = -v[i+1]; }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(o.tris); g.computeVertexNormals();
+  const grp = groupOf(o.name);
+  const base = new THREE.Color(COL[grp] !== undefined ? COL[grp] : COL[o.layer]);
+  if (o.layer === 'bone' || o.layer === 'muscle') { const h = hash(o.name); base.offsetHSL((h % 7 - 3) * 0.004, (h % 5 - 2) * 0.02, (h % 4 - 1.5) * 0.03); }
+  // vertex colour = AO × (muscle → tendon toward the insertion)
+  const col = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length / 3; i++) {
+    let c = base.clone();
+    if (o.de) { const t = Math.min(1, Math.max(0, (o.de[i] - 0.004) / (grp === 'delt' ? 0.012 : 0.016))); c.lerp(TENDON, 1 - t * t * (3 - 2 * t)); }
+    const s = o.ao ? 0.45 + 0.55 * Math.pow(o.ao[i], 0.55) : 1; col[3*i] = c.r * s; col[3*i+1] = c.g * s; col[3*i+2] = c.b * s;
+  }
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (o.name === 'muscle__ssp') g.setAttribute('aCut', new THREE.BufferAttribute(new Float32Array(pos.length / 3), 1));
+  const isSsp = o.name === 'muscle__ssp';
+  const m = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: ROUGH[grp] || 0.6, metalness: 0, vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 1 });
+  const rimU = o.layer === 'bursa' ? { value: 0.6 } : RIM;
+  m.onBeforeCompile = sh => {
+    sh.uniforms.uRim = rimU;
+    sh.vertexShader = (isSsp ? 'attribute float aCut; varying float vCut;\n' : '') + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>' + (isSsp ? '\n vCut = aCut;' : ''));
+    sh.fragmentShader = 'uniform float uRim;\n' + (isSsp ? 'varying float vCut;\n' : '') + sh.fragmentShader
+      .replace('void main() {', 'void main() {' + (isSsp ? '\n if (vCut > 0.5) discard;' : ''))
+      .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n float fr = pow(1.0 - abs(dot(normalize(vNormal), normalize(vViewPosition))), 1.6);\n gl_FragColor.rgb *= mix(1.0, 0.30, clamp(fr * uRim, 0.0, 1.0));');
+  };
+  m.customProgramCacheKey = () => 'sh_' + o.layer + (isSsp ? '_cut' : '') + (o.layer === 'bursa' ? '_b' : '');
+  const mesh = new THREE.Mesh(g, m);
+  const om = new THREE.MeshBasicMaterial({ color: 0x6b6258, side: THREE.BackSide, transparent: true, opacity: 0.55 });
+  om.onBeforeCompile = sh => { sh.uniforms.uW = OUTW; sh.vertexShader = 'uniform float uW;\n' + sh.vertexShader.replace('#include <begin_vertex>', 'vec3 transformed = position + normal * uW;'); };
+  om.customProgramCacheKey = () => 'hull';
+  const hull = new THREE.Mesh(g, om); hull.renderOrder = -1; hull.visible = false; mesh.userData.hull = hull; mesh.add(hull);
+  mesh.name = o.name; mesh.userData.layer = grp; mesh.userData.base = o.name; mesh.userData.src = o;
+  mesh.userData.col0 = col.slice();
+  if (o.morphs) { mesh.userData.morphs = {}; for (const k in o.morphs) { const dl = o.morphs[k], a = new Float32Array(dl.length); for (let i = 0; i < dl.length; i += 3) { a[i] = dl[i]; a[i+1] = dl[i+2]; a[i+2] = -dl[i+1]; } mesh.userData.morphs[k] = a; } }
+  mesh.renderOrder = o.layer === 'bursa' ? 3 : (grp === 'delt' ? 4 : (grp === 'ctx' ? 5 : 0));
+  scene.add(mesh); meshes.push(mesh); byName[mesh.name] = mesh;
+}
+
+// ---------- state ----------
+const state = { layers:{ delt:true, cuff:true, muscle:true, lig:true, bursa:true, bone:true, ctx:true, prop:true }, focus:null, opacity:{} };
+var applyVisibility = function(){
+  for (const m of meshes) { const L = m.userData.layer; m.visible = !!state.layers[L] && !m.userData.hidden; }
+}
+
+// ==== COMMON CONTROLS BEGIN ====
+// ---------- camera (common) ----------
+const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
+const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
+let RIM_BASE = RIM.value;
+function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
+  RIM.value = RIM_BASE * Math.min(1, Math.max(0.45, off.length() / 0.22));   // close-ups: less edge darkening
+  key.position.copy(camera.position).add(new THREE.Vector3(0.1, 0.15, 0)); }
+const VIEWS = {
+  anterior: { off:[-0.35,0.25,1],  up:[0,1,0], r:0.36 },
+  lateral:  { off:[-1,0.2,0.15],   up:[0,1,0], r:0.42 },
+  posterior:{ off:[-0.2,0.25,-1],  up:[0,1,0], r:0.36 },
+  superior: { off:[-0.35,1,0.55],  up:[0,1,0], r:0.3 },
+  close:    { off:[-0.55,1,0.5], up:[0,1,0], r:0.2 },
+};
+function setView(name, instant){
+  if (name === 'reset') name = 'anterior';
+  const v = VIEWS[name]; if (!v) return;
+  camGoal.target.set(...(v.target || [0,0,0]));
+  camGoal.off.set(...v.off).normalize().multiplyScalar(v.r);
+  const f = camGoal.target.clone().sub(camGoal.target.clone().add(camGoal.off)).normalize();
+  camGoal.up.set(...v.up); camGoal.up.sub(f.clone().multiplyScalar(camGoal.up.dot(f))).normalize();
+  camGoal.t = instant === false ? 0 : 1;
+  if (camGoal.t >= 1) { off.copy(camGoal.off); up.copy(camGoal.up); target.copy(camGoal.target); applyCam(); }
+}
+function camTick(dt){ if (camGoal.t >= 1) return; camGoal.t = Math.min(1, camGoal.t + dt * 1.6); const s = camGoal.t * camGoal.t * (3 - 2 * camGoal.t);
+  off.lerp(camGoal.off, s); up.lerp(camGoal.up, s).normalize(); target.lerp(camGoal.target, s); applyCam(); }
+(function camLoop(){ let last = performance.now(); (function f(now){ requestAnimationFrame(f); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; last = now; camTick(Math.min(0.05, dt)); })(performance.now()); })();
+function rotate(dx, dy){ camGoal.t = 1;
+  const f = target.clone().sub(camera.position).normalize(), right = new THREE.Vector3().crossVectors(f, up).normalize();
+  const q = new THREE.Quaternion().setFromAxisAngle(up, -dx * 0.007).multiply(new THREE.Quaternion().setFromAxisAngle(right, -dy * 0.007));
+  off.applyQuaternion(q); up.applyQuaternion(q).normalize(); applyCam(); }
+function zoom(f){ camGoal.t = 1; off.setLength(Math.min(2.0, Math.max(0.02, off.length() * f))); applyCam(); }
+function panKeys(dx, dy){ camGoal.t = 1; const k = off.length() * 0.0016;
+  const r = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 0), u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1);
+  target.addScaledVector(r, -dx*k).addScaledVector(u, dy*k); applyCam(); }
+let drag = null, pinch0 = 0; const pointers = new Set(); const touchPts = new Map(); let touchPrev = null;
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); touchPrev = null; } if (typeof onPointerDownExtra === 'function' && onPointerDownExtra(e)) return;
+  pointers.add(e.pointerId); drag = { x:e.clientX, y:e.clientY, b:e.button, shift:e.shiftKey, ctrl:e.ctrlKey || e.metaKey, alt:e.altKey }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; if (typeof onPointerUpExtra === 'function') onPointerUpExtra(e); });
+canvas.addEventListener('pointercancel', e => { touchPts.delete(e.pointerId); touchPrev = null; pointers.delete(e.pointerId); drag = null; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointermove', e => {
+  if (typeof onPointerMoveExtra === 'function' && onPointerMoveExtra(e)) return;
+  if (pointers.size >= 2 && touchPts.size >= 2) {                          // two fingers: pan with the midpoint, pinch to zoom
+    touchPts.set(e.pointerId, { x: e.clientX, y: e.clientY }); const [a, b] = [...touchPts.values()];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, dist = Math.hypot(a.x - b.x, a.y - b.y);
+    if (touchPrev) { panKeys(mid.x - touchPrev.x, mid.y - touchPrev.y); if (touchPrev.d > 0) zoom(touchPrev.d / Math.max(1, dist)); }
+    touchPrev = { x: mid.x, y: mid.y, d: dist }; return; }
+  hover(e); if (!drag || pointers.size > 1) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag.x = e.clientX; drag.y = e.clientY;
+  if (drag.ctrl) { zoom(Math.exp(dy * 0.006)); }
+  else if (drag.alt) { camGoal.t = 1; const f = target.clone().sub(camera.position).normalize(); up.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(f, -dx * 0.006)).normalize(); applyCam(); }
+  else if (drag.b === 2 || drag.b === 1 || drag.shift) { panKeys(dx, dy); }
+  else rotate(dx, dy); });
+canvas.addEventListener('dblclick', e => {
+  ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1; ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible))[0];
+  if (hit) { camGoal.target.copy(hit.point); camGoal.off.copy(off).setLength(Math.max(0.03, off.length() * 0.7)); camGoal.up.copy(up); camGoal.t = 0; } });
+canvas.addEventListener('wheel', e => { e.preventDefault();
+  if (e.shiftKey) { const u = new THREE.Vector3().setFromMatrixColumn(camera.matrix, 1); camGoal.t = 1; target.addScaledVector(u, -e.deltaY * off.length() * 0.0008); applyCam(); }
+  else zoom(Math.exp(e.deltaY * (e.ctrlKey ? 0.0004 : 0.0012))); }, { passive:false });
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const step = e.shiftKey ? 12 : 0;
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); e.shiftKey ? panKeys(-step, 0) : rotate(-18, 0); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); e.shiftKey ? panKeys(step, 0) : rotate(18, 0); }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); e.shiftKey ? panKeys(0, -step) : rotate(0, -18); }
+  if (e.key === 'ArrowDown')  { e.preventDefault(); e.shiftKey ? panKeys(0, step) : rotate(0, 18); }
+  if (e.key === '+' || e.key === '=') zoom(0.85);
+  if (e.key === '-' || e.key === '_') zoom(1 / 0.85);
+  if (e.key === 'Home' || e.key === 'r' || e.key === 'R') setView('reset', false);
+  if (typeof goStage === 'function' && typeof STAGES !== 'undefined') {
+    if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goStage(Math.min(STAGES.length - 1, Math.max(0, stage + 1))); }
+    if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); goStage(Math.max(0, stage - 1)); }
+    if (e.key >= '1' && e.key <= String(STAGES.length)) goStage(+e.key - 1);
+  }
+});
+// ==== COMMON CONTROLS END ====
+canvas.addEventListener('touchstart', e => { if (e.touches.length===2) pinch0 = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); }, {passive:true});
+canvas.addEventListener('touchmove', e => { if (e.touches.length===2){ const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY); zoom(pinch0/d); pinch0 = d; } }, {passive:true});
+
+// ---------- hover ----------
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), tag = document.getElementById('tag');
+let hovered = null;
+function hover(e){
+  ptr.x = (e.clientX / innerWidth) * 2 - 1; ptr.y = -(e.clientY / innerHeight) * 2 + 1;
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes.filter(m => m.visible && m.material.opacity > 0.3))[0];
+  if (hovered && hovered !== (hit && hit.object)) hovered = null;
+  if (hit) {
+    hovered = hit.object;
+    tag.style.display = 'block'; tag.style.left = e.clientX + 'px'; tag.style.top = e.clientY + 'px';
+    tag.innerHTML = (KO[hovered.userData.base] || hovered.userData.base);
+  } else tag.style.display = 'none';
+}
+
+
+// ---------- ui (layers / outline / rim) ----------
+document.querySelectorAll('input[data-layer]').forEach(cb => cb.addEventListener('change', () => { state.layers[cb.dataset.layer] = cb.checked; applyVisibility(); }));
+document.querySelectorAll('button[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+document.getElementById('outline').addEventListener('change', e => { meshes.forEach(m => { if (m.userData.hull) m.userData.hull.visible = e.target.checked; }); });
+document.getElementById('rimshade').addEventListener('change', e => { RIM_BASE = e.target.checked ? +document.getElementById('rimamt').value : 0.0; applyCam(); });
+document.getElementById('rimamt').addEventListener('input', e => { if (document.getElementById('rimshade').checked) { RIM_BASE = +e.target.value; applyCam(); } });
+function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+function scaleBar(){ const d = camera.position.distanceTo(target), px = camera.zoom * (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
+  document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
+
+// ---------- rig: thorax (fixed) · clavicle (about the SC joint) · scapula complex (SC elevation + upward rotation about the AC joint) · humerus (about the head centre = origin) ----------
+const LM = DATA.meta.land, RH = DATA.meta.R_head;
+const AC = V(LM.ac), SC = V(LM.sc), ELB = V(LM.elbow), SN = V(LM.scap_n).normalize();
+const SHAFT = ELB.clone().normalize();                                   // head centre → elbow (distal)
+const scapG = new THREE.Group(); scapG.matrixAutoUpdate = false; scene.add(scapG);
+const clavG = new THREE.Group(); clavG.matrixAutoUpdate = false; scene.add(clavG);
+const humG = new THREE.Group(); scapG.add(humG);
+const SCAP_M = ['bone__scapula', 'lig__labrum', 'lig__ac', 'lig__trapezoid', 'lig__conoid', 'lig__cal', 'bursa__subacromial'];
+const HUM_M = ['bone__humerus', 'bone__ulna', 'bone__radius', 'lig__thl'];
+const reparent = (n, g) => { const m = byName[n]; if (!m) return; scene.remove(m); g.add(m); };
+SCAP_M.forEach(n => reparent(n, scapG)); HUM_M.forEach(n => reparent(n, humG)); reparent('bone__clavicle', clavG);
+// soft tissue between scapula and humerus: CPU blend of the GH rotation per vertex (rotation about the head centre, so nothing sinks into the head)
+const SOFT = meshes.filter(m => m.userData.src.wh);
+const NB = 32;
+for (const m of SOFT) { scene.remove(m); scapG.add(m); const g = m.geometry; m.userData.rest = g.getAttribute('position').array.slice();
+  m.userData.bin = Uint8Array.from(m.userData.src.wh, w => Math.round(w * NB)); }
+const qI = new THREE.Quaternion(), _q = new THREE.Quaternion(), _v = new THREE.Vector3();
+const BINM = Array.from({ length: NB + 1 }, () => new THREE.Matrix3());
+const pose = { E: 0, plane: 'abd', rot: 0, dirty: true };            // E = total elevation (deg), rot = + external / − internal rotation (deg)
+const morphW = { swell: 0, retract: 0, atrophy: 0 };
+let qGH = new THREE.Quaternion(), scapAng = 0;
+function solvePose(){
+  const E = pose.E; scapAng = E > 25 ? Math.min(60, (E - 25) * 0.4) : 0;   // scapulohumeral rhythm ≈ 2:1 after the first 25–30°
+  const gh = E - scapAng;
+  let rot = pose.rot; if (pose.plane === 'abd' && E > 70) rot += Math.min(35, (E - 70) * 0.45);   // the humerus rolls outward so the greater tuberosity clears the acromion
+  const axE = pose.plane === 'abd' ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+  qGH = new THREE.Quaternion().setFromAxisAngle(axE, -THREE.MathUtils.degToRad(gh)).multiply(new THREE.Quaternion().setFromAxisAngle(SHAFT, THREE.MathUtils.degToRad(rot)));
+  humG.quaternion.copy(qGH);
+  // scapula complex: clavicle elevation about SC (¼ of the scapular rotation), upward rotation about the AC joint
+  const Msc = new THREE.Matrix4().makeTranslation(SC.x, SC.y, SC.z).multiply(new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(0, 0, 1), -THREE.MathUtils.degToRad(scapAng * 0.3))).multiply(new THREE.Matrix4().makeTranslation(-SC.x, -SC.y, -SC.z));
+  const Mac = new THREE.Matrix4().makeTranslation(AC.x, AC.y, AC.z).multiply(new THREE.Matrix4().makeRotationAxis(SN, -THREE.MathUtils.degToRad(scapAng))).multiply(new THREE.Matrix4().makeTranslation(-AC.x, -AC.y, -AC.z));
+  clavG.matrix.copy(Msc); scapG.matrix.copy(Msc).multiply(Mac); clavG.matrixWorldNeedsUpdate = scapG.matrixWorldNeedsUpdate = true;
+  for (let b = 0; b <= NB; b++) { _q.copy(qI).slerp(qGH, b / NB); BINM[b].setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(_q)); }
+  for (const m of SOFT) {
+    const rest = m.userData.rest, bin = m.userData.bin, pa = m.geometry.getAttribute('position'), out = pa.array, mo = m.userData.morphs;
+    const ms = mo ? Object.keys(mo).filter(k => morphW[k] > 0.001) : [];
+    for (let i = 0, n = rest.length / 3; i < n; i++) {
+      let x = rest[3*i], y = rest[3*i+1], z = rest[3*i+2];
+      for (const k of ms) { const d = mo[k], w = morphW[k]; x += d[3*i] * w; y += d[3*i+1] * w; z += d[3*i+2] * w; }
+      const e = BINM[bin[i]].elements;
+      out[3*i] = e[0]*x + e[3]*y + e[6]*z; out[3*i+1] = e[1]*x + e[4]*y + e[7]*z; out[3*i+2] = e[2]*x + e[5]*y + e[8]*z;
+    }
+    pa.needsUpdate = true; m.geometry.computeVertexNormals(); m.geometry.boundingSphere = null; m.geometry.boundingBox = null;
+  }
+  pose.dirty = false;
+}
+// a point given in the humerus' rest frame → current world position
+const humToWorld = p => { scene.updateMatrixWorld(); return humG.localToWorld(p.clone()); };
+const scapToWorld = p => { scene.updateMatrixWorld(); return scapG.localToWorld(p.clone()); };
+
+// ---------- pathology of the supraspinatus ----------
+const SSP = byName['muscle__ssp'], SA = SSP.userData.src.attr, SDE = SSP.userData.src.de;
+const sspN = SA.tend.length; const noise = Float32Array.from({ length: sspN }, (_, i) => { const s = Math.sin(i * 12.9898) * 43758.5453; return s - Math.floor(s); });
+const INFL = new THREE.Color(0xd8a07e), FAT = new THREE.Color(0xe6d39a), RAW = new THREE.Color(0xc23a32);
+const sm = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const path = { p: 0, repair: 0, dirty: true };
+function applyPath(){
+  const p = path.p, rep = path.repair;
+  const tend = sm(0, 1, p) * (1 - 0.6 * sm(2, 3, p)), a = sm(1, 2, p), b = sm(2, 3, p), c = sm(3, 4, p) ;
+  morphW.swell = tend; morphW.retract = c * (1 - rep); morphW.atrophy = c;
+  const cut = SSP.geometry.getAttribute('aCut'), ca = cut.array, col = SSP.geometry.getAttribute('color'), cc = col.array, c0 = SSP.userData.col0;
+  const k = 1 - sm(0.2, 0.9, rep);                                       // the repair closes the defect
+  for (let i = 0; i < sspN; i++) {
+    const al = SA.tend[i], art = SA.art[i], ap = SA.ap[i];
+    // partial-thickness tear: drawn on the bursal (upper) side so it can be seen from above; the articular side is the more common one (caption)
+    const fP = a > 0 ? Math.min(-0.0015 + 0.011 * a - al, art - (0.0064 - 0.0026 * a), 0.0035 + 0.0035 * a - Math.abs(ap - 0.001)) : -1;
+    // full-thickness tear: starts at the anterior edge next to the biceps and widens backward; retraction pulls the gap open
+    const fF = b > 0 ? Math.min(-0.006 + 0.016 * b + 0.006 * c - al, ap - (0.009 - 0.024 * b)) : -1;
+    ca[i] = Math.max(fP, fF) * 400 * k;                                  // scaled so the interpolated boundary is crisp
+    // colour: tendinopathy (dull, swollen), raw frayed edge, fatty belly
+    const tn = 1 - sm(0.004, 0.02, SDE[i]);
+    const r = c0[3*i], g = c0[3*i+1], bl = c0[3*i+2]; let cr = r, cg = g, cb = bl;
+    const f1 = tend * tn * 0.75; cr += (INFL.r * 0.9 - cr) * f1; cg += (INFL.g * 0.9 - cg) * f1; cb += (INFL.b * 0.9 - cb) * f1;
+    const edge = Math.max(fP, fF); const fe = (a + b > 0 && edge > -0.003 && edge <= 0) ? 0.8 * (1 - (-edge / 0.003)) * k : 0;
+    cr += (RAW.r - cr) * fe; cg += (RAW.g - cg) * fe; cb += (RAW.b - cb) * fe;
+    const ff = c * sm(0.03, 0.06, al) * (0.35 + 0.65 * noise[i]); cr += (FAT.r - cr) * ff; cg += (FAT.g - cg) * ff; cb += (FAT.b - cb) * ff;
+    cc[3*i] = cr; cc[3*i+1] = cg; cc[3*i+2] = cb;
+  }
+  cut.needsUpdate = true; col.needsUpdate = true;
+  // bare footprint on the greater tuberosity
+  const H = byName['bone__humerus'], hc = H.geometry.getAttribute('color'); if (!H.userData.foot) {
+    const P = H.userData.rest || H.geometry.getAttribute('position').array, F = DATA.meta.foot.ssp.map(V); H.userData.foot = new Float32Array(P.length / 3);
+    for (let i = 0; i < P.length / 3; i++) { let d = 1; for (const f of F) d = Math.min(d, Math.hypot(P[3*i]-f.x, P[3*i+1]-f.y, P[3*i+2]-f.z)); H.userData.foot[i] = 1 - sm(0.002, 0.006, d); } }
+  const fx = H.userData.foot, h0 = H.userData.col0, ex = b * k * 0.7;
+  for (let i = 0; i < fx.length; i++) { const t = fx[i] * ex; hc.array[3*i] = h0[3*i] + (0.78 - h0[3*i]) * t; hc.array[3*i+1] = h0[3*i+1] + (0.42 - h0[3*i+1]) * t; hc.array[3*i+2] = h0[3*i+2] + (0.38 - h0[3*i+2]) * t; }
+  hc.needsUpdate = true; path.dirty = false; pose.dirty = true;
+}
+
+// ---------- props ----------
+const metal = new THREE.MeshStandardMaterial({ color: 0xc9ced6, metalness: 0.75, roughness: 0.28 });
+const peek = new THREE.MeshStandardMaterial({ color: 0xe9e4d6, metalness: 0.0, roughness: 0.5 });
+const suture = new THREE.MeshStandardMaterial({ color: 0x2f62c8, roughness: 0.5 });
+const sutureW = new THREE.MeshStandardMaterial({ color: 0xf2f2f0, roughness: 0.5 });
+// acromial spur: a small hooked spike under the anterior acromion (in the scapula frame)
+const ACRO_ANT = V(LM.acro_ant), ACRO_UNDER = V(LM.acro_under), ACRO_POST = V(LM.acro_post), ACRO_TIP = V(LM.acro_tip);
+const spur = new THREE.Mesh(new THREE.ConeGeometry(0.0042, 0.011, 18), new THREE.MeshStandardMaterial({ color: 0xd8c9a8, roughness: 0.7 }));
+{ const dir = ACRO_ANT.clone().sub(ACRO_UNDER).setY(0).normalize().add(new THREE.Vector3(0, -0.9, 0)).normalize();
+  spur.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir); spur.position.copy(ACRO_ANT).addScaledVector(dir, 0.002).add(new THREE.Vector3(0, -0.002, 0)); spur.userData.p0 = spur.position.clone(); spur.userData.dir = dir; }
+spur.name = 'prop__spur'; spur.userData.base = 'prop__spur'; spur.userData.layer = 'prop'; scapG.add(spur); spur.visible = false;
+// injection: syringe + needle, posterior approach under the posterolateral corner of the acromion
+const inj = new THREE.Group(); scapG.add(inj); inj.visible = false;
+const needle = new THREE.Mesh(new THREE.CylinderGeometry(0.0006, 0.0006, 0.06, 8), metal); needle.position.y = 0.03; inj.add(needle);
+const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.045, 20), new THREE.MeshStandardMaterial({ color: 0xeef3f8, transparent: true, opacity: 0.55, roughness: 0.15 })); barrel.position.y = 0.06 + 0.0225; inj.add(barrel);
+const drug = new THREE.Mesh(new THREE.CylinderGeometry(0.0048, 0.0048, 0.04, 20), new THREE.MeshStandardMaterial({ color: 0x7fc4ff, transparent: true, opacity: 0.8 })); drug.position.y = 0.06 + 0.0225; inj.add(drug);
+const BURSA = byName['bursa__subacromial'], BURSA2 = byName['bursa__subdeltoid'];
+BURSA.geometry.computeBoundingBox(); const BC = BURSA.geometry.boundingBox.getCenter(new THREE.Vector3());
+const INJ_T = BC.clone().add(new THREE.Vector3(-0.016, -0.003, 0.002)), INJ_E = ACRO_POST.clone().add(new THREE.Vector3(-0.009, -0.014, -0.006)); const INJ_D = INJ_T.clone().sub(INJ_E).normalize();
+inj.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), INJ_D);
+const cloud = new THREE.Mesh(new THREE.SphereGeometry(0.012, 24, 16), new THREE.MeshBasicMaterial({ color: 0x5fb0ff, transparent: true, opacity: 0, depthWrite: false })); cloud.scale.set(1.6, 0.45, 1.2); cloud.position.copy(INJ_T); cloud.renderOrder = 7; scapG.add(cloud);
+// surgery: arthroscope + anchors + sutures (humerus frame for the implants)
+const scope = new THREE.Group(); scapG.add(scope); scope.visible = false;
+{ const s = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.12, 14), new THREE.MeshStandardMaterial({ color: 0x3a3d44, metalness: 0.6, roughness: 0.35 })); s.position.y = 0.06; scope.add(s);
+  const tip = new THREE.Mesh(new THREE.SphereGeometry(0.0026, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff6d8 })); scope.add(tip); }
+const shaver = scope.clone(); scapG.add(shaver); shaver.visible = false;
+const FOOT = V(LM.ssp_foot), LINE = V(LM.ssp_line).normalize(), APD = V(LM.ssp_ap).normalize();   // humerus rest frame; LINE = footprint → medial, APD = anterior
+const implants = new THREE.Group(); humG.add(implants);
+function onHead(p, lift){ return p.clone().normalize().multiplyScalar(RH + (lift || 0)); }
+const MED = [onHead(FOOT.clone().addScaledVector(LINE, 0.009).addScaledVector(APD, 0.006)), onHead(FOOT.clone().addScaledVector(LINE, 0.009).addScaledVector(APD, -0.0065))];
+// lateral row: just below the lateral edge of the greater tuberosity, found by casting onto the humerus toward the shaft axis
+const LAT = [];
+function surfaceHit(mesh, from, dir){ const r = new THREE.Raycaster(from, dir.clone().normalize(), 0, 0.08); mesh.updateMatrixWorld(); const h = r.intersectObject(mesh)[0]; return h ? h.point : null; }
+const anchors = [];
+function makeAnchor(p, inward, mat){ const g = new THREE.Group(); const body = new THREE.Mesh(new THREE.CylinderGeometry(0.0026, 0.0017, 0.013, 14), mat); body.position.y = -0.0065; g.add(body);
+  const eye = new THREE.Mesh(new THREE.TorusGeometry(0.0014, 0.0005, 6, 12), mat); eye.position.y = 0.0006; g.add(eye);
+  g.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), inward.clone().negate()); g.userData.p = p.clone(); g.userData.inward = inward.clone(); g.visible = false; implants.add(g); anchors.push(g); return g; }
+const sutures = new THREE.Group(); scapG.add(sutures);
+const knots = new THREE.Group(); scapG.add(knots);
+let sutureBuilt = 0;
+
+// ---------- deltoid & other display state ----------
+const OP = { delt: 1, cuff: 1, muscle: 1, lig: 0.5, bursa: 0.75, bone: 1, ctx: 0.13, prop: 1 };
+const ACT = { muscle__ssp:0, muscle__isp:0, muscle__tm:0, muscle__ssc:0, muscle__delt_a:0, muscle__delt_m:0, muscle__delt_p:0, muscle__lhb:0, muscle__shb:0, muscle__cb:0, muscle__tmaj:0 };
+const MOTION = {
+  flex: { plane:'flex', max:170, name:'앞으로 올리기', act:{ muscle__delt_a:1, muscle__cb:0.7, muscle__shb:0.6, muscle__lhb:0.5, muscle__ssp:0.35, muscle__delt_m:0.3 } },
+  abd:  { plane:'abd',  max:170, name:'옆으로 올리기', act:{ muscle__delt_m:1, muscle__ssp:1, muscle__delt_a:0.4, muscle__delt_p:0.3, muscle__isp:0.3, muscle__tm:0.25, muscle__ssc:0.25 } },
+  er:   { plane:'abd',  max:70,  name:'바깥으로 돌리기', rot:1,  act:{ muscle__isp:1, muscle__tm:1, muscle__delt_p:0.5 } },
+  ir:   { plane:'abd',  max:80,  name:'안쪽으로 돌리기', rot:-1, act:{ muscle__ssc:1, muscle__tmaj:0.7, muscle__delt_a:0.3 } },
+};
+const show = { focus: null, active: null, glowPain: 0, bursitis: 0, painArc: 0 };
+const anim = { E: 0, rot: 0, p: 0, spur: 0, bursitis: 0 };
+const ctl = { mode: null, value: 0, play: false, t: 0 };   // mode: 'motion' | 'deg' | 'arc' | 'drop'
+const slider = document.getElementById('slider'), playBtn = document.getElementById('play');
+slider.addEventListener('input', () => { ctl.value = +slider.value / 100; ctl.play = false; playBtn.textContent = '▶'; });
+playBtn.addEventListener('click', () => { ctl.play = !ctl.play; playBtn.textContent = ctl.play ? '■' : '▶'; });
+const DEG_NAMES = ['정상', '건병증', '부분층 파열', '전층 파열', '퇴축·지방 변성'];
+
+// ---------- stages ----------
+const STAGES = [
+  { name:'구조', subs:[
+    { name:'뼈와 관절', cap:'어깨는 위팔뼈(상완골) 머리가 날개뼈(견갑골)의 얕은 접시(관절와)에 얹힌 관절입니다. 접시가 작아 많이 움직이는 대신, 주변 근육과 힘줄이 붙잡아 줘야 합니다.', set:{ op:{ delt:0, cuff:0, muscle:0, bursa:0, lig:0.45 } }, view:'anterior' },
+    { name:'회전근개', cap:'날개뼈에서 시작해 위팔뼈 머리를 감싸는 네 개의 근육·힘줄입니다. 팔을 돌리고, 움직이는 동안 위팔뼈 머리를 관절에 눌러 붙잡아 줍니다.', set:{ op:{ delt:0, muscle:0.25, bursa:0, lig:0.25 } }, chips:true, view:'close' },
+    { name:'이두근 장두·점액낭', cap:'이두근의 긴 힘줄은 관절 안을 지나 위팔뼈 앞쪽 홈으로 내려갑니다. 견봉 아래에는 힘줄이 부드럽게 미끄러지도록 돕는 점액낭(물주머니)이 있습니다.', set:{ op:{ delt:0.15, cuff:0.45, muscle:1, bursa:0.9, lig:0.3 } }, focus:['muscle__lhb', 'bursa__subacromial', 'bursa__subdeltoid'], view:'anterior' } ] },
+  { name:'움직임', subs:[
+    { name:'앞으로 올리기', motion:'flex', cap:'팔을 앞으로 올릴 때는 삼각근 앞부분이 주로 일하고, 오훼완근·이두근이 돕습니다. 30° 이후에는 날개뼈도 함께 돌아 올라갑니다.', view:'lateral' },
+    { name:'옆으로 올리기', motion:'abd', cap:'옆으로 올리기는 극상근이 시작하고 삼각근 가운데부분이 이어받습니다. 나머지 회전근개는 위팔뼈 머리를 아래로 눌러 미끄러지지 않게 잡아 줍니다.', view:'anterior' },
+    { name:'바깥으로 돌리기', motion:'er', cap:'팔꿈치를 옆구리에 붙이고 바깥으로 돌릴 때는 뒤쪽의 극하근과 소원근이 일합니다.', view:'superior' },
+    { name:'안쪽으로 돌리기', motion:'ir', cap:'안쪽으로 돌릴 때는 앞쪽의 견갑하근이 주로 일하고, 대원근이 돕습니다. (가슴·등의 큰 근육도 함께 일하지만 여기서는 생략했습니다.)', view:'superior' } ] },
+  { name:'퇴행', subs:[
+    { name:'건병증', deg:1, cap:'나이가 들고 반복해서 쓰면 극상근 힘줄이 붓고 탁해집니다(건병증). 아직 찢어지지는 않았지만 팔을 올릴 때 아플 수 있습니다.' },
+    { name:'부분층 파열', deg:2, cap:'힘줄 두께의 일부만 찢어진 상태입니다. 대결절에 붙는 자리 근처에서 생기며, 관절 쪽(아래면)에 더 흔하고 그림처럼 윗면에도 생깁니다.' },
+    { name:'전층 파열', deg:3, cap:'힘줄이 위아래로 완전히 찢어져 뼈가 드러난 상태입니다. 대개 이두근 힘줄 가까운 앞쪽에서 시작해 뒤로 넓어집니다.' },
+    { name:'퇴축·지방 변성', deg:4, cap:'오래되면 찢어진 힘줄 끝이 안쪽으로 끌려 들어가고(퇴축), 쓰지 않는 근육은 가늘어지며 지방으로 바뀝니다. 이렇게 되면 봉합해도 잘 붙지 않아, 적절한 시기의 치료가 중요합니다.' } ],
+    set:{ op:{ delt:0, muscle:0.3, bursa:0.0, lig:0.08, ctx:0.05 } }, view:'close', ctlDeg:true },
+  { name:'증상', subs:[
+    { name:'아픈 구간', arc:true, cap:'팔을 옆으로 올릴 때 60~120° 사이에서 아프고, 그 위로 올라가면 덜 아픈 것이 특징입니다. 이 구간에서 부은 힘줄과 점액낭이 견봉 아래에 끼기 때문입니다.', set:{ op:{ delt:0, muscle:0.3, bursa:0.9, lig:0.2 }, p:1.2 }, view:'anterior' },
+    { name:'밤에 아픔·힘 빠짐', drop:true, cap:'누우면 어깨가 더 아파 잠을 깨기 쉽습니다. 힘줄이 크게 찢어지면 팔을 들어 올리다 힘이 빠져 떨어지기도 합니다.', set:{ op:{ delt:0.15, muscle:0.3, bursa:0.9, lig:0.2 }, p:3.2 }, view:'anterior' } ] },
+  { name:'치료', subs:[
+    { name:'주사', inj:true, cap:'', set:{ op:{ delt:0.12, muscle:0.3, bursa:0.95, lig:0.2 }, p:1.1 }, view:'posterior', action:{ label:'다시 보기' } },
+    { name:'관절경 봉합술', surg:true, cap:'', set:{ op:{ delt:0, muscle:0.3, bursa:0.9, lig:0.15 }, p:3.5, spur:1 }, view:'close', action:{ label:'다시 보기' } },
+    { name:'보조기·재활', rehab:true, cap:'수술 뒤 4~6주는 팔을 몸에서 약간 띄운 보조기를 찹니다. 이후 다른 사람이 움직여 주는 운동, 스스로 움직이는 운동, 근력 운동 순서로 3~6개월에 걸쳐 회복합니다.', set:{ op:{ delt:0.2, muscle:0.4, bursa:0.0, lig:0.2 }, p:0, repaired:1 }, view:'anterior' } ] },
+];
+let stage = -1, sub = -1; const stagesEl = document.getElementById('stages'), chipsEl = document.getElementById('drawerbar'), capEl = document.getElementById('caption');
+STAGES.forEach((S, i) => { const b = document.createElement('button'); b.textContent = `${i+1}. ${S.name}`; b.onclick = () => goStage(i); stagesEl.appendChild(b); });
+const seq = { kind: null, t: 0 };
+function resetProps(){ inj.visible = false; scope.visible = false; shaver.visible = false; cloud.material.opacity = 0; anchors.forEach(a => a.visible = false); clearSutures(); path.repair = 0; brace.visible = false; seq.kind = null; seq.t = 0; }
+function goStage(i, subIdx){
+  stage = i; const S = STAGES[i]; sub = subIdx === undefined ? 0 : subIdx; const SS = S.subs[sub];
+  [...stagesEl.children].forEach((b, k) => b.classList.toggle('on', k === i));
+  const sb = document.getElementById('subbar'); sb.innerHTML = ''; sb.style.display = 'flex';
+  S.subs.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn' + (k === sub ? ' on' : ''); b.textContent = x.name; b.onclick = () => goStage(i, k); sb.appendChild(b); });
+  if (SS.action) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = 'rgba(255,255,255,.5)'; b.textContent = SS.action.label; b.onclick = () => { seq.t = 0; resetSeq(); }; sb.appendChild(b); }
+  resetProps();
+  // display defaults, then stage / sub overrides
+  Object.assign(OP, { delt: 0.22, cuff: 1, muscle: 0.6, lig: 0.45, bursa: 0.75, bone: 1, ctx: 0.13, prop: 1 });
+  for (const s of [S.set, SS.set]) if (s && s.op) Object.assign(OP, s.op);
+  show.focus = SS.focus || null; show.active = null; show.painArc = 0; show.bursitis = 0;
+  path.p = 0; anim.spurGoal = 0;
+  for (const s of [S.set, SS.set]) if (s) { if (s.p !== undefined) path.p = s.p; if (s.spur) anim.spurGoal = 1; }
+  pose.plane = 'abd'; ctl.mode = null; ctl.play = false; ctl.t = 0; ctl.value = 0; pose.E = 0; pose.rot = 0; anim.E = 0; anim.rot = 0; anim.p = path.p;
+  if (SS.motion) { const M = MOTION[SS.motion]; ctl.mode = 'motion'; ctl.motion = SS.motion; pose.plane = M.plane; ctl.play = true; show.active = M.act; }
+  if (S.ctlDeg) { ctl.mode = 'deg'; ctl.value = SS.deg / 4; path.p = SS.deg; anim.spurGoal = SS.deg >= 3 ? 1 : 0; }
+  if (SS.arc) { ctl.mode = 'arc'; pose.plane = 'abd'; ctl.play = true; show.active = { muscle__ssp: 1, muscle__delt_m: 0.4 }; }
+  if (SS.drop) { ctl.mode = 'drop'; pose.plane = 'abd'; ctl.play = true; show.active = { muscle__delt_m: 1, muscle__ssp: 0.3 }; }
+  if (SS.inj) seq.kind = 'inj'; if (SS.surg) seq.kind = 'surg'; if (SS.rehab) seq.kind = 'rehab';
+  if (seq.kind) resetSeq();
+  const C = document.getElementById('ctl'); C.style.display = ctl.mode ? 'flex' : 'none'; playBtn.style.display = ctl.mode === 'deg' ? 'none' : ''; playBtn.textContent = ctl.play ? '■' : '▶';
+  document.getElementById('ctlName').textContent = ctl.mode === 'deg' ? '진행' : '각도';
+  slider.value = Math.round(ctl.value * 100);
+  document.getElementById('arc').style.display = ctl.mode === 'arc' || ctl.mode === 'drop' ? 'block' : 'none';
+  chipsEl.innerHTML = ''; chipsEl.style.display = 'none';
+  if (SS.chips) { chipsEl.style.display = 'flex';
+    [['전체', null], ['극상근', 'muscle__ssp'], ['극하근', 'muscle__isp'], ['소원근', 'muscle__tm'], ['견갑하근', 'muscle__ssc']].forEach(([t, n], k) => { const b = document.createElement('button'); b.textContent = t; b.className = k === 0 ? 'on' : '';
+      b.onclick = () => { show.focus = n ? [n] : null; [...chipsEl.children].forEach(x => x.classList.toggle('on', x === b)); const v = { muscle__isp:'posterior', muscle__tm:'posterior', muscle__ssc:'anterior', muscle__ssp:'superior' }[n]; if (v) setView(v, false); }; chipsEl.appendChild(b); }); }
+  if (S.ctlDeg) { chipsEl.style.display = 'flex'; const b = document.createElement('button'); b.textContent = '견봉 골극'; b.className = anim.spurGoal ? 'on' : ''; b.onclick = () => { anim.spurGoal = anim.spurGoal ? 0 : 1; b.classList.toggle('on', !!anim.spurGoal); }; chipsEl.appendChild(b); }
+  capEl.textContent = SS.cap || '';
+  path.dirty = true; pose.dirty = true;
+  const v = SS.view || S.view; if (v) setView(v, false);
+}
+
+// ---------- sequences: injection / surgery / rehab ----------
+const brace = new THREE.Group(); scene.add(brace); brace.visible = false;
+{ const pil = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.1, 0.13, 6, 8, 8), new THREE.MeshStandardMaterial({ color: 0x3d4452, roughness: 0.9 }));
+  const p = pil.geometry.getAttribute('position'); for (let i = 0; i < p.count; i++) { const v = new THREE.Vector3().fromBufferAttribute(p, i), n = v.clone().multiply(new THREE.Vector3(1 / 0.03, 1 / 0.05, 1 / 0.065)); const k = 1 / Math.max(1, Math.pow(Math.abs(n.x) ** 4 + Math.abs(n.y) ** 4 + Math.abs(n.z) ** 4, 0.25)); p.setXYZ(i, v.x * k, v.y * k, v.z * k); }
+  pil.geometry.computeVertexNormals(); brace.add(pil);
+}
+function clearSutures(){ while (sutures.children.length) { const c = sutures.children[0]; sutures.remove(c); c.geometry.dispose(); } while (knots.children.length) knots.remove(knots.children[0]); sutureBuilt = 0; }
+function resetSeq(){ seq.t = 0; resetPropsLite(); }
+function resetPropsLite(){ inj.visible = false; scope.visible = false; shaver.visible = false; anchors.forEach(a => a.visible = false); clearSutures(); path.repair = 0; cloud.material.opacity = 0;
+  const SS = STAGES[stage].subs[sub]; if (SS.set && SS.set.p !== undefined) path.p = SS.set.p; anim.spur = SS.set && SS.set.spur ? 1 : 0; anim.spurGoal = anim.spur; path.dirty = true; }
+// surface of the (deformed) supraspinatus seen from outside along a radial line from the head centre — for laying sutures on the tendon
+function tendonTop(pHumRest){ scene.updateMatrixWorld(); const w = humG.localToWorld(pHumRest.clone()); const c = scapG.localToWorld(new THREE.Vector3());
+  const dir = w.clone().sub(c).normalize(); const from = c.clone().addScaledVector(dir, 0.06); const r = new THREE.Raycaster(from, dir.clone().negate(), 0, 0.06);
+  const h = r.intersectObject(SSP)[0]; return h ? scapG.worldToLocal(h.point.clone().addScaledVector(dir, 0.0007)) : scapG.worldToLocal(c.clone().addScaledVector(dir, RH + 0.006)); }
+function tube(points, mat, r){ const curve = new THREE.CatmullRomCurve3(points); const m = new THREE.Mesh(new THREE.TubeGeometry(curve, Math.max(8, points.length * 6), r || 0.00045, 6, false), mat); m.renderOrder = 6; sutures.add(m); return m; }
+function buildLateral(){ if (LAT.length) return; const H = byName['bone__humerus']; scene.updateMatrixWorld();
+  for (const s of [1, -1]) { const p = FOOT.clone().addScaledVector(LINE, -0.011).addScaledVector(APD, 0.0075 * s).add(new THREE.Vector3(0, -0.009, 0));
+    const axisPt = SHAFT.clone().multiplyScalar(p.dot(SHAFT)); const inward = axisPt.clone().sub(p).normalize();
+    const hit = surfaceHit(H, humG.localToWorld(p.clone().addScaledVector(inward, -0.03)), humG.localToWorld(p.clone().add(inward)).sub(humG.localToWorld(p.clone())));
+    LAT.push({ p: hit ? humG.worldToLocal(hit.clone()) : p, inward }); } }
+MED.forEach(p => makeAnchor(p, p.clone().normalize().negate(), peek));
+function seqTick(dt){
+  if (!seq.kind) return; seq.t += dt; const t = seq.t, r = (a, b) => Math.max(0, Math.min(1, (t - a) / (b - a)));
+  if (seq.kind === 'inj') {
+    inj.visible = t < 7.5; const nIn = r(0.3, 2.3), push = r(2.8, 4.8);
+    inj.position.copy(INJ_E).addScaledVector(INJ_D, -0.03).lerp(INJ_T, nIn);
+    drug.scale.y = 1 - 0.85 * push; drug.position.y = 0.06 + 0.0225 - 0.02 * 0.85 * push;
+    cloud.material.opacity = 0.55 * push * (1 - 0.6 * r(6, 9)); cloud.scale.set(1.6, 0.45, 1.2).multiplyScalar(0.5 + 0.7 * push);
+    show.bursitis = 1 - r(5.5, 9); path.p = 1.1 - 0.6 * r(6, 9); path.dirty = true;
+    capEl.textContent = t < 2.5 ? '견봉 뒤쪽 모서리 아래로 가는 바늘을 넣습니다. 초음파로 위치를 보면서 넣기도 합니다.' : t < 5 ? '견봉 아래 점액낭에 스테로이드와 국소마취제를 넣어 약이 힘줄 위로 퍼집니다.' : '부은 점액낭과 힘줄의 염증이 가라앉으며 통증이 줄어듭니다. 효과는 대개 몇 주~몇 달이며, 자주 맞으면 힘줄이 약해질 수 있어 횟수를 제한합니다.';
+  }
+  if (seq.kind === 'surg') {
+    const ent = ACRO_POST.clone().add(new THREE.Vector3(-0.004, -0.012, -0.035)), tgt = ACRO_UNDER.clone().add(new THREE.Vector3(-0.012, -0.012, 0.004)); const d = tgt.clone().sub(ent).normalize();
+    scope.visible = t < 16; scope.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), d); scope.position.copy(ent).addScaledVector(d, -0.04 + 0.04 * r(0, 1.5));
+    const ent2 = ACRO_TIP.clone().add(new THREE.Vector3(-0.04, -0.012, 0.004)), d2 = ACRO_ANT.clone().add(new THREE.Vector3(0, -0.006, 0)).sub(ent2).normalize();
+    shaver.visible = t > 1.5 && t < 4.6; shaver.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), d2); shaver.position.copy(ent2).addScaledVector(d2, -0.03 + 0.03 * r(1.5, 2.3) + 0.003 * Math.sin(t * 18));
+    anim.spurGoal = t < 2.3 ? 1 : 0; OP.bursa = 0.9 * (1 - r(2.4, 4.4));
+    anchors.forEach((a, k) => { const t0 = [4.6, 5.3, 10.0, 10.7][k]; const ins = r(t0, t0 + 1); a.visible = t > t0; a.position.copy(a.userData.p).addScaledVector(a.userData.inward, -0.012 * (1 - ins)); });
+    if (t > 6.2 && anchors.length < 4) { buildLateral(); LAT.forEach(L => makeAnchor(L.p, L.inward, peek)); }
+    path.repair = r(6.6, 9.2); path.dirty = true;
+    // medial sutures through the tendon, knots, then the bridge to the lateral row
+    if (t > 7.0 && sutureBuilt < 1) { clearSutures(); sutureBuilt = 1; }
+    if (t > 9.3 && sutureBuilt < 2) { sutureBuilt = 2; pose.dirty = true; solvePose(); scene.updateMatrixWorld();
+      const mk = MED.map(p => tendonTop(p.clone().addScaledVector(p.clone().normalize(), 0.002))); knots.userData.mk = mk;
+      for (const [k, p] of mk.entries()) { const kn = new THREE.Mesh(new THREE.SphereGeometry(0.0016, 10, 8), suture); kn.position.copy(p); knots.add(kn);
+        const a = scapG.worldToLocal(humG.localToWorld(MED[k].clone())); tube([a, a.clone().lerp(p, 0.5), p], suture, 0.0004); } }
+    if (t > 12.4 && sutureBuilt < 3) { sutureBuilt = 3; const mk = knots.userData.mk;
+      for (const [k, m] of mk.entries()) for (const L of LAT) { const la = scapG.worldToLocal(humG.localToWorld(L.p.clone())); const pts = [];
+        for (let j = 0; j <= 10; j++) { const u = j / 10; const q = m.clone().lerp(la, u); pts.push(u < 0.85 ? (() => { const hr = humG.worldToLocal(scapG.localToWorld(q.clone())); return tendonTop(hr); })() : q); }
+        tube(pts, k ? sutureW : suture, 0.00045); } }
+    capEl.textContent = t < 2.3 ? '어깨에 작은 구멍 2~4개를 내고 관절경(내시경 카메라)을 넣어 안을 봅니다.' : t < 4.6 ? '견봉 아래 뼈 돌기와 염증 조직을 깎아 내 힘줄이 지나갈 공간을 넓힙니다(견봉 성형술).' : t < 6.6 ? '힘줄이 붙어 있던 자리(대결절)에 실이 달린 작은 나사(봉합 앵커)를 안쪽 줄로 박습니다.' : t < 9.3 ? '앵커의 실을 찢어진 힘줄에 통과시켜 원래 자리로 끌어옵니다.' : t < 12.4 ? '실을 묶고, 바깥쪽 줄에 앵커를 더 박습니다.' : '실을 바깥 앵커로 넘겨 힘줄을 뼈에 넓게 눌러 고정합니다(이중열 봉합). 힘줄이 뼈에 다시 붙기까지 3개월 이상 걸립니다.';
+    if (t > 18) { seq.t = 18; }
+  }
+  if (seq.kind === 'rehab') {
+    const ph = t % 14; brace.visible = ph < 5;
+    if (ph < 5) { pose.plane = 'abd'; pose.E = 18; pose.rot = 0; capEl.textContent = '수술 뒤 4~6주: 팔을 몸에서 약간 띄운 보조기를 차고 힘줄이 붙도록 쉬게 합니다.'; show.active = null; }
+    else if (ph < 9.5) { pose.plane = 'flex'; pose.E = 60 * (0.5 - 0.5 * Math.cos((ph - 5) / 4.5 * Math.PI * 2)); pose.rot = 0; capEl.textContent = '6주 무렵부터: 반대 팔이나 치료사가 팔을 들어 주는 수동 운동으로 굳지 않게 합니다. 근육은 힘을 쓰지 않습니다.'; show.active = null; }
+    else { pose.plane = 'abd'; pose.E = 0; pose.rot = 35 * (0.5 - 0.5 * Math.cos((ph - 9.5) / 4.5 * Math.PI * 2)); capEl.textContent = '3개월 무렵부터: 고무줄 등으로 회전근개 근력 운동을 합니다. 운동 강도는 의료진과 상의해 정합니다.'; show.active = { muscle__isp: 1, muscle__tm: 1 }; }
+    anim.E = pose.E; anim.rot = pose.rot; pose.dirty = true;
+    { scene.updateMatrixWorld(); const e = humG.localToWorld(ELB.clone().multiplyScalar(0.8)); brace.position.copy(e).add(new THREE.Vector3(0.05, 0.0, 0.015)); }
+  }
+}
+
+// ---------- main loop ----------
+const _c = new THREE.Color(), EMI = new THREE.Color(0x5a0a06), BURSA_RED = new THREE.Color(0xd05a50), BURSA_BLUE = new THREE.Color(0x9fc6e6);
+let last = performance.now();
+(function loop(now){ requestAnimationFrame(loop); now = now || performance.now(); let dt = (now - last) / 1000; if (!(dt >= 0)) dt = 0; dt = Math.min(0.05, dt); last = now;
+  const t = now / 1000, pulse = 0.5 + 0.5 * Math.sin(t * 3.4);
+  // controls → pose / pathology
+  if (ctl.mode === 'motion') { const M = MOTION[ctl.motion];
+    if (ctl.play) { ctl.t += dt; ctl.value = 0.5 - 0.5 * Math.cos(ctl.t / 6 * Math.PI * 2); slider.value = Math.round(ctl.value * 100); }
+    const a = ctl.value * M.max; if (M.rot) { pose.E = 0; pose.rot = a * M.rot; } else { pose.E = a; pose.rot = 0; }
+    document.getElementById('ctlVal').textContent = M.name + ' ' + Math.round(a) + '°'; }
+  if (ctl.mode === 'arc' || ctl.mode === 'drop') {
+    if (ctl.play) { ctl.t += dt;
+      if (ctl.mode === 'arc') ctl.value = 0.5 - 0.5 * Math.cos(ctl.t / 7 * Math.PI * 2);
+      else { const ph = ctl.t % 6; ctl.value = ph < 2.6 ? (70 / 170) * Math.sin(ph / 2.6 * Math.PI / 2) : ph < 3.4 ? (70 / 170) * (1 - Math.pow((ph - 2.6) / 0.8, 2)) : 0; }
+      slider.value = Math.round(ctl.value * 100); }
+    pose.E = ctl.value * 170; pose.rot = 0; const a = pose.E;
+    const inArc = ctl.mode === 'arc' ? sm(50, 65, a) * (1 - sm(115, 130, a)) : 0; show.painArc = inArc;
+    document.getElementById('ctlVal').textContent = '옆으로 ' + Math.round(a) + '°' + (inArc > 0.5 ? ' · 아픈 구간' : '');
+    const rad = THREE.MathUtils.degToRad(a); const arm = document.getElementById('arcArm'); arm.setAttribute('x2', (-40 * Math.sin(rad)).toFixed(1)); arm.setAttribute('y2', (40 * Math.cos(rad)).toFixed(1));
+    document.getElementById('arcTxt').textContent = Math.round(a) + '°'; arm.setAttribute('stroke', inArc > 0.5 ? '#d0453a' : '#f2f2f0'); }
+  if (ctl.mode === 'deg') { const target = ctl.value * 4; path.p += (target - path.p) * Math.min(1, dt * 4); if (Math.abs(target - path.p) > 0.002) path.dirty = true;
+    const k = Math.min(4, Math.round(path.p * 1)); document.getElementById('ctlVal').textContent = DEG_NAMES[Math.min(4, Math.max(0, Math.round(target)))]; }
+  seqTick(dt);
+  if (ctl.mode === 'motion' || ctl.mode === 'arc' || ctl.mode === 'drop' || seq.kind === 'rehab') { if (Math.abs(anim.E - pose.E) > 0.05 || Math.abs(anim.rot - pose.rot) > 0.05) pose.dirty = true; anim.E = pose.E; anim.rot = pose.rot; }
+  if (path.dirty) applyPath();
+  if (pose.dirty) solvePose();
+  // spur
+  anim.spur += ((anim.spurGoal || 0) - anim.spur) * Math.min(1, dt * 3); spur.visible = anim.spur > 0.02 && state.layers.bone; spur.scale.setScalar(Math.max(0.001, anim.spur));
+  // bursa: inflamed with tendinopathy / arc, calmed by the injection
+  const burs = Math.max(show.bursitis, sm(0.3, 1.2, path.p) * (seq.kind === 'surg' ? 0 : 1), show.painArc);
+  for (const B of [BURSA, BURSA2]) { const x = burs * (show.painArc ? 0.6 + 0.4 * pulse : 1); B.material.color.setRGB(1 + 0.35 * x, 1 - 0.5 * x, 1 - 0.55 * x); B.material.emissive.setHex(0x000000).lerp(EMI, x * 0.4); }
+  // muscles: activation glow, focus dimming
+  for (const m of meshes) { const n = m.name, L = m.userData.layer; let op = OP[L] !== undefined ? OP[L] : 1;
+    if (show.focus) { const f = show.focus.includes(n); if (L === 'cuff' || L === 'muscle' || L === 'delt' || L === 'bursa') op = f ? 1 : Math.min(op, L === 'cuff' ? 0.12 : 0.06); }
+    m.material.opacity = op; m.material.transparent = op < 0.99; m.material.depthWrite = op > 0.95; m.userData.hidden = op < 0.02;
+    if (L === 'cuff' || L === 'muscle' || L === 'delt') { const a = show.active ? (show.active[n] || 0) : 0;
+      m.material.emissive.setHex(0x000000).lerp(EMI, a * (0.55 + 0.45 * pulse)); m.material.color.setScalar(show.active ? 0.55 + 0.45 * Math.max(a, 0.0) + (a ? 0 : 0.1) : 1);
+      if (show.active && a > 0.5 && op < 0.6) { m.material.opacity = Math.max(op, 0.7); m.material.transparent = true; m.userData.hidden = false; } }
+    if (n === 'muscle__ssp' && show.painArc > 0) m.material.emissive.lerp(new THREE.Color(0x7a0d06), show.painArc * pulse);
+    if (m === hovered) m.material.emissive.lerp(new THREE.Color(0x3a2f00), 0.8);
+  }
+  applyVisibility();
+})(performance.now());
+// frame on the shoulder: head centre is the origin; aim a little medial and below
+{ const a = document.getElementById('arcPain'); a.setAttribute('d', `M${(-43*Math.sin(Math.PI/3)).toFixed(1)},${(43*Math.cos(Math.PI/3)).toFixed(1)} A43,43 0 0 1 ${(-43*Math.sin(2*Math.PI/3)).toFixed(1)},${(43*Math.cos(2*Math.PI/3)).toFixed(1)}`); }
+for (const k in VIEWS) if (!VIEWS[k].target) VIEWS[k].target = k === 'close' || k === 'superior' ? [0.004, 0.004, 0] : [0.012, -0.03, 0];
+setView('anterior'); goStage(0);
+// keep the model in the free space between the top panel and the bottom bars (smoothly, so caption changes don't jump the view)
+const fit = { y: 0, z: 1, t: 0 };
+function fitTick(now){
+  if (now - fit.t > 200) { fit.t = now; const H = innerHeight, small = innerWidth <= 720 || innerHeight <= 520;
+    let bot = H; for (const id of ['caption', 'ctl', 'drawerbar', 'subbar', 'stages']) { const el = document.getElementById(id); if (!el || getComputedStyle(el).display === 'none' || !el.offsetHeight) continue; bot = Math.min(bot, el.getBoundingClientRect().top); }
+    const pn = document.getElementById('panel'), top = small && pn ? pn.getBoundingClientRect().bottom : 0;
+    const free = Math.max(H * 0.35, bot - top - 12);
+    fit.goalY = (H - bot - top) / 2; fit.goalZ = Math.min(1, free / (H * 0.95)); }
+  if (fit.goalY === undefined) return;
+  fit.y += (fit.goalY - fit.y) * 0.12; fit.z += (fit.goalZ - fit.z) * 0.12;
+  camera.zoom = fit.z; camera.setViewOffset(innerWidth, innerHeight, 0, fit.y, innerWidth, innerHeight); camera.updateProjectionMatrix(); }
+(function loop(now){ requestAnimationFrame(loop); fitTick(now || performance.now()); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+
+// mobile: start with the side panel folded and lift the caption above the control bars
+(function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
+  if (narrow) { const c = document.getElementById('caption'); if (c) c.style.bottom = '96px'; } })();
+</script>
+<script src="../../common/viewer-mobile.js"></script>
+</body>
+</html>
