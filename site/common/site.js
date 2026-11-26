@@ -6,7 +6,8 @@
   const root = (document.body.dataset.root || '.').replace(/\/$/, '');   // 페이지 위치에 따른 상대 경로 접두어
   const page = document.body.dataset.page || '';                          // index | disease
   const brand = SITE.brand || '닥터첫단추';
-  const MARK = `<svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="8.6" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="7.4" cy="10" r="1.3" fill="currentColor"/><circle cx="12.6" cy="10" r="1.3" fill="currentColor"/></svg>`;
+  // 로고: 16칸 픽셀 네 구멍 단추 (favicon.svg와 같은 격자). 24px = 1.5배, 고해상도 화면에서 칸이 또렷.
+  const MARK = `<svg width="24" height="24" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" d="M5 0h6v1h-6zM3 1h10v1h-10zM2 2h12v1h-12zM1 3h14v1h-14zM1 4h14v1h-14zM0 5h5v1h-5zM7 5h2v1h-2zM11 5h5v1h-5zM0 6h5v1h-5zM7 6h2v1h-2zM11 6h5v1h-5zM0 7h16v1h-16zM0 8h16v1h-16zM0 9h5v1h-5zM7 9h2v1h-2zM11 9h5v1h-5zM0 10h5v1h-5zM7 10h2v1h-2zM11 10h5v1h-5zM1 11h14v1h-14zM1 12h14v1h-14zM2 13h12v1h-12zM3 14h10v1h-10zM5 15h6v1h-6z"/></svg>`;
   const isPh = s => typeof s === 'string' && /^\[.*\]$/.test(s.trim());   // "[이름]" 같은 자리표시자
   const txt = s => isPh(s) ? `<span class="ph">${s}</span>` : (s || '');
   const realLinks = (SITE.links || []).filter(l => l.url && !isPh(l.url));
