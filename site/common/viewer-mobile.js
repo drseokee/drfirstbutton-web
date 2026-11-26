@@ -92,3 +92,16 @@
   const end = e => { if (e.touches.length < 2) { a0 = null; on = false; } };
   cv.addEventListener('touchend', end, { passive: true }); cv.addEventListener('touchcancel', end, { passive: true });
 })();
+
+/* 단계(탭)를 넘겨도 보던 구도(각도·확대·위치)를 그대로 유지.  처음 열 때의 구도와 '원래대로'(R)는 그대로 동작합니다. */
+(function () {
+  if (typeof goStage !== 'function' || typeof off === 'undefined' || typeof up === 'undefined' || typeof target === 'undefined' || typeof applyCam !== 'function') return;
+  const orig = goStage;
+  goStage = function () {
+    const o = off.clone(), u = up.clone(), t = target.clone();
+    const r = orig.apply(this, arguments);
+    if (typeof camGoal !== 'undefined') { camGoal.off.copy(o); camGoal.up.copy(u); camGoal.target.copy(t); camGoal.t = 1; }
+    off.copy(o); up.copy(u); target.copy(t); applyCam();
+    return r;
+  };
+})();
