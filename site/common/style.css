@@ -120,6 +120,9 @@ p, ul, ol, dl, dd { margin: 0; }
 
 /* ---- 질환 타일: 같은 크기 이미지 격자 ---- */
 .tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+@media (min-width: 961px) {   /* 남는 칸 없이: 질환 4·8개면 한 줄 4칸, 다른 질환 3개면 한 줄 3칸 */
+  #disease-list:has(> .tile:nth-child(4n):last-child) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .next .tiles:has(> .tile:nth-child(3n):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .tile { position: relative; display: block; aspect-ratio: 4 / 5; overflow: hidden; border-radius: var(--r-stage); background: var(--stage); color: var(--on-stage); isolation: isolate; }
 .tile img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.001); transition: transform 900ms var(--ease); z-index: -1; }
 .tile:hover img { transform: scale(1.04); }
