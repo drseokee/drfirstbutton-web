@@ -127,6 +127,7 @@ p, ul, ol, dl, dd { margin: 0; }
 .tile h3 { font-size: clamp(22px, 2.2vw, 28px); line-height: 1.25; letter-spacing: -0.03em; }
 .tile p { margin-top: 6px; font-size: 14px; color: var(--on-stage-2); }
 .tiles.small .tile { aspect-ratio: 16 / 10; }
+@media (min-width: 761px) { #disease-list.tiles:has(> .tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); } #disease-list.tiles:has(> .tile:nth-child(4):last-child) .tile { aspect-ratio: 16 / 10; } }   /* 질환 4개: 2×2 (외톨이 칸 없이) */
 .soon-line { margin-top: 32px; text-align: center; font-size: 14px; color: var(--ink-3); }
 
 /* ---- index: 소개 ---- */
