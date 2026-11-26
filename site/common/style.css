@@ -128,6 +128,9 @@ p, ul, ol, dl, dd { margin: 0; }
 .tile p { margin-top: 6px; font-size: 14px; color: var(--on-stage-2); }
 .tiles.small .tile { aspect-ratio: 16 / 10; }
 @media (min-width: 761px) { #disease-list.tiles:has(> .tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); } #disease-list.tiles:has(> .tile:nth-child(4):last-child) .tile { aspect-ratio: 16 / 10; } }   /* 질환 4개: 2×2 (외톨이 칸 없이) */
+/* 질환 5개: 넓은 칸 2개 + 세로 칸 3개 (PC) · 첫 칸을 넓게 + 2×2 (태블릿) */
+@media (min-width: 961px) { #disease-list.tiles:has(> .tile:nth-child(5):last-child) { grid-template-columns: repeat(6, minmax(0, 1fr)); } #disease-list.tiles:has(> .tile:nth-child(5):last-child) .tile { grid-column: span 2; } #disease-list.tiles:has(> .tile:nth-child(5):last-child) .tile:nth-child(-n+2) { grid-column: span 3; aspect-ratio: 16 / 10; } }
+@media (min-width: 761px) and (max-width: 960px) { #disease-list.tiles:has(> .tile:nth-child(5):last-child) .tile:first-child { grid-column: span 2; aspect-ratio: 16 / 9; } }
 .soon-line { margin-top: 32px; text-align: center; font-size: 14px; color: var(--ink-3); }
 
 /* ---- index: 소개 ---- */
