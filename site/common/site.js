@@ -10,6 +10,12 @@
   const MARK = `<img class="mark" src="${root}/common/brand/mark-96.jpg" width="32" height="32" alt="">`;
   const isPh = s => typeof s === 'string' && /^\[.*\]$/.test(s.trim());   // "[이름]" 같은 자리표시자
   const txt = s => isPh(s) ? `<span class="ph">${s}</span>` : (s || '');
+  // 채널 아이콘 (단색 · 글자색을 따름): 유튜브 = 재생 버튼, 블로그 = 말풍선 속 b
+  const ICONS = {
+    youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M4.5 4.5h15A3.5 3.5 0 0 1 23 8v8a3.5 3.5 0 0 1-3.5 3.5h-15A3.5 3.5 0 0 1 1 16V8a3.5 3.5 0 0 1 3.5-3.5ZM10 8.5v7l6-3.5-6-3.5Z"/></svg>',
+    blog: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 2.5h14A3.5 3.5 0 0 1 22.5 6v10a3.5 3.5 0 0 1-3.5 3.5h-4.6L12 22.5l-2.4-3H5A3.5 3.5 0 0 1 1.5 16V6A3.5 3.5 0 0 1 5 2.5Zm4 3.5v10.5h3.6a3.6 3.6 0 0 0 0-7.2h-1.4V6H9Zm2.2 5.3v3.2h1.4a1.6 1.6 0 0 0 0-3.2h-1.4Z"/></svg>'
+  };
+  const linkIcon = l => { const k = /유튜브|youtube/i.test(l.label + l.url) ? 'youtube' : /블로그|blog/i.test(l.label + l.url) ? 'blog' : ''; return k ? ICONS[k] : ''; };
   const realLinks = (SITE.links || []).filter(l => l.url && !isPh(l.url));
   const ext = l => `<a href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`;
 
@@ -59,7 +65,7 @@
       <p class="kicker">${P.role || ''} ${txt(P.name)}</p>
       <p class="quote">${txt(P.quote || SITE.tagline || '')}</p>
       ${(P.career || []).length ? `<div class="career">${P.career.map(g => `<ul>${g.map(t => `<li>${t}</li>`).join('')}</ul>`).join('')}</div>` : ''}
-      <p class="links">${(SITE.links || []).map(l => isPh(l.url) ? `<span class="ph">${l.label}</span>` : `<a class="more" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`).join('')}</p>`;
+      <p class="links">${(SITE.links || []).map(l => isPh(l.url) ? `<span class="ph">${l.label}</span>` : `<a class="more ico" href="${l.url}" target="_blank" rel="noopener">${linkIcon(l)}${l.label}</a>`).join('')}</p>`;
   }
 
   // ---------- 유튜브 (index) : data.js의 videos가 있을 때만 영상 목록 ----------
