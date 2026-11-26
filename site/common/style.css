@@ -63,6 +63,7 @@ p, ul, ol, dl, dd { margin: 0; }
 .site-header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; height: var(--header); }
 .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; letter-spacing: -0.02em; }
 .brand svg { flex: none; }
+.brand .mark { flex: none; width: 32px; height: 32px; border-radius: 50%; box-shadow: 0 0 0 1px var(--line); object-fit: cover; }
 .site-nav { display: flex; gap: clamp(16px, 3vw, 36px); font-size: 14px; color: var(--ink-2); }
 .site-nav a { transition: color var(--t-fast) var(--ease); }
 .site-nav a:hover, .site-nav a[aria-current] { color: var(--ink); }
