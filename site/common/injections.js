@@ -12,14 +12,14 @@ window.INJECTIONS = {
       ingredient: "트리암시놀론 등 스테로이드 + 국소마취제",
       role: "염증을 강하게 가라앉힙니다",
       onset: "2~7일 뒤부터, 수주~수개월",
-      count: "보통 1회. 같은 부위는 간격을 두고 1년에 몇 번으로 제한",
+      count: "6개월에 3회 이내가 원칙. 증상에 따라 조절",
       note: "당뇨가 있으면 며칠 혈당이 오를 수 있어요. 이틀은 탕 목욕을 피하고 샤워는 괜찮아요.",
       models: [
         { id: "carpal-tunnel", label: "손목", go: "치료/국소 주사" },
         { id: "knee-oa", label: "무릎", go: "치료/관절 주사" },
         { id: "rotator-cuff", label: "어깨", go: "치료/주사" }
       ],
-      src: [1, 5]
+      src: [1, 5, 9]
     },
     {
       id: "hyaluronic", name: "히알루론산 주사",
@@ -64,7 +64,7 @@ window.INJECTIONS = {
       ingredient: "내 혈액에서 모은 혈소판",
       role: "혈소판의 성장인자로 힘줄·관절 회복을 자극합니다",
       onset: "몇 주 뒤부터, 수개월에 걸쳐",
-      count: "1~3회",
+      count: "1~3회. 부위와 상태에 따라 다름",
       note: "주사 후 며칠은 붓고 뻐근할 수 있어요.",
       src: [7]
     },
@@ -110,5 +110,7 @@ window.INJECTIONS = {
    6. 위와 같음 — 수주~수개월, 대부분 1년 2~3회로 제한, 스테로이드 ± 국소마취제
    7. Cleveland Clinic, PRP Injection (2024.12)  https://my.clevelandclinic.org/health/treatments/platelet-rich-plasma-prp-injection
       — 수주 뒤 효과, 여러 번 필요할 수 있음 (횟수 1~3회는 출처 미확인 초안)
+   9. 원장님 기준 (2026-11-26): 스테로이드 6개월에 3회 이내 원칙, 증상 정도에 따라 조절
+   ※ PRP 횟수·신경 차단술/PN 주의 문구는 원장님이 초안대로 승인 (2026-11-26). 급여/비급여는 화면에 표시하지 않음.
    8. 출처 미확인 — 국소마취제 일반 약리(리도카인 수분 내 작용, 1~2시간 지속)
 */
