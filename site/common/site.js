@@ -34,22 +34,22 @@
       <p>${SITE.attribution || ''} · © ${new Date().getFullYear()} ${brand}</p></div>`;
   document.body.append(footer);
 
-  const pad2 = n => String(n).padStart(2, '0');
   const ready = (SITE.diseases || []).filter(d => d.ready);
 
-  // ---------- 질환 목록 (index) ----------
+  const tile = d => `<a class="tile" href="${root}/disease.html?id=${d.id}">
+      <div class="tile-t"><h3>${d.title}</h3><p>${(d.tags || []).join(' · ')}</p></div>
+      <img src="${root}/diseases/${d.id}/stage.jpg" alt="" loading="lazy" onerror="this.src='${root}/diseases/${d.id}/${d.thumb || 'thumb.jpg'}'"></a>`;
+
+  // ---------- 질환 (index) : 정렬된 이미지 격자 + 준비 중 한 줄 ----------
   const listEl = document.getElementById('disease-list');
   if (listEl) {
-    listEl.innerHTML = (SITE.diseases || []).map((d, i) => d.ready
-      ? `<a class="row" href="${root}/disease.html?id=${d.id}">
-           <span class="num">${pad2(i + 1)}</span>
-           <div><h3>${d.title}</h3><p class="sub">${d.summary}</p></div>
-           <div class="side"><span class="tags">${(d.tags || []).join(' · ')}</span>
-             <img class="thumb" src="${root}/diseases/${d.id}/${d.thumb || 'thumb.jpg'}" alt="" loading="lazy"></div></a>`
-      : `<div class="row soon"><span class="num">${pad2(i + 1)}</span><h3>${d.title}</h3><span class="tags">준비 중</span></div>`).join('');
+    listEl.innerHTML = ready.map(tile).join('');
+    const soon = (SITE.diseases || []).filter(d => !d.ready).map(d => d.title);
+    const soonEl = document.getElementById('disease-soon');
+    if (soonEl) soonEl.textContent = soon.length ? `준비 중 · ${soon.join(' · ')}` : '';
   }
 
-  // ---------- 소개 (index) ----------
+  // ---------- 소개 (index) : 이름 · 한 문장 · 채널 ----------
   const about = document.getElementById('about-body');
   if (about) {
     const P = SITE.person || {};
@@ -57,11 +57,7 @@
     about.innerHTML = `
       <p class="kicker">${P.role || ''} ${txt(P.name)}</p>
       <p class="quote">${txt(P.quote || SITE.tagline || '')}</p>
-      <div class="bio">${(P.bio || []).map(t => `<p>${txt(t)}</p>`).join('')}</div>
-      <dl class="facts">
-        ${(P.facts || []).map(f => `<dt>${f.label}</dt><dd>${txt(f.value)}</dd>`).join('')}
-        <dt>채널</dt><dd>${(SITE.links || []).map(l => isPh(l.url) ? `<span class="ph">${l.label}</span>` : `<a class="u" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`).join(' · ')}</dd>
-      </dl>`;
+      <p class="links">${(SITE.links || []).map(l => isPh(l.url) ? `<span class="ph">${l.label}</span>` : `<a class="more" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`).join('')}</p>`;
   }
 
   // ---------- 유튜브 (index) : data.js의 videos가 있을 때만 영상 목록 ----------
@@ -91,48 +87,31 @@
       const base = `${root}/diseases/${id}`;
       const v3d = `${base}/3d.html`;
       const li = arr => (arr || []).map(x => `<li>${x}</li>`).join('');
+      const row = (h, body) => `<section class="spec"><h2>${h}</h2><div>${body}</div></section>`;
       const secs = [
-        D.symptoms?.length && { id: 's-sym', name: '증상', html: `<h2 class="t-2">이런 증상이 있어요</h2><ol class="nlist">${li(D.symptoms)}</ol>` },
-        D.causes?.length && { id: 's-cause', name: '왜 생기나요', html: `<h2 class="t-2">왜 생기나요</h2><ol class="nlist">${li(D.causes)}</ol>` },
-        D.treatments?.length && { id: 's-tx', name: '치료', html: `<h2 class="t-2">어떻게 치료하나요</h2><ol class="nlist">${li(D.treatments)}</ol>` },
-        D.redFlags?.length && { id: 's-flag', name: '이럴 땐 바로 병원에', html: `<div class="callout"><h2>이럴 땐 미루지 말고 진료를 받으세요</h2><ul>${li(D.redFlags)}</ul></div>` },
-        D.faq?.length && { id: 's-faq', name: '자주 묻는 질문', html: `<h2 class="t-2">자주 묻는 질문</h2><div class="faq">${D.faq.map((f, i) => `<details${i ? '' : ' open'}><summary>${f.q}</summary><p>${f.a}</p></details>`).join('')}</div>` },
+        D.symptoms?.length && row('증상', `<ul class="hl">${li(D.symptoms)}</ul>`),
+        D.causes?.length && row('원인', `<ul class="hl">${li(D.causes)}</ul>`),
+        D.treatments?.length && row('치료', `<ul class="hl">${li(D.treatments)}</ul>`),
+        D.redFlags?.length && row('바로 병원에', `<ul class="hl">${li(D.redFlags)}</ul>`),
+        D.faq?.length && row('질문', `<div class="faq">${D.faq.map(f => `<details><summary>${f.q}</summary><p>${f.a}</p></details>`).join('')}</div>`),
       ].filter(Boolean);
       const others = ready.filter(d => d.id !== id);
-      const tags = meta.tags || (D.category || '').split('·').map(x => x.trim());
 
       dpage.innerHTML = `
         <section class="wrap d-title">
-          <p class="crumb"><a href="${root}/index.html#diseases">질환 3D</a><i aria-hidden="true">/</i>${tags[0] || '정형외과'}</p>
           <h1 class="t-display">${D.title}</h1>
           <p class="t-lead">${D.lead}</p>
-          <dl class="d-meta">
-            <div><dt>부위</dt><dd>${tags[0] || ''}</dd></div>
-            ${tags[1] ? `<div><dt>관련 구조</dt><dd>${tags.slice(1).join(' · ')}</dd></div>` : ''}
-            ${D.stages?.length ? `<div><dt>3D 설명</dt><dd>${D.stages.length}단계</dd></div>` : ''}
-          </dl>
         </section>
         <section class="wrap d-stage">
           <a class="frame" href="${v3d}" aria-label="${D.title} 3D 설명 열기">
             <div class="media"><img src="${base}/${D.stageImage || 'stage.jpg'}" alt="${D.title} 3D 모형" onerror="this.src='${base}/${meta.thumb || 'thumb.jpg'}'">
-              <span class="btn light small">3D로 직접 돌려보기</span></div>
+              <span class="btn light small">3D 보기</span></div>
             ${D.stages?.length ? `<div class="steps">${D.stages.map((n, i) => `<span><b>${i + 1}</b>${n}</span>`).join('')}</div>` : ''}
           </a>
-          ${D.viewerBlurb ? `<p class="note">${D.viewerBlurb}</p>` : ''}
         </section>
-        <div class="wrap d-body">
-          <nav class="toc" aria-label="이 페이지 목차"><p>이 페이지</p>${secs.map(x => `<a href="#${x.id}">${x.name}</a>`).join('')}</nav>
-          <article class="article">${secs.map(x => `<section id="${x.id}">${x.html}</section>`).join('')}</article>
-        </div>
-        ${others.length ? `<section class="next"><div class="wrap"><p class="kicker">다른 질환도 열어 보기</p><div class="grid">
-          ${others.map(o => `<a href="${root}/disease.html?id=${o.id}"><img src="${root}/diseases/${o.id}/${o.thumb || 'thumb.jpg'}" alt="" loading="lazy"><span><b>${o.title}</b><small>${(o.tags || []).join(' · ')}</small></span></a>`).join('')}
-        </div></div></section>` : ''}`;
-
-      // 목차: 지금 읽는 구역 표시
-      const links = [...dpage.querySelectorAll('.toc a')];
-      const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle('on', a.hash === '#' + e.target.id)); }), { rootMargin: '-30% 0px -60% 0px' });
-      dpage.querySelectorAll('.article > section').forEach(x => io.observe(x));
-      reveal(dpage.querySelectorAll('.article > section, .next .grid > a'));
+        <div class="wrap d-body">${secs.join('')}</div>
+        ${others.length ? `<section class="wrap next"><h2 class="t-2">다른 질환</h2><div class="tiles small">${others.map(tile).join('')}</div></section>` : ''}`;
+      reveal(dpage.querySelectorAll('.spec, .next .tile'));
     };
     s.onerror = () => { dpage.innerHTML = `<section class="wrap d-title"><h1 class="t-1">준비 중인 질환입니다</h1><p class="t-lead"><a class="more" href="${root}/index.html#diseases">질환 목록으로</a></p></section>`; };
     document.head.append(s);
@@ -144,5 +123,5 @@
     const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px' });
     nodes.forEach(n => { if (n.getBoundingClientRect().top > innerHeight) { n.classList.add('reveal'); io.observe(n); } });
   }
-  reveal(document.querySelectorAll('.sec-head, .dlist .row, .about > *, .videos > *'));
+  reveal(document.querySelectorAll('.head-c, .tiles .tile, .about > *, .videos > *'));
 })();
