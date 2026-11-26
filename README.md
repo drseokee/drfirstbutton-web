@@ -6,7 +6,7 @@
 - `site/index.html` — 메인 (스크롤 구동 3D 손 + 소개 + 질환 카드)
 - `site/disease.html?id=<질환>` — 질환 페이지 (양식 하나, 내용은 질환 팩에서)
 - `site/common/` — 공통 스타일(style.css)·레이아웃(site.js)·사이트 데이터(data.js)
-- `site/diseases/<질환>/` — 질환 팩: info.js(내용), 3d.html(3D 뷰어), thumb.jpg(썸네일)
+- `site/diseases/<질환>/` — 질환 팩: info.js(내용), 3d.html(3D 뷰어), thumb.jpg(목록 썸네일 5:3), stage.jpg(질환 페이지 큰 그림 2:1, 검은 바탕 렌더)
 - `wrangler.jsonc` — Cloudflare 배포 설정
 
 ## 갱신

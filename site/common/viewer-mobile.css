@@ -1,0 +1,44 @@
+/* ==========================================================================
+   3D 뷰어 — 휴대폰·작은 화면용 배치.  모든 질환 뷰어(3d.html)가 불러 씁니다.
+   PC(넓은 화면)는 건드리지 않습니다.  아래쪽 막대들의 위치는 viewer-mobile.js 가 쌓아 줍니다.
+   ========================================================================== */
+html, body { -webkit-tap-highlight-color: transparent; }
+@media (hover: none) { #hint { display: none !important; } }   /* 마우스 안내는 터치 기기에서 숨김 */
+#stages button, .sub-btn { white-space: nowrap; }               /* "1. 외관"이 글자 단위로 끊기지 않게 */
+@media (hover: none) { #stages button { min-height: 44px; } }   /* 손가락으로 누르기 쉬운 크기 */
+
+@media (max-width: 720px), (max-height: 520px) {
+  /* 위: 설명 패널은 화면 폭에 맞춰 */
+  #panel { top: max(8px, env(safe-area-inset-top)); left: 8px; width: auto; max-width: calc(100vw - 16px); max-height: 52vh;
+    overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 12px; border-radius: 14px; }
+  body:has(#sidebtn) #panel { max-width: calc(100vw - 132px); }
+  #sidebtn { top: max(8px, env(safe-area-inset-top)); right: 8px; min-height: 40px; border-radius: 12px; }
+  #panel details summary { padding: 6px 0; font-size: 13px; }
+  #panel .views button, #panel .seg button { min-height: 40px; }
+  #scale { display: none; }
+
+  /* 아래: 단계 막대·조절 막대·설명 문구를 화면 폭 전체로 (세로 위치는 JS가 정함) */
+  #stages, #subbar, #ctl, #twist, #surg, #drawerbar, #caption, #foot {
+    left: 8px !important; right: 8px !important; transform: none !important; max-width: none !important; width: auto !important; box-sizing: border-box; }
+  #stages { justify-content: flex-start; overflow-x: auto; scrollbar-width: none; padding: 4px; gap: 4px; border-radius: 16px; }
+  #stages::-webkit-scrollbar, #stages .st::-webkit-scrollbar { display: none; }
+  #stages:has(.st) { overflow: hidden; }
+  #stages .st { display: flex; gap: 2px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  #stages button { flex: none; white-space: nowrap; min-height: 44px; padding: 0 12px; font-size: 13.5px; border-radius: 12px; }
+  #stages .nav { width: 44px; height: 44px; flex: none; }
+  #subbar { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  #subbar::-webkit-scrollbar { display: none; }
+  #subbar .sub-btn, .sub-btn { flex: none; white-space: nowrap; min-height: 40px; padding: 0 14px; font-size: 13px; }
+  #ctl, #twist, #surg, #drawerbar { padding: 8px 14px; border-radius: 16px; }
+  #ctl input[type=range], #twist input, #surg input, #drawerbar input { width: auto !important; flex: 1 1 auto; min-width: 0; height: 32px; }
+  #caption { font-size: 13.5px; line-height: 1.5; padding: 10px 14px; text-align: left; max-height: 28vh; overflow-y: auto; border-radius: 14px; }
+  #foot { font-size: 10px; text-align: center; color: var(--dim); pointer-events: none; }
+}
+/* 가로로 눕힌 휴대폰: 아래 막대는 가운데 정렬, 폭 제한 */
+@media (max-height: 520px) and (min-width: 600px) {
+  #stages, #subbar, #ctl, #twist, #surg, #drawerbar, #caption { left: 50% !important; right: auto !important; transform: translateX(-50%) !important; max-width: min(640px, calc(100vw - 16px)) !important; }
+  #stages, #subbar { justify-content: center; }
+  #caption { text-align: center; max-height: 22vh; }
+  #panel { max-width: 260px; max-height: calc(100vh - 16px); }
+  #panel:not(:has(details[open])) { max-width: 240px; }
+}

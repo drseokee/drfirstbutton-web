@@ -2,13 +2,14 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>발목 염좌 — 3D 환자 설명</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
-  :root { --bg0:#1a2130; --bg1:#0d1119; --panel:rgba(16,21,31,.84); --ink:#e8ecf3; --dim:#9aa5b8; --line:rgba(255,255,255,.12); --acc:#f2c94c; }
+  :root { --bg0:#0d0d0f; --bg1:#0d0d0f; --panel:rgba(28,28,31,.84); --ink:#f2f2f0; --dim:#a6a6ab; --line:rgba(255,255,255,.12); --acc:#f2f2f0; }
   * { box-sizing:border-box; }
-  html,body { margin:0; height:100%; background:radial-gradient(120% 90% at 50% 40%, var(--bg0), var(--bg1)); color:var(--ink);
-    font-family:"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
+  html,body { margin:0; height:100%; background:var(--bg1); color:var(--ink);
+    font-family:"Pretendard Variable","Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif; overflow:hidden; }
   #c { position:fixed; inset:0; display:block; touch-action:none; }
   #panel { position:fixed; top:16px; left:16px; width:240px; background:var(--panel); border:1px solid var(--line);
     border-radius:10px; padding:14px; backdrop-filter:blur(8px); font-size:13px; line-height:1.5; }
@@ -18,7 +19,7 @@
   #panel h2 { font-size:12px; font-weight:500; color:var(--dim); margin:12px 0 6px; }
   .seg { display:flex; border:1px solid var(--line); border-radius:8px; overflow:hidden; }
   .seg button { flex:1; background:transparent; color:var(--ink); border:0; padding:7px 0; font:inherit; font-size:13px; cursor:pointer; }
-  .seg button.on { background:var(--acc); color:#1a1400; font-weight:600; }
+  .seg button.on { background:var(--acc); color:#111; font-weight:600; }
   label.row { display:flex; align-items:center; gap:8px; padding:3px 0; cursor:pointer; user-select:none; }
   label.row input[type=checkbox] { accent-color:var(--acc); width:15px; height:15px; margin:0; }
   .sw { width:12px; height:12px; border-radius:3px; flex:none; }
@@ -36,14 +37,14 @@
   #scale { position:fixed; left:16px; bottom:12px; color:var(--dim); font-size:11px; }
   #scale i { display:block; height:0; border-bottom:2px solid var(--dim); margin-bottom:3px; }
   @media (max-width:520px){ #panel{ width:auto; right:16px; font-size:12px; } .views{ grid-template-columns:repeat(3,1fr); } }
-#stages { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 6px; backdrop-filter: blur(8px); }
-#stages button { background: transparent; color: #cfc7b8; border: none; padding: 8px 14px; border-radius: 999px; font-size: 13px; cursor: pointer; }
-#stages button.on { background: #e5b04a; color: #1a1200; font-weight: 700; }
+#stages { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); display: flex; gap: 6px; z-index: 12; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 6px; backdrop-filter: blur(8px); }
+#stages button { background: transparent; color: #a6a6ab; border: none; padding: 8px 14px; border-radius: 999px; font-size: 13px; cursor: pointer; }
+#stages button.on { background: #f2f2f0; color: #111; font-weight: 700; }
 #subbar { position: fixed; left: 50%; bottom: 66px; transform: translateX(-50%); display: none; gap: 6px; z-index: 12; }
-.sub-btn { background: rgba(16,26,44,.85); color: #cfc7b8; border: 1px solid rgba(243,238,228,.16); padding: 7px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
-.sub-btn.on { background: rgba(229,176,74,.22); color: #f3eee4; border-color: #e5b04a; }
-#caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f3eee4; z-index: 12; }
-#twist { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 12; background: rgba(16,26,44,.85); border: 1px solid rgba(243,238,228,.12); border-radius: 999px; padding: 8px 16px; display: none; gap: 10px; align-items: center; font-size: 12.5px; color: #cfc7b8; }
+.sub-btn { background: rgba(28,28,31,.84); color: #a6a6ab; border: 1px solid rgba(255,255,255,.16); padding: 7px 12px; border-radius: 999px; font-size: 12.5px; cursor: pointer; }
+.sub-btn.on { background: rgba(255,255,255,.14); color: #f2f2f0; border-color: #f2f2f0; }
+#caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f2f2f0; z-index: 12; }
+#twist { position: fixed; left: 50%; bottom: 110px; transform: translateX(-50%); z-index: 12; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 999px; padding: 8px 16px; display: none; gap: 10px; align-items: center; font-size: 12.5px; color: #a6a6ab; }
 #twist input { width: 260px; }
 #twist { padding-bottom: 22px; }
 
@@ -61,12 +62,13 @@
   #twist input, #surg input, #ctl input[type=range] { width: 42vw; }
 }
 </style>
+<link rel="stylesheet" href="../../common/viewer-mobile.css">
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="caption"></div>
 <div id="subbar"></div>
-<div id="twist"><span>발목 꺾기</span><div style="position:relative;display:inline-block"><input id="twistRange" type="range" min="0" max="100" value="0"><div id="ticks" style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#cfc7b8;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:40%;transform:translateX(-50%)">1도</span><span style="position:absolute;left:65%;transform:translateX(-50%)">2도</span><span style="position:absolute;left:85%;transform:translateX(-50%)">3도</span></div></div><button class="sub-btn" id="twistPlay">▶ 재생</button></div>
+<div id="twist"><span>발목 꺾기</span><div style="position:relative;display:inline-block"><input id="twistRange" type="range" min="0" max="100" value="0"><div id="ticks" style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#a6a6ab;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:40%;transform:translateX(-50%)">1도</span><span style="position:absolute;left:65%;transform:translateX(-50%)">2도</span><span style="position:absolute;left:85%;transform:translateX(-50%)">3도</span></div></div><button class="sub-btn" id="twistPlay">▶ 재생</button></div>
 <div id="stages"></div>
 <div id="panel">
   <h1>발목 염좌</h1>
@@ -583,7 +585,7 @@ function goStage(i, subIdx){
   if (S.subs) { sb.style.display = 'flex'; if (subIdx === undefined) subIdx = 0; sub = subIdx; applySet(S.subs[sub].set);
     S.subs.forEach((x, k) => { const b = document.createElement('button'); b.className = 'sub-btn' + (k === sub ? ' on' : ''); b.textContent = x.name; b.onclick = () => goStage(i, k); sb.appendChild(b); });
     const act = S.subs[sub].action;
-    if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = '#e5b04a'; b.textContent = act.label;
+    if (act) { const b = document.createElement('button'); b.className = 'sub-btn'; b.style.marginLeft = '14px'; b.style.borderColor = 'rgba(255,255,255,.5)'; b.textContent = act.label;
       b.onclick = () => { act.run(); b.textContent = act.on; b.classList.add('on'); b.disabled = true; }; sb.appendChild(b); }
     surg.active = false; if (S.subs[sub].chronic) { surg.active = true; surg.t = 0; surg.hold = true; } }
   else sb.style.display = 'none';
@@ -625,5 +627,6 @@ applyVisibility(); setView('lateral', true); goStage(0);
 (function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
   if (narrow) { const c = document.getElementById('caption'); if (c) c.style.bottom = '96px'; } })();
 </script>
+<script src="../../common/viewer-mobile.js"></script>
 </body>
 </html>

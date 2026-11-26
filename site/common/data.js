@@ -11,8 +11,17 @@ window.SITE = {
       "[소개문 2 — 예: 환자가 자기 몸에서 무슨 일이 일어나는지 이해할 때 치료가 쉬워진다고 믿습니다.]",
       "[소개문 3 — 예: 그래서 진료실에서 쓰는 3D 설명 자료를 직접 만들어 공유합니다.]"
     ],
+    quote: "[한 문장 — 예: 설명을 이해한 환자는 치료를 끝까지 합니다.]",   // 소개 맨 위 큰 글씨
+    facts: [
+      { label: "전문 분야", value: "[예: 손·손목, 무릎]" },
+      { label: "진료", value: "[병원 이름]" }
+    ],
     photo: ""          // 예: "common/profile.jpg" (없으면 비워 두기)
   },
+  // ---- 유튜브 영상 (메인 아래쪽에 최대 3개). id = 주소 watch?v= 뒤의 글자. 비워 두면 영상 구역이 숨겨집니다 ----
+  videos: [
+    // { id: "xxxxxxxxxxx", title: "손목이 저린 이유", meta: "2026.11 · 8분" }
+  ],
   links: [
     { label: "블로그", url: "https://blog.naver.com/drfirstbutton" },
     { label: "유튜브", url: "[유튜브 주소]" }
@@ -22,6 +31,7 @@ window.SITE = {
     { id: "carpal-tunnel", ready: true, title: "손목터널증후군", summary: "손이 저리고 아픈 이유를 손목 안에서 직접 봅니다.", tags: ["손·손목", "신경"], thumb: "thumb.jpg" },
     { id: "ankle-sprain", ready: true, title: "발목 염좌", summary: "발을 삐었을 때 바깥쪽 인대에 무슨 일이 생기는지 직접 꺾어 봅니다.", tags: ["발·발목", "인대"], thumb: "thumb.jpg" },
     { id: "knee-oa", ready: true, title: "무릎 골관절염", summary: "연골이 닳아 뼈끼리 닿기까지, 무릎 안에서 무슨 일이 생기는지 봅니다.", tags: ["무릎", "연골"], thumb: "thumb.jpg" },
+    { id: "compression-fracture", ready: false, title: "요추 압박골절", summary: "" },
     { id: "trigger-finger", ready: false, title: "방아쇠수지", summary: "손가락이 걸리고 튕기는 이유" },
     { id: "distal-radius-fracture", ready: false, title: "손목 골절과 뼈가 붙는 과정", summary: "골절 → 고정 → 골유합" }
   ],
