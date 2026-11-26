@@ -42,3 +42,36 @@ html, body { -webkit-tap-highlight-color: transparent; }
   #panel { max-width: 260px; max-height: calc(100vh - 16px); }
   #panel:not(:has(details[open])) { max-width: 240px; }
 }
+
+/* ==========================================================================
+   미니멀 (모든 기기): 왼쪽 설정 창은 처음에 접힌 작은 막대(아이콘 + 이름)로,
+   마우스 안내·부제는 숨김. 펼치면 전과 같은 설정이 나옵니다. (viewer-mobile.js 가 접어 둡니다)
+   ========================================================================== */
+#hint { display: none !important; }
+#panel { transition: width .2s ease; }
+#panel:not(:has(details[open])) {
+  width: auto !important; right: auto !important; max-width: calc(100vw - 16px); padding: 0 14px 0 4px !important; min-height: 40px; max-height: none;
+  display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 2px; border-radius: 999px !important; overflow: visible; }
+#panel:not(:has(details[open])) > :not(h1):not(details) { display: none !important; }
+#panel:not(:has(details[open])) h1 { margin: 0 !important; font-size: 13.5px !important; font-weight: 600; white-space: nowrap; letter-spacing: -0.01em; }
+#panel:not(:has(details[open])) details { margin: 0; }
+#panel details > summary { list-style: none; }
+#panel details > summary::-webkit-details-marker { display: none; }
+#panel:not(:has(details[open])) details > summary {
+  width: 36px; height: 36px; margin: 0 !important; padding: 0 !important; font-size: 0 !important; color: transparent; display: grid; place-items: center; border-radius: 999px; }
+#panel details > summary::before {
+  content: ""; width: 18px; height: 18px; background: var(--ink, #f2f2f0); opacity: .9;
+  -webkit-mask: var(--vm-ic) center / contain no-repeat; mask: var(--vm-ic) center / contain no-repeat; }
+#panel { --vm-ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M4 7h10M18 7h2M4 17h4M12 17h8'/%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='10' cy='17' r='2'/%3E%3C/svg%3E"); }
+#panel details[open] > summary { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+#panel details[open] > summary::before { width: 14px; height: 14px; --vm-ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E"); }
+#panel:not(:has(details[open])):hover { background: rgba(40,40,44,.9); }
+#panel:not(:has(details[open])) { cursor: pointer; }
+
+/* 설명 문구: 첫 문장만, 누르면 전체 (viewer-mobile.js) */
+#caption.vm-short { cursor: pointer; }
+#caption.vm-short::after { content: " +"; color: var(--dim, #a6a6ab); font-weight: 600; }
+#caption.vm-full { cursor: pointer; }
+
+/* 출처는 작게 */
+#foot { opacity: .6; }

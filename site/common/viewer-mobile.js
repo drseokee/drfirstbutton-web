@@ -32,3 +32,41 @@
   if (matchMedia('(hover: none)').matches && innerWidth < 1100) document.querySelectorAll('#panel details[open]').forEach(d => d.removeAttribute('open'));
   schedule(); setTimeout(schedule, 500);
 })();
+
+/* 미니멀 (모든 기기)
+   1) 왼쪽 설정 창은 항상 접힌 채로 시작 — 막대 아무 곳이나 누르면 펼쳐짐
+   2) 설명 문구는 첫 문장만 — 누르면 전체, 다시 누르면 접힘
+   3) 버튼 글자의 이모지는 뺌 */
+(function () {
+  const panel = document.getElementById('panel');
+  const fold = () => document.querySelectorAll('#panel details[open]').forEach(d => d.removeAttribute('open'));
+  fold(); setTimeout(fold, 0); addEventListener('load', () => setTimeout(fold, 0));
+  if (panel) panel.addEventListener('click', e => {
+    const d = panel.querySelector('details');
+    if (d && !d.open && !e.target.closest('summary')) { d.open = true; e.preventDefault(); }
+  });
+
+  const cap = document.getElementById('caption');
+  if (cap) {
+    let full = '', shown = null, expanded = false;
+    const first = s => { const m = s.match(/^[\s\S]*?[.!?。](?=\s|$)/); return m && m[0].length < s.trim().length ? m[0].trim() : null; };
+    const render = () => {
+      const short = expanded ? null : first(full); shown = short || full;
+      if (cap.textContent !== shown) cap.textContent = shown;
+      cap.classList.toggle('vm-short', !!short); cap.classList.toggle('vm-full', expanded && !!first(full));
+    };
+    new MutationObserver(() => {
+      const t = cap.textContent; if (t === shown) return;
+      if (t !== full) { full = t; expanded = false; }
+      render();
+    }).observe(cap, { childList: true, characterData: true, subtree: true });
+    cap.addEventListener('click', () => { if (!first(full)) return; expanded = !expanded; render(); });
+    full = cap.textContent; render();
+  }
+
+  const EMO = /[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B50}\u{FE0F}]\s*/gu;
+  const clean = () => document.querySelectorAll('button').forEach(b => b.childNodes.forEach(n => { if (n.nodeType === 3) { const s = n.data.replace(EMO, ''); if (s !== n.data) n.data = s; } }));
+  let q = false; clean();
+  new MutationObserver(() => { if (!q) { q = true; requestAnimationFrame(() => { q = false; clean(); }); } })
+    .observe(document.body, { childList: true, subtree: true, characterData: true });
+})();
