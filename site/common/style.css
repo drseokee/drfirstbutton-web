@@ -41,7 +41,7 @@ body {
   word-break: keep-all; overflow-wrap: break-word;
   -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
 }
-a { color: inherit; text-decoration: none; }
+a { color: inherit; text-decoration: none; -webkit-tap-highlight-color: transparent; }
 img { max-width: 100%; display: block; }
 h1, h2, h3 { margin: 0; font-weight: 700; }
 p, ul, ol, dl, dd { margin: 0; }
@@ -229,6 +229,11 @@ p, ul, ol, dl, dd { margin: 0; }
   .dlist .row.soon { grid-template-columns: 36px minmax(0, 1fr) auto; }
   .d-stage .media { aspect-ratio: 4 / 3; }
   .toc { display: none; }
+  .portrait { aspect-ratio: 1 / 1; max-height: 360px; }
+  .about { gap: 32px; }
+  .facts { grid-template-columns: 96px 1fr; }
+  .faq summary, .nlist li { font-size: 17px; }
+  .site-nav a { padding: 12px 0; }
   .steps { display: flex; overflow-x: auto; scrollbar-width: none; }
   .steps span { flex: none; padding: 14px 18px; white-space: nowrap; }
 }

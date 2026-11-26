@@ -47,7 +47,7 @@
 site/
   index.html          메인(스크롤 구동 3D 손 + 소개 + 질환 카드)
   disease.html?id=X   질환 페이지 양식
-  common/style.css · site.js · data.js(이름·소개·링크·질환 목록) · hero-model.js
+  common/style.css · site.js · data.js(이름·소개·링크·질환 목록) · hero-model.js · viewer-mobile.css/js(3D 뷰어 화면 크기별 배치: 휴대폰·태블릿·PC)
   diseases/<id>/info.js · 3d.html · thumb.jpg · stage.jpg     ← 질환 팩
 wrangler.jsonc        Cloudflare: assets.directory = ./site
 pipeline/             제작 스크립트·뷰어 템플릿·팩 데이터(JSON)
@@ -71,6 +71,6 @@ docs/                 이 핸드북
 7. 사이트 팩 등록(`diseases/<id>/`), `data.js`에 한 줄, 관통 검사 통과 확인, push → 자동 배포 → 주소 확인.
 
 ## 10. 뷰어 공통 규칙 (강제)
-- 모든 뷰어(확인용 포함)는 `pipeline/common/common_ui.py`의 `apply_common(template, reset_view)`를 통과한 뒤에만 배포·전달한다. 이 모듈이 조작(Alt 기울이기·Ctrl 확대·두 손가락 이동·더블클릭 중심·키보드), 접히는 패널+조작 설명, 조명, 모바일 레이아웃을 심는다.
+- 모든 뷰어(확인용 포함)는 `pipeline/common/common_ui.py`의 `apply_common(template, reset_view)`를 통과한 뒤에만 배포·전달한다. 이 모듈이 조작(Alt 기울이기·Ctrl 확대·두 손가락 이동·더블클릭 중심·키보드), 접히는 패널+조작 설명, 조명, 모바일 레이아웃을 심는다. 모든 뷰어 템플릿은 `../../common/viewer-mobile.css`·`viewer-mobile.js`를 불러 아래쪽 막대(단계·슬라이더·설명)를 겹치지 않게 쌓는다.
 - 새 팩의 확인용 뷰어를 만들 때: `python common_ui.py <템플릿> <템플릿> <기본시점>` 을 실행하고, 결과 HTML에 `COMMON CONTROLS BEGIN`과 `<details>`가 있는지 확인한 뒤 전달한다. 빠져 있으면 전달하지 않는다.
 - 셰이더(onBeforeCompile)는 오브젝트 루프 밖에서 `o`를 참조하면 안 된다(브라우저에서만 터지는 오류). 새 재질을 추가하면 `customProgramCacheKey`를 다르게 준다.

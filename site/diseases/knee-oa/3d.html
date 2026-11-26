@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>무릎 관절염 — 3D 환자 설명</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
@@ -63,6 +63,7 @@
 #caption { position: fixed; left: 50%; bottom: 112px; transform: translateX(-50%); max-width: 640px; text-align: center; background: rgba(28,28,31,.84); border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 12px 18px; font-size: 14.5px; line-height: 1.55; color: #f2f2f0; z-index: 12; }
 #ctl { bottom: 110px !important; }
 </style>
+<link rel="stylesheet" href="../../common/viewer-mobile.css">
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -683,5 +684,6 @@ applyVisibility(); setView('anterior');
 (function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
   if (narrow) { const c = document.getElementById('caption'); if (c) c.style.bottom = '96px'; } })();
 </script>
+<script src="../../common/viewer-mobile.js"></script>
 </body>
 </html>
