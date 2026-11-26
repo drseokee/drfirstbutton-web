@@ -196,6 +196,16 @@ acv = verts(B["lig__ac"]); AC = sum(acv, Vector()) / len(acv)
 cv = verts(B["bone__clavicle"]); SC = max(cv, key=lambda v: v.x)           # most medial clavicle point
 SC = sum([v for v in cv if v.x > SC.x - 0.012], Vector()) / len([v for v in cv if v.x > SC.x - 0.012])
 print("scap normal", SN, "AC", AC - C, "SC", SC - C)
+# fibre attachments for the line-of-action deformation in the viewer: per muscle, sub-sampled origin / insertion patches + each vertex's nearest point on each
+FIB = {}
+for k in MUS:
+    if k in ("lhb", "shb", "cb"): continue
+    o = PATCH.get((k, "or")) or [v.co for v in B["bone__scapula"].verts]
+    e = PATCH.get((k, "er")) or [v.co for v in B["bone__humerus"].verts if v.co.z < C.z - 0.03]
+    o = o[::max(1, len(o) // 220)]; e = e[::max(1, len(e) // 220)]
+    ko_, ke_ = kd(o), kd(e); bm = B["muscle__" + k]
+    FIB["muscle__" + k] = {"po": [round(c, 5) for p in o for c in (p - C)], "pi": [round(c, 5) for p in e for c in (p - C)],
+                           "oi": [ko_.find(v.co)[1] for v in bm.verts], "ii": [ke_.find(v.co)[1] for v in bm.verts]}
 # ---------- export ----------
 LAYER = lambda k: k.split("__")[0]
 out = []
@@ -206,6 +216,7 @@ for k, bm in B.items():
     if k in MORPH: o["morphs"] = {mk: [round(x, 5) for x in mv] for mk, mv in MORPH[k].items()}
     if k == "muscle__ssp": o["attr"] = attr
     if k in DE: o["de"] = DE[k]
+    if k in FIB: o["fib"] = FIB[k]
     out.append(o)
 rel = lambda p: [round(c, 5) for c in (p - C)]
 meta = {"attribution": zana.ATTR, "frame": "Z-Anatomy axes (right=-x, anterior=-y, up=+z), origin = humeral head centre", "R_head": round(R_HEAD, 5),
