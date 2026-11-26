@@ -58,6 +58,7 @@
     about.innerHTML = `
       <p class="kicker">${P.role || ''} ${txt(P.name)}</p>
       <p class="quote">${txt(P.quote || SITE.tagline || '')}</p>
+      ${(P.career || []).length ? `<div class="career">${P.career.map(g => `<ul>${g.map(t => `<li>${t}</li>`).join('')}</ul>`).join('')}</div>` : ''}
       <p class="links">${(SITE.links || []).map(l => isPh(l.url) ? `<span class="ph">${l.label}</span>` : `<a class="more" href="${l.url}" target="_blank" rel="noopener">${l.label}</a>`).join('')}</p>`;
   }
 
