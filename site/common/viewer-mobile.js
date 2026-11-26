@@ -70,3 +70,25 @@
   new MutationObserver(() => { if (!q) { q = true; requestAnimationFrame(() => { q = false; clean(); }); } })
     .observe(document.body, { childList: true, subtree: true, characterData: true });
 })();
+
+/* 두 손가락 비틀기(검지·중지를 돌리기) → 화면 회전.  기존 두 손가락 이동·확대와 함께 동작합니다.
+   살짝 벌리거나 오므릴 때 화면이 돌지 않도록 처음 약 7°까지는 무시합니다. */
+(function () {
+  const cv = document.getElementById('c');
+  if (!cv || typeof THREE === 'undefined') return;
+  const ok = () => typeof up !== 'undefined' && typeof camera !== 'undefined' && typeof target !== 'undefined' && typeof applyCam === 'function';
+  const ang = t => Math.atan2(t[1].clientY - t[0].clientY, t[1].clientX - t[0].clientX);
+  let a0 = null, acc = 0, on = false;
+  const wrap = d => (d > Math.PI ? d - 2 * Math.PI : d < -Math.PI ? d + 2 * Math.PI : d);
+  cv.addEventListener('touchstart', e => { if (e.touches.length === 2) { a0 = ang(e.touches); acc = 0; on = false; } else a0 = null; }, { passive: true });
+  cv.addEventListener('touchmove', e => {
+    if (e.touches.length !== 2 || a0 === null || !ok()) return;
+    const a = ang(e.touches), d = wrap(a - a0); a0 = a;
+    if (!on) { acc += d; if (Math.abs(acc) < 0.12) return; on = true; }
+    if (typeof camGoal !== 'undefined') camGoal.t = 1;
+    const f = target.clone().sub(camera.position).normalize();
+    up.applyQuaternion(new THREE.Quaternion().setFromAxisAngle(f, -d)).normalize(); applyCam();   // 손가락을 시계 방향으로 돌리면 모형도 시계 방향
+  }, { passive: true });
+  const end = e => { if (e.touches.length < 2) { a0 = null; on = false; } };
+  cv.addEventListener('touchend', end, { passive: true }); cv.addEventListener('touchcancel', end, { passive: true });
+})();
