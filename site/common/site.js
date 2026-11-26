@@ -10,10 +10,10 @@
   const MARK = `<img class="mark" src="${root}/common/brand/mark-96.jpg" width="32" height="32" alt="">`;
   const isPh = s => typeof s === 'string' && /^\[.*\]$/.test(s.trim());   // "[이름]" 같은 자리표시자
   const txt = s => isPh(s) ? `<span class="ph">${s}</span>` : (s || '');
-  // 채널 아이콘 (단색 · 글자색을 따름): 유튜브 = 재생 버튼, 블로그 = 말풍선 속 b
+  // 채널 아이콘 (브랜드 색): 유튜브 = 빨간 바탕 흰 재생 버튼, 네이버 블로그 = 초록 말풍선 흰 b
   const ICONS = {
-    youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M4.5 4.5h15A3.5 3.5 0 0 1 23 8v8a3.5 3.5 0 0 1-3.5 3.5h-15A3.5 3.5 0 0 1 1 16V8a3.5 3.5 0 0 1 3.5-3.5ZM10 8.5v7l6-3.5-6-3.5Z"/></svg>',
-    blog: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M5 2.5h14A3.5 3.5 0 0 1 22.5 6v10a3.5 3.5 0 0 1-3.5 3.5h-4.6L12 22.5l-2.4-3H5A3.5 3.5 0 0 1 1.5 16V6A3.5 3.5 0 0 1 5 2.5Zm4 3.5v10.5h3.6a3.6 3.6 0 0 0 0-7.2h-1.4V6H9Zm2.2 5.3v3.2h1.4a1.6 1.6 0 0 0 0-3.2h-1.4Z"/></svg>'
+    youtube: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#FF0000" d="M4.5 4.5h15A3.5 3.5 0 0 1 23 8v8a3.5 3.5 0 0 1-3.5 3.5h-15A3.5 3.5 0 0 1 1 16V8a3.5 3.5 0 0 1 3.5-3.5Z"/><path fill="#fff" d="M10 8.5v7l6-3.5-6-3.5Z"/></svg>',
+    blog: '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#03C75A" d="M5 2.5h14A3.5 3.5 0 0 1 22.5 6v10a3.5 3.5 0 0 1-3.5 3.5h-4.6L12 22.5l-2.4-3H5A3.5 3.5 0 0 1 1.5 16V6A3.5 3.5 0 0 1 5 2.5Z"/><path fill="#fff" fill-rule="evenodd" d="M9 6v10.5h3.6a3.6 3.6 0 0 0 0-7.2h-1.4V6H9Zm2.2 5.3v3.2h1.4a1.6 1.6 0 0 0 0-3.2h-1.4Z"/></svg>'
   };
   const linkIcon = l => { const k = /유튜브|youtube/i.test(l.label + l.url) ? 'youtube' : /블로그|blog/i.test(l.label + l.url) ? 'blog' : ''; return k ? ICONS[k] : ''; };
   const realLinks = (SITE.links || []).filter(l => l.url && !isPh(l.url));
