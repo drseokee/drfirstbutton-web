@@ -351,7 +351,7 @@ const BINM = Array.from({ length: NB + 1 }, () => new THREE.Matrix3());
 // Each vertex keeps its place along the fibre (as a fraction of its length) and its offset across it: fibres stay straight and only lengthen or
 // shorten, and the belly thickens when it shortens (volume ≈ cross-section × length), thins when it is stretched. The rest pose is reproduced exactly.
 const WRAP_R = { muscle__ssp: RH + 0.002, muscle__isp: RH + 0.002, muscle__tm: RH + 0.002, muscle__ssc: RH + 0.002,
-                 muscle__delt_a: RH + 0.014, muscle__delt_m: RH + 0.014, muscle__delt_p: RH + 0.014, muscle__tmaj: 0 };
+                 muscle__delt_a: RH + 0.006, muscle__delt_m: RH + 0.006, muscle__delt_p: RH + 0.006, muscle__tmaj: 0 };
 const FS = 14;                                    // samples per fibre (polyline; positions along it go by arc length)
 const FB = { ax:0, ay:0, az:0, bx:0, by:0, bz:0, r:0, m:0, hx:0, hy:0, hz:0 };
 const EV = { x:0, y:0, z:0 };
@@ -372,7 +372,14 @@ function fibArc(ua){                              // point + tangent at arc-leng
   const s = Math.min(1, Math.max(0, ua)) * CL[FS]; let k = 0; while (k < FS - 1 && CL[k + 1] < s) k++;
   const sl = Math.max(1e-12, CL[k + 1] - CL[k]), t = Math.min(1, Math.max(0, (s - CL[k]) / sl));
   const ax = PL[3*k], ay = PL[3*k+1], az = PL[3*k+2], dx = PL[3*k+3] - ax, dy = PL[3*k+4] - ay, dz = PL[3*k+5] - az;
-  AV.x = ax + dx*t; AV.y = ay + dy*t; AV.z = az + dz*t; AV.tx = dx / sl; AV.ty = dy / sl; AV.tz = dz / sl; return AV; }
+  AV.x = ax + dx*t; AV.y = ay + dy*t; AV.z = az + dz*t;
+  // smooth tangent: node tangents (central differences) blended along the segment, so it never jumps at a polyline corner
+  const k0 = Math.max(0, k - 1), k2 = Math.min(FS, k + 2);
+  let t0x = PL[3*k+3] - PL[3*k0], t0y = PL[3*k+4] - PL[3*k0+1], t0z = PL[3*k+5] - PL[3*k0+2];
+  let t1x = PL[3*k2] - PL[3*k], t1y = PL[3*k2+1] - PL[3*k+1], t1z = PL[3*k2+2] - PL[3*k+2];
+  let l0 = Math.sqrt(t0x*t0x + t0y*t0y + t0z*t0z) || 1, l1 = Math.sqrt(t1x*t1x + t1y*t1y + t1z*t1z) || 1;
+  let tx = t0x / l0 * (1 - t) + t1x / l1 * t, ty = t0y / l0 * (1 - t) + t1y / l1 * t, tz = t0z / l0 * (1 - t) + t1z / l1 * t; const l = Math.sqrt(tx*tx + ty*ty + tz*tz) || 1;
+  AV.tx = tx / l; AV.ty = ty / l; AV.tz = tz / l; return AV; }
 const _SD = new Float64Array(4096);
 function smoothAnchor(P, x, y, z, out, j){         // soft-min average of the patch points: weight e^(−(d − d_min)/5 mm), so it glides, never jumps
   let best = 1e9; const n = P.length / 3;
@@ -389,7 +396,7 @@ function initFibres(m){
   const PO = conv(cat('po')), PI = conv(cat('pi')), rest = m.userData.rest, n = rest.length / 3, r = WRAP_R[m.name] || 0;
   const A = new Float32Array(n * 3), B = new Float32Array(n * 3), H = new Float32Array(n * 3), T0 = new Float32Array(n * 3), AL = new Float32Array(n), u = new Float32Array(n), off = new Float32Array(n * 3), L0 = new Float32Array(n);
   // side bias, per vertex: the push over the head goes toward the side where that part of the muscle actually lies (and follows the arm half way)
-  const Fb = Object.assign({}, FB, { r, m: /delt_/.test(m.name) ? 0.007 : 0.004 });
+  const Fb = Object.assign({}, FB, { r, m: 0.004 });
   for (let i = 0; i < n; i++) {
     const px = rest[3*i], py = rest[3*i+1], pz = rest[3*i+2];
     smoothAnchor(PO, px, py, pz, A, 3*i); smoothAnchor(PI, px, py, pz, B, 3*i);
@@ -417,13 +424,101 @@ function deformFibres(m, q, ms){
     Fb.bx = ix*qw - iw*qx - iy*qz + iz*qy; Fb.by = iy*qw - iw*qy - iz*qx + ix*qz; Fb.bz = iz*qw - iw*qz - ix*qy + iy*qx;
     Fb.ax = D.A[3*i]; Fb.ay = D.A[3*i+1]; Fb.az = D.A[3*i+2];
     { const hx = D.H[3*i], hy = D.H[3*i+1], hz = D.H[3*i+2]; Fb.hx = RH2[0]*hx + RH2[3]*hy + RH2[6]*hz; Fb.hy = RH2[1]*hx + RH2[4]*hy + RH2[7]*hz; Fb.hz = RH2[2]*hx + RH2[5]*hy + RH2[8]*hz; }
-    const u = D.u[i], L = fibPoly(Fb), f = fibArc(u);
+    const u = D.u[i], L = fibPoly(Fb);
     const k = Math.min(1.3, Math.max(0.8, Math.sqrt(D.L0[i] / Math.max(1e-6, L)))), kv = 1 + (k - 1) * Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
+    const f = fibArc(u);
     // the cross-section turns with the bone it is closest to: scapula at the origin, humerus at the insertion (smooth in between)
     const w = u * u * (3 - 2 * u), R = ROTS[Math.min(NR, Math.max(0, Math.round(w * NR)))];
     const ox = D.off[3*i] * kv, oy = D.off[3*i+1] * kv, oz = D.off[3*i+2] * kv;
     const al = D.AL[i], px = ox + D.T0[3*i] * al, py = oy + D.T0[3*i+1] * al, pz = oz + D.T0[3*i+2] * al;
     let x = f.x + R[0]*px + R[3]*py + R[6]*pz, y = f.y + R[1]*px + R[4]*py + R[7]*pz, z = f.z + R[2]*px + R[5]*py + R[8]*pz;
+    for (const key of ms) { const d = mo[key], w = morphW[key]; x += d[3*i] * w; y += d[3*i+1] * w; z += d[3*i+2] * w; }
+    out[3*i] = x; out[3*i+1] = y; out[3*i+2] = z; }
+}
+// ---- deltoid: fibres as arcs over the humeral head ("spherical" line of action) ----
+// The deltoid is a thick cap draped over the head. Each vertex is described around the head centre by its distance (kept, so the cap can never sink
+// into the head or fold over itself), and by its direction: a place u along the great-circle arc from its origin direction (acromion / clavicle /
+// spine) to its insertion direction (deltoid tuberosity), plus a small angle φ to one side of that arc. As the arm moves the insertion direction turns
+// with the humerus, the arc shortens or lengthens, and every vertex slides along its own arc: the fibres stay smooth arcs and simply shorten/lengthen.
+// arc centre: a little medial, up and back from the head centre, so that seen from it no deltoid origin lies opposite its insertion
+// (from the head centre itself the front fibres run clavicle → tuberosity almost straight through it, and their arc would be undefined)
+const SPH_C = [0.025, 0.01, -0.03];
+function initSphere(m){
+  const conv = arr => { const a = new Float32Array(arr.length); for (let i = 0; i < arr.length; i += 3) { a[i] = arr[i]; a[i+1] = arr[i+2]; a[i+2] = -arr[i+1]; } return a; };
+  const G = SOFT.filter(o => o.userData.src.fib && /delt_/.test(o.name)), cat = key => { const a = []; for (const o of G) a.push(...o.userData.src.fib[key]); return a; };
+  const PO = conv(cat('po')), PI = conv(cat('pi')), rest = m.userData.rest, n = rest.length / 3;
+  const WA = new Float32Array(n * 3), WB = new Float32Array(n * 3), NN = new Float32Array(n * 3), TH = new Float32Array(n), U = new Float32Array(n), PH = new Float32Array(n), RO = new Float32Array(n);
+  const a3 = new Float32Array(3), W = new Float32Array(n * 3), BA = new Float32Array(n * 3), RB = new Float32Array(n), N0 = new Float32Array(n * 3), [cx, cy, cz] = SPH_C;
+  for (let i = 0; i < n; i++) {
+    const X = rest[3*i], Y = rest[3*i+1], Z = rest[3*i+2], px = X - cx, py = Y - cy, pz = Z - cz, ro = Math.hypot(px, py, pz) || 1e-6; RO[i] = ro; W[3*i] = px / ro; W[3*i+1] = py / ro; W[3*i+2] = pz / ro;
+    smoothAnchor(PO, X, Y, Z, a3, 0); a3[0] -= cx; a3[1] -= cy; a3[2] -= cz; let l = Math.hypot(a3[0], a3[1], a3[2]); WA[3*i] = a3[0] / l; WA[3*i+1] = a3[1] / l; WA[3*i+2] = a3[2] / l;
+    smoothAnchor(PI, X, Y, Z, a3, 0); BA[3*i] = a3[0]; BA[3*i+1] = a3[1]; BA[3*i+2] = a3[2]; a3[0] -= cx; a3[1] -= cy; a3[2] -= cz; l = Math.hypot(a3[0], a3[1], a3[2]); RB[i] = l; WB[3*i] = a3[0] / l; WB[3*i+1] = a3[1] / l; WB[3*i+2] = a3[2] / l;
+    // un-normalised arc normal ωA×ωB (its length says how well defined it is)
+    const ax = WA[3*i], ay = WA[3*i+1], az = WA[3*i+2], bx = WB[3*i], by = WB[3*i+1], bz = WB[3*i+2];
+    NN[3*i] = ay*bz - az*by; NN[3*i+1] = az*bx - ax*bz; NN[3*i+2] = ax*by - ay*bx; }
+  // where origin and insertion lie almost opposite each other across the head (front of the deltoid) that normal is shaky:
+  // smooth it over the mesh so neighbouring vertices share one arc plane
+  const idx = m.geometry.index.array, T = new Float32Array(n * 3), C = new Float32Array(n);
+  for (let it = 0; it < 25; it++) { T.set(NN); C.fill(1);
+    for (let t = 0; t < idx.length; t += 3) for (let e = 0; e < 3; e++) { const a = idx[t+e], c = idx[t+(e+1)%3]; T[3*a] += NN[3*c]; T[3*a+1] += NN[3*c+1]; T[3*a+2] += NN[3*c+2]; C[a]++; }
+    for (let i = 0; i < 3 * n; i++) NN[i] = T[i] / C[(i / 3) | 0]; }
+  for (let i = 0; i < n; i++) {
+    const ax = WA[3*i], ay = WA[3*i+1], az = WA[3*i+2], wx = W[3*i], wy = W[3*i+1], wz = W[3*i+2];
+    const N = arcNormal(ax, ay, az, WB[3*i], WB[3*i+1], WB[3*i+2], NN[3*i], NN[3*i+1], NN[3*i+2]), nx = N.x, ny = N.y, nz = N.z;
+    N0[3*i] = nx; N0[3*i+1] = ny; N0[3*i+2] = nz;
+    const th = arcAngle(ax, ay, az, WB[3*i], WB[3*i+1], WB[3*i+2], nx, ny, nz, Math.PI / 2);
+    const ph = Math.asin(Math.max(-1, Math.min(1, wx*nx + wy*ny + wz*nz))), phb = Math.asin(Math.max(-1, Math.min(1, WB[3*i]*nx + WB[3*i+1]*ny + WB[3*i+2]*nz)));
+    const al = arcAngle(ax, ay, az, wx, wy, wz, nx, ny, nz, th / 2), uu = Math.abs(th) > 1e-4 ? al / th : 0;
+    // the arc plane need not pass exactly through the insertion: the insertion's own tilt off the plane is blended in along the fibre (0 → 1)
+    TH[i] = th; U[i] = uu; PH[i] = ph - Math.min(1, Math.max(0, uu)) * phb; }
+  m.userData.sphere = { WA, WB, BA, RB, NN, N0, TH, U, PH, RO };
+}
+// arc-plane normal through ωA and ωB (so the arc really ends at the insertion), steadied by a smooth reference normal where the
+// two directions are nearly in line or opposite (the arc then takes the reference's side)
+const SPH_EPS = 2, NV = { x:0, y:0, z:0 };
+function arcNormal(ax, ay, az, bx, by, bz, rx, ry, rz){
+  const cx = ay*bz - az*by, cy = az*bx - ax*bz, cz = ax*by - ay*bx;
+  { const d = rx*ax + ry*ay + rz*az; rx -= ax*d; ry -= ay*d; rz -= az*d; const l = Math.hypot(rx, ry, rz) || 1; rx /= l; ry /= l; rz /= l; }
+  let nx = cx + SPH_EPS*rx, ny = cy + SPH_EPS*ry, nz = cz + SPH_EPS*rz; { const d = nx*ax + ny*ay + nz*az; nx -= ax*d; ny -= ay*d; nz -= az*d; }
+  const l = Math.hypot(nx, ny, nz) || 1; NV.x = nx / l; NV.y = ny / l; NV.z = nz / l; return NV;
+}
+// signed angle from ωA to (ω projected on the plane ⟂ n), about n, chosen within ±180° of ref
+function arcAngle(ax, ay, az, wx, wy, wz, nx, ny, nz, ref){
+  const d = wx*nx + wy*ny + wz*nz, px = wx - nx*d, py = wy - ny*d, pz = wz - nz*d;
+  let a = Math.atan2((ay*pz - az*py)*nx + (az*px - ax*pz)*ny + (ax*py - ay*px)*nz, ax*px + ay*py + az*pz);
+  a = ref + (a - ref) - 2 * Math.PI * Math.round((a - ref) / (2 * Math.PI)); return a;
+}
+function deformSphere(m, q, ms){
+  const D = m.userData.sphere, out = m.geometry.getAttribute('position').array, mo = m.userData.morphs, n = D.U.length;
+  const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+  for (let j = 0; j <= NR; j++) { _bq.identity().slerp(q, j / NR); ROTS[j] = new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(_bq)).elements.slice(); }
+  const Rh = ROTS[NR >> 1], [cx, cy, cz] = SPH_C;
+  for (let i = 0; i < n; i++) {
+    // insertion carried by the humerus (about the head centre), then seen from the arc centre
+    const ax = D.WA[3*i], ay = D.WA[3*i+1], az = D.WA[3*i+2], vx = D.BA[3*i], vy = D.BA[3*i+1], vz = D.BA[3*i+2];
+    const ix = qw*vx + qy*vz - qz*vy, iy = qw*vy + qz*vx - qx*vz, iz = qw*vz + qx*vy - qy*vx, iw = -qx*vx - qy*vy - qz*vz;
+    let bx = ix*qw - iw*qx - iy*qz + iz*qy - cx, by = iy*qw - iw*qy - iz*qx + ix*qz - cy, bz = iz*qw - iw*qz - ix*qy + iy*qx - cz;
+    const rb = Math.hypot(bx, by, bz) || 1e-6; bx /= rb; by /= rb; bz /= rb;
+    // arc plane: the rest plane turned half way with the arm (a smooth field, never a shaky cross product), kept through the origin direction
+    const n0x = D.NN[3*i], n0y = D.NN[3*i+1], n0z = D.NN[3*i+2];
+    const N = arcNormal(ax, ay, az, bx, by, bz, Rh[0]*n0x + Rh[3]*n0y + Rh[6]*n0z, Rh[1]*n0x + Rh[4]*n0y + Rh[7]*n0z, Rh[2]*n0x + Rh[5]*n0y + Rh[8]*n0z), nx = N.x, ny = N.y, nz = N.z;
+    const th = arcAngle(ax, ay, az, bx, by, bz, nx, ny, nz, D.TH[i]);
+    // past either end of the arc a vertex keeps its rest angle beyond that end (it rides with the bone there instead of being stretched)
+    const u = D.U[i], a = u < 0 ? u * D.TH[i] : u > 1 ? th + (u - 1) * D.TH[i] : u * th, ca = Math.cos(a), sa = Math.sin(a);
+    const tx = ny*az - nz*ay, ty = nz*ax - nx*az, tz = nx*ay - ny*ax;
+    const wx = ax*ca + tx*sa, wy = ay*ca + ty*sa, wz = az*ca + tz*sa;
+    // sideways direction: at the origin end the rest arc normal carried by the scapula (so the attachment stays put),
+    // turning into the current arc normal toward the insertion
+    const uc0 = Math.min(1, Math.max(0, u)), w = uc0 * uc0 * (3 - 2 * uc0), R = ROTS[Math.round(w * NR)], m0x = D.N0[3*i], m0y = D.N0[3*i+1], m0z = D.N0[3*i+2];
+    let sx = (R[0]*m0x + R[3]*m0y + R[6]*m0z) * (1 - w) + nx * w, sy = (R[1]*m0x + R[4]*m0y + R[7]*m0z) * (1 - w) + ny * w, sz = (R[2]*m0x + R[5]*m0y + R[8]*m0z) * (1 - w) + nz * w;
+    { const d = sx*wx + sy*wy + sz*wz; sx -= wx*d; sy -= wy*d; sz -= wz*d; const l = Math.hypot(sx, sy, sz) || 1; sx /= l; sy /= l; sz /= l; }
+    const phb = Math.asin(Math.max(-1, Math.min(1, bx*nx + by*ny + bz*nz))), ph = D.PH[i] + uc0 * phb, cp = Math.cos(ph), sp = Math.sin(ph);
+    const ox = wx*cp + sx*sp, oy = wy*cp + sy*sp, oz = wz*cp + sz*sp;
+    // a shortened belly thickens outward (≈ constant volume), a stretched one thins
+    const k = Math.min(1.3, Math.max(0.8, Math.sqrt(Math.abs(D.TH[i]) / Math.max(1e-3, Math.abs(th))))), belly = Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
+    // distance from the arc centre: the insertion end follows the insertion's new distance; a shortened belly thickens outward (≈ constant volume)
+    const uc = Math.min(1, Math.max(0, u)), ro = D.RO[i] + uc * (rb - D.RB[i]) + (k - 1) * belly * 0.012;
+    let x = ox*ro + cx, y = oy*ro + cy, z = oz*ro + cz;
     for (const key of ms) { const d = mo[key], w = morphW[key]; x += d[3*i] * w; y += d[3*i+1] * w; z += d[3*i+2] * w; }
     out[3*i] = x; out[3*i+1] = y; out[3*i+2] = z; }
 }
@@ -446,7 +541,8 @@ function solvePose(){
   for (const m of SOFT) {
     const rest = m.userData.rest, bin = m.userData.bin, pa = m.geometry.getAttribute('position'), out = pa.array, mo = m.userData.morphs;
     const ms = mo ? Object.keys(mo).filter(k => morphW[k] > 0.001) : [];
-    if (m.userData.src.fib && FIBRES.on) { if (!m.userData.fibre) initFibres(m); deformFibres(m, qGH, ms); }
+    if (m.userData.src.fib && FIBRES.on && /delt_/.test(m.name) && !/nosphere/.test(location.search)) { if (!m.userData.sphere) initSphere(m); deformSphere(m, qGH, ms); }
+    else if (m.userData.src.fib && FIBRES.on) { if (!m.userData.fibre) initFibres(m); deformFibres(m, qGH, ms); }
     else for (let i = 0, n = rest.length / 3; i < n; i++) {
       let x = rest[3*i], y = rest[3*i+1], z = rest[3*i+2];
       for (const k of ms) { const d = mo[k], w = morphW[k]; x += d[3*i] * w; y += d[3*i+1] * w; z += d[3*i+2] * w; }
