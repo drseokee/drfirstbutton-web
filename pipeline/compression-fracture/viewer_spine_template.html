@@ -68,14 +68,13 @@
 }
 </style>
 <link rel="stylesheet" href="../../common/viewer-mobile.css">
-<style>#ctl > span, #ctl button { white-space: nowrap; } @media (max-width: 720px) { #ctl .ticks { display: none; } #ctl { padding-bottom: 8px !important; } #ctl > div { flex: 1 1 auto; min-width: 0; } #ctl > div input[type=range] { width: 100% !important; display: block; } #ctl #gradeLbl { min-width: 0 !important; white-space: nowrap; } }</style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <div id="caption"></div>
 <div id="subbar"></div>
 <div id="stages"></div>
-<div id="ctl"><span>주저앉음</span><div style="position:relative;display:inline-block"><input id="collapse" type="range" min="0" max="100" value="0"><div class="ticks" style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#a6a6ab;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:33%;transform:translateX(-50%)">경도 20%</span><span style="position:absolute;left:67%;transform:translateX(-50%)">중등도 40%</span><span style="position:absolute;right:0">중증 60%</span></div></div><span id="gradeLbl" style="min-width:64px;text-align:center"></span><button id="retro">불안정형(후벽 밀림)</button></div>
+<div id="ctl"><span>주저앉음</span><div style="position:relative;display:inline-block"><input id="collapse" type="range" min="0" max="100" value="0"><div style="position:absolute;left:0;right:0;top:22px;font-size:10.5px;color:#a6a6ab;height:14px"><span style="position:absolute;left:0">정상</span><span style="position:absolute;left:33%;transform:translateX(-50%)">경도 20%</span><span style="position:absolute;left:67%;transform:translateX(-50%)">중등도 40%</span><span style="position:absolute;right:0">중증 60%</span></div></div><span id="gradeLbl" style="min-width:64px;text-align:center"></span><button id="retro">불안정형(후벽 밀림)</button></div>
 <div id="panel">
   <h1>척추 압박골절</h1>
   <p class="sub">요추 3번 골다공증성 압박골절</p>
@@ -83,7 +82,8 @@
     <summary>층 보이기 · 표현 · 보는 방향 · 조작</summary>
   
   <h2>층 보이기</h2>
-    <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도" hidden>
+    <input type="range" id="skinop" min="0" max="1" step="0.05" value="1" title="피부 투명도">
+    <label class="row"><input type="checkbox" data-layer="tendon" checked><span class="sw" style="background:#f4efe2"></span>힘줄</label>
   <label class="row"><input type="checkbox" data-layer="lig" checked><span class="sw" style="background:#a9bfd6"></span>인대</label>
   <label class="row"><input type="checkbox" data-layer="nerve" checked><span class="sw" style="background:#f2c94c"></span>척수막·마미신경</label>
   <label class="row"><input type="checkbox" data-layer="disc" checked><span class="sw" style="background:#c9b5d9"></span>추간판</label>
@@ -98,7 +98,7 @@
       Ctrl+드래그 확대 · Alt+드래그 화면 기울이기<br>
       더블클릭: 그 지점을 중심으로 · Shift+휠: 위아래 이동<br>
       방향키 회전 · Shift+방향키 이동 · +/− 확대 · R 원래대로<br>
-      Space/PageDown 다음 · PageUp 이전 · 1~3 단계
+      Space/PageDown 다음 · PageUp 이전 · 1~5 단계
     </div>
   <h2>보는 방향</h2>
   <div class="views">
@@ -203,8 +203,7 @@ var applyVisibility = function(){
 
 // ==== COMMON CONTROLS BEGIN ====
 // ---------- camera (common) ----------
-const FRAME_C = (() => { const b = new THREE.Box3(); meshes.forEach(m => { if (!m.userData.cut && m.userData.layer !== 'skin') b.expandByObject(m); }); const c = b.getCenter(new THREE.Vector3()); return [c.x, c.y, c.z]; })();
-const target = new THREE.Vector3(...FRAME_C), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
+const target = new THREE.Vector3(), off = new THREE.Vector3(0, 0, 0.30), up = new THREE.Vector3(0, 1, 0);
 const camGoal = { off: off.clone(), up: up.clone(), target: target.clone(), t: 1 };
 let RIM_BASE = RIM.value;
 function applyCam(){ camera.position.copy(target).add(off); camera.up.copy(up); camera.lookAt(target);
@@ -219,7 +218,7 @@ const VIEWS = {
 function setView(name, instant){
   if (name === 'reset') name = 'left';
   const v = VIEWS[name]; if (!v) return;
-  camGoal.target.set(...(v.target || FRAME_C));
+  camGoal.target.set(...(v.target || [0,0,0]));
   camGoal.off.set(...v.off).normalize().multiplyScalar(v.r);
   const f = camGoal.target.clone().sub(camGoal.target.clone().add(camGoal.off)).normalize();
   camGoal.up.set(...v.up); camGoal.up.sub(f.clone().multiplyScalar(camGoal.up.dot(f))).normalize();
@@ -276,7 +275,7 @@ addEventListener('keydown', e => {
   if (typeof goStage === 'function' && typeof STAGES !== 'undefined') {
     if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); goStage(Math.min(STAGES.length - 1, Math.max(0, stage + 1))); }
     if (e.key === 'PageUp' || e.key === 'Backspace') { e.preventDefault(); goStage(Math.max(0, stage - 1)); }
-    if (e.key >= '1' && e.key <= String(STAGES.length)) goStage(+e.key - 1);
+    if (e.key >= '1' && e.key <= '5') goStage(+e.key - 1);
   }
 });
 // ==== COMMON CONTROLS END ====
@@ -317,7 +316,7 @@ document.getElementById('rimamt').addEventListener('input', e => { if (document.
 // ---------- loop ----------
 function resize(){ renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
-function scaleBar(){ const d = camera.position.distanceTo(target), px = camera.zoom * (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
+function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
   document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
 
 const A2S = a => [-a[0], a[2], a[1]];
@@ -412,11 +411,11 @@ const STAGES = [
   { name:'구조', cap:'흉추 12번부터 천골까지의 척추뼈, 사이의 추간판, 척수관 속 척수 끝(원추)과 마미신경, 뒤쪽 인대입니다. 이 모형은 요추 3번 골절을 보여줍니다.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0, retro:0, por:0, brace:0, vp:0, screws:0, section:0 }, ctl:false },
   { name:'다치는 순간', cap:'', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, retro:0, brace:0, vp:0, screws:0 }, ctl:true,
     subs:[ { name:'ⓐ 골다공증', cap:'뼈 속 잔기둥(해면골)이 성글어져 같은 뼈라도 버티는 힘이 약해집니다. 단면에서 정상↔골다공증을 비교하세요.', set:{ retro:0, collapse:0, por:1, section:1 }, action:{ label:'정상 ↔ 골다공증', toggle:'por' } },
-           { name:'ⓑ 주저앉음', cap:'엉덩방아를 찧거나 물건을 들 때 하중이 내려오면, 약해진 체부의 앞쪽이 쐐기 모양으로 찌그러집니다. 슬라이더로 경도→중등도→중증을 보세요.', set:{ retro:0, por:1, section:0, collapse:0.5 } },
+           { name:'ⓑ 주저앉음', cap:'엉덩방아를 찧거나 물건을 들 때 하중이 내려오면, 약해진 체부의 앞쪽이 쐐기 모양으로 찌그러집니다. 슬라이더로 경도→중등도→중증을 보세요.', set:{ retro:0, por:1, section:0 } },
            { name:'ⓒ 불안정형', cap:'뒤쪽 벽까지 무너져 척수관 쪽으로 밀리면(불안정형) 신경이 눌리고 혈종이 고입니다. 단면에서 후벽이 뒤로 터져 나오는 것을 보세요.', set:{ retro:1, por:1, section:1, collapse:0.8 } } ] },
   { name:'치료', cap:'대부분 수술 없이 낫습니다. 아래 버튼으로 단계를 보세요.', set:{ layers:{disc:1,lig:1,nerve:1,bone:1}, collapse:0.67, retro:0, por:1, brace:0, vp:0, screws:0, section:0 }, ctl:false,
-    subs:[ { name:'① 보존 치료', cap:'침상안정 뒤 보조기로 허리를 세워 고정하고, 진통제와 골다공증 약으로 뼈를 다시 촘촘하게 만듭니다. 대개 6~12주 안에 아뭅니다.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'골다공증 약', on:'복용 중…', set:{ por:0 } } },
-           { name:'② 척추성형술', cap:'통증이 심하면 뒤쪽에서 척추경 한가운데를 통해 굵은 바늘(캐뉼라)을 체부 속으로 넣고, 풍선으로 조금 세운 뒤 골시멘트를 채워 굳힙니다. "시술 시작"을 누르세요.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'시술 시작', on:'시술 진행 중…', set:{ vp:1 } } },
+    subs:[ { name:'① 보존 치료', cap:'침상안정 뒤 보조기로 허리를 세워 고정하고, 진통제와 골다공증 약으로 뼈를 다시 촘촘하게 만듭니다. 대개 6~12주 안에 아뭅니다.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'💊 골다공증 약', on:'복용 중…', set:{ por:0 } } },
+           { name:'② 척추성형술', cap:'통증이 심하면 뒤쪽에서 척추경 한가운데를 통해 굵은 바늘(캐뉼라)을 체부 속으로 넣고, 풍선으로 조금 세운 뒤 골시멘트를 채워 굳힙니다. "시술 시작"을 누르세요.', set:{ collapse:0.67, vp:0, screws:0, por:1, section:1, retro:0 }, action:{ label:'💉 시술 시작', on:'시술 진행 중…', set:{ vp:1 } } },
            { name:'③ 나사 고정술', cap:'뒤쪽 벽이 무너져 불안정하거나 신경 증상이 있으면, 위아래 척추에 척추경 나사를 넣고 막대로 연결해 고정합니다.', set:{ collapse:0.8, retro:1, section:0, vp:0, screws:1, por:1 } } ] },
 ];
 let stage = -1, sub = -1, vpT = 0;
@@ -469,18 +468,7 @@ let last = performance.now();
 })(performance.now());
 reparentDiscs(); placeProps();
 applyVisibility(); setView('left'); goStage(0);
-// keep the model in the free space between the top panel and the bottom bars (smoothly, so caption changes don't jump the view)
-const fit = { y: 0, z: 1, t: 0 };
-function fitTick(now){
-  if (now - fit.t > 200) { fit.t = now; const H = innerHeight, small = innerWidth <= 720 || innerHeight <= 520;
-    let bot = H; for (const id of ['caption', 'ctl', 'subbar', 'stages']) { const el = document.getElementById(id); if (!el || getComputedStyle(el).display === 'none' || !el.offsetHeight) continue; bot = Math.min(bot, el.getBoundingClientRect().top); }
-    const pn = document.getElementById('panel'), top = small && pn ? pn.getBoundingClientRect().bottom : 0;
-    const free = Math.max(H * 0.35, bot - top - 12);
-    fit.goalY = (H - bot - top) / 2; fit.goalZ = Math.min(1, free / (H * 0.95)); }
-  if (fit.goalY === undefined) return;
-  fit.y += (fit.goalY - fit.y) * 0.12; fit.z += (fit.goalZ - fit.z) * 0.12;
-  camera.zoom = fit.z; camera.setViewOffset(innerWidth, innerHeight, 0, fit.y, innerWidth, innerHeight); camera.updateProjectionMatrix(); }
-(function loop(now){ requestAnimationFrame(loop); fitTick(now || performance.now()); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
+(function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
 
 // mobile: start with the side panel folded and lift the caption above the control bars
 (function(){ const narrow = innerWidth < 720 || innerHeight < 520; const d = document.querySelector('#panel details'); if (d) d.open = !narrow;
