@@ -677,6 +677,16 @@ let last = performance.now();
   for (const nm of ['meniscus__medial', 'meniscus__lateral', 'lig__acl']) { const m = meshes.find(x => x.name === nm); if (m) m.visible = !(anim.tka > 0.5) && state.layers[m.userData.layer] && !(state.hidden && state.hidden.has(nm)); }
 })(performance.now());
 goStage(0);
+// 바로가기 (주사 카드 등에서): 3d.html#go=치료/주사  → 그 단계·하위 단계로 바로 열고, 주사 동작 버튼이 있으면 눌러 재생
+(function deepLink(){
+  const m = location.hash.match(/go=([^&]+)/); if (!m) return;
+  const [a, b] = decodeURIComponent(m[1]).split('/');
+  const i = STAGES.findIndex(s => s.name === a); if (i < 0) return;
+  const subs = STAGES[i].subs || []; const k = b ? subs.findIndex(x => x.name === b || x.name.replace(/^[①-⑩]\s*/, '') === b) : -1;
+  goStage(i, k >= 0 ? k : undefined);
+  const act = k >= 0 && subs[k].action;
+  if (act && act.set) setTimeout(() => { const btn = [...document.querySelectorAll('#subbar button')].find(x => x.textContent === act.label); if (btn) btn.click(); }, 1200);
+})();
 applyVisibility(); setView('anterior');
 (function loop(){ requestAnimationFrame(loop); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })();
 

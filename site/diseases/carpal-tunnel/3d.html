@@ -719,6 +719,16 @@ addEventListener('resize', resize); resize();
 function scaleBar(){ const d = camera.position.distanceTo(target), px = (0.01 / (2*d*Math.tan(camera.fov*Math.PI/360))) * innerHeight;
   document.querySelector('#scale i').style.width = Math.max(4, px) + 'px'; }
 goStage(0); setView('palmar', true);
+// 바로가기 (주사 카드 등에서): 3d.html#go=치료/주사  → 그 단계·하위 단계로 바로 열고, 주사 동작 버튼이 있으면 눌러 재생
+(function deepLink(){
+  const m = location.hash.match(/go=([^&]+)/); if (!m) return;
+  const [a, b] = decodeURIComponent(m[1]).split('/');
+  const i = STAGES.findIndex(s => s.name === a); if (i < 0) return;
+  const subs = STAGES[i].subs || []; const k = b ? subs.findIndex(x => x.name === b || x.name.replace(/^[①-⑩]\s*/, '') === b) : -1;
+  goStage(i, k >= 0 ? k : undefined);
+  const act = k >= 0 && subs[k].action;
+  if (act && act.set) setTimeout(() => { const btn = [...document.querySelectorAll('#subbar button')].find(x => x.textContent === act.label); if (btn) btn.click(); }, 1200);
+})();
 let last = performance.now();
 (function loop(now){ requestAnimationFrame(loop); const dt = Math.min(0.05, (now - last) / 1000); last = now;
   camTick(dt); tick(dt); scaleBar(); OUTW.value = camera.position.distanceTo(target) * 0.00045; renderer.render(scene, camera); })(last);

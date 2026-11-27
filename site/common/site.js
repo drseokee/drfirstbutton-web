@@ -20,6 +20,7 @@
       <a class="brand" href="${root}/index.html">${MARK}${brand}</a>
       <nav class="site-nav" aria-label="주요 메뉴">
         <a href="${root}/index.html#diseases"${page === 'disease' ? ' aria-current="page"' : ''}>질환 3D</a>
+        <a href="${root}/injections.html"${page === 'injections' ? ' aria-current="page"' : ''}>주사 치료</a>
         <a href="${root}/index.html#about">소개</a>
         ${realLinks.map(l => ext(l).replace('<a ', '<a class="opt" ')).join('')}
       </nav></div>`;
@@ -30,7 +31,7 @@
   footer.className = 'site-footer';
   footer.innerHTML = `<div class="wrap">
       <div class="top"><span class="brand">${brand}</span>
-        <nav aria-label="바닥 메뉴"><a href="${root}/index.html#diseases">질환 3D</a><a href="${root}/index.html#about">소개</a>${realLinks.map(ext).join('')}</nav></div>
+        <nav aria-label="바닥 메뉴"><a href="${root}/index.html#diseases">질환 3D</a><a href="${root}/injections.html">주사 치료</a><a href="${root}/index.html#about">소개</a>${realLinks.map(ext).join('')}</nav></div>
       <p class="notice">${SITE.disclaimer || ''}</p>
       <p>${SITE.attribution || ''} · © ${new Date().getFullYear()} ${brand}</p></div>`;
   document.body.append(footer);

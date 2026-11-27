@@ -826,6 +826,16 @@ let last = performance.now();
 { const a = document.getElementById('arcPain'); a.setAttribute('d', `M${(-43*Math.sin(Math.PI/3)).toFixed(1)},${(43*Math.cos(Math.PI/3)).toFixed(1)} A43,43 0 0 1 ${(-43*Math.sin(2*Math.PI/3)).toFixed(1)},${(43*Math.cos(2*Math.PI/3)).toFixed(1)}`); }
 for (const k in VIEWS) if (!VIEWS[k].target) VIEWS[k].target = k === 'close' || k === 'superior' ? [0.004, 0.004, 0] : [0.012, -0.03, 0];
 setView('anterior'); goStage(0);
+// 바로가기 (주사 카드 등에서): 3d.html#go=치료/주사  → 그 단계·하위 단계로 바로 열고, 주사 동작 버튼이 있으면 눌러 재생
+(function deepLink(){
+  const m = location.hash.match(/go=([^&]+)/); if (!m) return;
+  const [a, b] = decodeURIComponent(m[1]).split('/');
+  const i = STAGES.findIndex(s => s.name === a); if (i < 0) return;
+  const subs = STAGES[i].subs || []; const k = b ? subs.findIndex(x => x.name === b || x.name.replace(/^[①-⑩]\s*/, '') === b) : -1;
+  goStage(i, k >= 0 ? k : undefined);
+  const act = k >= 0 && subs[k].action;
+  if (act && act.set) setTimeout(() => { const btn = [...document.querySelectorAll('#subbar button')].find(x => x.textContent === act.label); if (btn) btn.click(); }, 1200);
+})();
 // keep the model in the free space between the top panel and the bottom bars (smoothly, so caption changes don't jump the view)
 const fit = { y: 0, z: 1, t: 0 };
 function fitTick(now){
