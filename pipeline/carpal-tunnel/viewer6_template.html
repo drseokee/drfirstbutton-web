@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>손목터널증후군 — 환자 설명 (Step 6)</title>
+<link rel="icon" href="../../favicon-32.png" sizes="32x32" type="image/png">
+<link rel="icon" href="../../favicon-48.png" sizes="48x48" type="image/png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
   :root { --bg0:#0d0d0f; --bg1:#0d0d0f; --panel:rgba(28,28,31,.84); --ink:#f2f2f0; --dim:#a6a6ab; --line:rgba(255,255,255,.12); --acc:#f2f2f0; }
@@ -121,6 +124,7 @@
 <div id="foot">교육용 모형입니다 · 모델: Z-Anatomy (CC BY-SA 4.0) · BodyParts3D · 힘줄 9개는 도식화</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../../common/muscle-fibres.js"></script>
 <script>
 const DATA = __DATA__;
 const KO = {
@@ -276,7 +280,39 @@ function skinMesh(m){
   root.remove(m); root.add(sm); sm.bind(skeleton, new THREE.Matrix4());
   return sm;
 }
-for (let i = 0; i < meshes.length; i++) if (skinnable(meshes[i])) { const sm = skinMesh(meshes[i]); meshes[i] = sm; byName[sm.name] = sm; }
+// muscles and tendons that cross the finger joints: straight cords from bone to bone, wrapped over the joint (shared muscle-fibres.js)
+// instead of skin blending, which bent the intrinsic muscles at the knuckle and left the extensor tendons sticking straight out of a
+// bent finger. ?oldmuscle = previous blend
+const FIBRES = { on: !/[?&]oldmuscle/.test(location.search) && !!window.MuscleFibres, list: [], key: '' };
+const fibRig = FIBRES.on ? MuscleFibres.rig(root, allBones) : null;
+const fibreable = m => FIBRES.on && (m.userData.layer === 'muscle' || m.userData.layer === 'tendon') && !m.userData.rig && !m.geometry.morphAttributes.position
+  && (skinnable(m) || m.userData.base === 'muscle__forearm');
+function fibreHand(m){
+  const g = m.geometry, pos = g.getAttribute('position'), n = pos.count, seg0 = new Uint8Array(n), seg1 = new Uint8Array(n), t = new Float32Array(n);
+  const fs = fingers.filter(fg => fg.variant === (m.userData.cut ? '__cut' : '')), p = new THREE.Vector3(), d = new THREE.Vector3(), JC = new Map();
+  for (const fg of fs) { JC.set(fg.idx, fg.MCP); JC.set(fg.idx + 1, fg.PIP); JC.set(fg.idx + 2, fg.DIP); }
+  for (let i = 0; i < n; i++) {
+    p.fromBufferAttribute(pos, i);
+    let best = null, bestLat = 0.013;
+    for (const fg of fs) { d.copy(p).sub(fg.MCP); const s = d.dot(fg.a), lat = d.clone().sub(fg.a.clone().multiplyScalar(s)).length();
+      if (s > -0.012 && lat < bestLat) { bestLat = lat; best = { fg, s }; } }
+    if (!best) continue;                                                        // palm / forearm: stays on the hand
+    const { fg, s } = best, J = [[0, 0.008], [fg.L1, 0.005], [fg.L2, 0.004]], B = [0, fg.idx, fg.idx + 1, fg.idx + 2];
+    // bone by position along the finger; within ±z of a joint the zone between the two bones (t = 0 → 1 across it)
+    let k = 0; while (k < 3 && s > J[k][0] + J[k][1]) k++;
+    if (k < 3 && s > J[k][0] - J[k][1]) { seg0[i] = B[k]; seg1[i] = B[k + 1]; t[i] = (s - (J[k][0] - J[k][1])) / (2 * J[k][1]); }
+    else { seg0[i] = B[k]; seg1[i] = B[Math.min(3, k + 1)]; t[i] = 0; }
+  }
+  const fib = MuscleFibres.build({ rest: pos.array.slice(), index: g.index.array, seg0, seg1, t, joint: (a, b) => ({ seg: b, c: JC.get(b).toArray() }),
+    soft: 0.0015, margin: 0.0008, weld: 0.0003, thicken: m.userData.layer === 'muscle' });
+  FIBRES.list.push({ m, fib });
+}
+for (let i = 0; i < meshes.length; i++) { if (fibreable(meshes[i])) { fibreHand(meshes[i]); continue; } if (skinnable(meshes[i])) { const sm = skinMesh(meshes[i]); meshes[i] = sm; byName[sm.name] = sm; } }
+function updateFibres(){
+  if (!FIBRES.on) return; const key = anim.flex.toFixed(4); if (key === FIBRES.key && !FIBRES.list.some(F => F.m.visible && F.key !== key)) return; FIBRES.key = key;
+  fibRig.update();
+  for (const F of FIBRES.list) { const { m, fib } = F; if (!m.visible || F.key === key) continue; F.key = key; const pa = m.geometry.getAttribute('position'); fib.apply(pa.array, fibRig.M, fibRig.Q); pa.needsUpdate = true; m.geometry.computeVertexNormals(); m.geometry.boundingSphere = null; m.geometry.boundingBox = null; }
+}
 let motionT = 0;
 function motionTick(dt){
   if (state.motion) motionT += dt;
@@ -284,7 +320,7 @@ function motionTick(dt){
   anim.flex += (flex - anim.flex) * Math.min(1, dt * 6);
   const q = (n, deg) => new THREE.Quaternion().setFromAxisAngle(n, deg * Math.PI / 180 * anim.flex);
   for (const fg of fingers) { const th = fg.f === 1; fg.bM.quaternion.copy(q(fg.n, th ? 40 : 70)); fg.bP.quaternion.copy(q(fg.n, th ? 60 : 85)); fg.bD.quaternion.copy(q(fg.n, th ? 0 : 45)); }
-  GLIDE.value = anim.flex;
+  GLIDE.value = anim.flex; updateFibres();
 }
 // ---------- runtime tendons: each flexor tendon is re-swept every frame through stations that ride on the finger bones.
 // The path shortens as the finger flexes; the surplus is pulled proximally through the carpal tunnel (length is conserved),
